@@ -1,0 +1,150 @@
+import React, { useCallback, useMemo, useState } from "react";
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Stack, useRouter } from "expo-router";
+import { ErrorBoundary } from "@/components/common/ErrorBoundary";
+import { Check, Loader2, X } from "lucide-react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { CategoryTypeSection, Category } from "@/components/add-lesson/CategoryTypeSection";
+import { StudentVehicleSection, Student, Vehicle } from "@/components/add-lesson/StudentVehicleSection";
+import { ScheduleSection } from "@/components/add-lesson/ScheduleSection";
+import { LocationSection } from "@/components/add-lesson/LocationSection";
+import { NotesSection } from "@/components/add-lesson/NotesSection";
+
+export type Option = { label: string; value: string };
+
+export default function AddLessonScreen() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+
+  const appointmentTypes: Option[] = useMemo(() => [
+    { label: "Rijles", value: "Rijles" },
+    { label: "Praktijkexamen", value: "Praktijkexamen" },
+    { label: "Theorieles", value: "Theorieles" },
+    { label: "Tussentijdse toets", value: "Tussentijdse toets" },
+  ], []);
+
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [category, setCategory] = useState<Category>("Auto");
+  const [type, setType] = useState<string>("Rijles");
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
+  const [date, setDate] = useState<string>(new Date().toISOString().slice(0, 10));
+  const [time, setTime] = useState<string>("09:00");
+  const [durationHours, setDurationHours] = useState<number>(1);
+  const [durationMinutes, setDurationMinutes] = useState<number>(0);
+  const [location, setLocation] = useState<string>("");
+  const [notes, setNotes] = useState<string>("");
+
+  const isPauseOrLeave = category === "Pauze" || category === "Verlof";
+
+  const mockStudents: Student[] = useMemo(() => ([
+    { id: "1", name: "Emma van der Berg", email: "emma@example.com", profileImage: "https://images.unsplash.com/photo-1494790108755-2616b612b5bc?w=150", recentLessons: 12, hoursCompleted: 18 },
+    { id: "2", name: "Lucas Janssen", email: "lucas@example.com", profileImage: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150", recentLessons: 8, hoursCompleted: 12 },
+    { id: "3", name: "Sophie de Wit", email: "sophie@example.com", profileImage: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150", recentLessons: 25, hoursCompleted: 40 },
+    { id: "4", name: "Daan Bakker", email: "daan@example.com", profileImage: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150", recentLessons: 15, hoursCompleted: 22 },
+  ]), []);
+
+  const mockVehicles: Vehicle[] = useMemo(() => ([
+    { id: "1", model: "Volkswagen Polo", licensePlate: "12-ABC-3", type: "Handschakeling", year: 2022 },
+    { id: "2", model: "Toyota Yaris", licensePlate: "45-DEF-6", type: "Automaat", year: 2023 },
+    { id: "3", model: "Opel Corsa", licensePlate: "78-GHI-9", type: "Handschakeling", year: 2021 },
+  ]), []);
+
+  const onSave = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      console.log("Saving lesson", { category, type, selectedStudentId, selectedVehicleId, date, time, durationHours, durationMinutes, location, notes });
+      await new Promise((res) => setTimeout(res, 600));
+      Alert.alert("Opgeslagen", isPauseOrLeave ? `${category} opgeslagen.` : "De les is opgeslagen.");
+      router.back();
+    } catch (e) {
+      console.error(e);
+      Alert.alert("Fout", "Er is een fout opgetreden bij het opslaan.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [category, type, selectedStudentId, selectedVehicleId, date, time, durationHours, durationMinutes, location, notes, isPauseOrLeave, router]);
+
+  return (
+    <ErrorBoundary>
+      <Stack.Screen options={{ title: isPauseOrLeave ? `${category} toevoegen` : "Les toevoegen", headerRight: () => (
+        <TouchableOpacity onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Sluiten" style={styles.iconBtn}>
+          <X color="#111827" size={20} />
+        </TouchableOpacity>
+      ) }} />
+
+      <KeyboardAvoidingView behavior={Platform.select({ ios: "padding", default: undefined })} style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={[styles.container, { paddingTop: 8 + insets.top, paddingBottom: 16 + insets.bottom }]} testID="add-lesson-screen" keyboardShouldPersistTaps="handled">
+          <View style={styles.section}>
+            <CategoryTypeSection
+              selectedCategory={category}
+              selectedAppointmentType={type}
+              appointmentTypes={appointmentTypes.map((a) => a.value)}
+              onCategoryChanged={(c) => setCategory(c)}
+              onAppointmentTypeChanged={(t) => setType(t)}
+              showAppointmentType={!isPauseOrLeave}
+              testID="category-type"
+            />
+          </View>
+
+          {!isPauseOrLeave && (
+            <View style={styles.section}>
+              <StudentVehicleSection
+                students={mockStudents}
+                vehicles={mockVehicles}
+                selectedStudentId={selectedStudentId}
+                selectedVehicleId={selectedVehicleId}
+                onStudentSelected={(id) => setSelectedStudentId(id)}
+                onVehicleSelected={(id) => setSelectedVehicleId(id)}
+              />
+            </View>
+          )}
+
+          <View style={styles.section}>
+            <ScheduleSection
+              selectedDate={date}
+              selectedTime={time}
+              lessonDurationHours={durationHours}
+              lessonDurationMinutes={durationMinutes}
+              location={location}
+              onDateChanged={setDate}
+              onTimeChanged={setTime}
+              onDurationChanged={(h, m) => { setDurationHours(h); setDurationMinutes(m); }}
+              onLocationChanged={setLocation}
+              isFullDay={isPauseOrLeave}
+              showLocationField={false}
+            />
+          </View>
+
+          {!isPauseOrLeave && (
+            <View style={styles.section}>
+              <LocationSection location={location} onLocationChanged={setLocation} />
+            </View>
+          )}
+
+          <View style={styles.section}>
+            <NotesSection notes={notes} onNotesChanged={setNotes} />
+          </View>
+
+          <View style={{ height: 16 }} />
+        </ScrollView>
+
+        <View style={[styles.footer, { paddingBottom: 16 + insets.bottom }]}>
+          <TouchableOpacity testID="save-lesson" onPress={!isLoading ? onSave : undefined} style={[styles.saveBtn, isLoading && { opacity: 0.7 }]} activeOpacity={0.9}>
+            {isLoading ? <Loader2 color="#fff" size={18} /> : <Check color="#fff" size={18} />}
+            <Text style={styles.saveText}>{isLoading ? "Opslaan..." : isPauseOrLeave ? `${category} opslaan` : "Les opslaan"}</Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </ErrorBoundary>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { padding: 16 },
+  iconBtn: { padding: 8 },
+  section: { backgroundColor: "#fff", borderRadius: 12, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: "#e5e7eb" },
+  footer: { padding: 16, borderTopWidth: 1, borderTopColor: "#e5e7eb", backgroundColor: "#fff" },
+  saveBtn: { height: 48, backgroundColor: "#2563eb", borderRadius: 12, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8 },
+  saveText: { color: "#fff", fontWeight: "700" },
+});
