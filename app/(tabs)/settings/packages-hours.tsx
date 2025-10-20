@@ -2,7 +2,7 @@ import React from "react";
 import { Alert, Platform, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { ChevronRight, Package, Plus, Save, Trash2 } from "lucide-react-native";
+import { Check, Plus, Save, Trash2 } from "lucide-react-native";
 
 type Product = { id: string; name: string; price: number; vatStatus: "incl" | "excl" };
 type PackageItem = { id: string; name: string; hours: number; price: number; vatStatus: "incl" | "excl"; selectedProducts: string[] };
@@ -20,6 +20,11 @@ export default function PackagesAndHoursScreen() {
   const [products, setProducts] = React.useState<Product[]>([]);
   const [packages, setPackages] = React.useState<PackageItem[]>([]);
   const [hourlyRates, setHourlyRates] = React.useState<HourlyRates>({ price: 45, vatStatus: "incl" });
+
+  const [showNewProduct, setShowNewProduct] = React.useState<boolean>(false);
+  const [newProductName, setNewProductName] = React.useState<string>("");
+  const [newProductPrice, setNewProductPrice] = React.useState<string>("");
+  const [newProductVat, setNewProductVat] = React.useState<"incl" | "excl">("incl");
 
   const router = useRouter();
 
@@ -68,10 +73,28 @@ export default function PackagesAndHoursScreen() {
   }, [hourlyRates, packages, products, saving]);
 
   const addProduct = React.useCallback(() => {
-    const id = String(Date.now());
-    const next: Product = { id, name: "Nieuw product", price: 0, vatStatus: "incl" };
-    setProducts((prev) => [...prev, next]);
+    setShowNewProduct((prev) => !prev);
   }, []);
+
+  const confirmAddProduct = React.useCallback(() => {
+    const name = newProductName.trim();
+    const priceNum = Number(newProductPrice);
+    if (!name) {
+      Alert.alert("Let op", "Voer een productnaam in.");
+      return;
+    }
+    if (Number.isNaN(priceNum) || priceNum < 0) {
+      Alert.alert("Let op", "Voer een geldige prijs in.");
+      return;
+    }
+    const id = String(Date.now());
+    const next: Product = { id, name, price: priceNum, vatStatus: newProductVat };
+    setProducts((prev) => [...prev, next]);
+    setNewProductName("");
+    setNewProductPrice("");
+    setNewProductVat("incl");
+    console.log("[PackagesHours] Product added", next);
+  }, [newProductName, newProductPrice, newProductVat]);
 
   const updateProduct = (id: string, patch: Partial<Product>) => {
     setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
@@ -135,6 +158,46 @@ export default function PackagesAndHoursScreen() {
       >
         <Text style={styles.sectionTitle}>Producten</Text>
         <View style={styles.card}>
+          <TouchableOpacity testID="add-product" style={styles.addBtn} onPress={addProduct}>
+            <Plus color="#fff" />
+            <Text style={styles.addBtnText}>Product toevoegen</Text>
+          </TouchableOpacity>
+
+          {showNewProduct && (
+            <View style={styles.newProductBox}>
+              <TextInput
+                testID="new-product-name"
+                style={styles.input}
+                placeholder="Praktijkexamen B, Praktijkexamen B-H..."
+                value={newProductName}
+                onChangeText={setNewProductName}
+              />
+              <View style={{ gap: 8 }}>
+                <View style={styles.inlineBetween}>
+                  <TextInput
+                    testID="new-product-price"
+                    style={[styles.input, styles.inputSmall]}
+                    placeholder="Prijs (€)"
+                    keyboardType="decimal-pad"
+                    value={newProductPrice}
+                    onChangeText={setNewProductPrice}
+                  />
+                  <TouchableOpacity
+                    testID="new-product-vat"
+                    onPress={() => setNewProductVat((prev) => (prev === "incl" ? "excl" : "incl"))}
+                    style={styles.tag}
+                  >
+                    <Text style={styles.tagText}>{newProductVat === "incl" ? "Incl. BTW" : "Excl. BTW"}</Text>
+                  </TouchableOpacity>
+                </View>
+                <TouchableOpacity testID="confirm-add-product" onPress={confirmAddProduct} style={styles.confirmBtn}>
+                  <Check color="#fff" size={16} />
+                  <Text style={styles.confirmBtnText}>Toevoegen</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
           {products.length === 0 ? (
             <Text style={styles.muted}>Geen producten. Voeg je eerste product toe.</Text>
           ) : (
@@ -172,10 +235,6 @@ export default function PackagesAndHoursScreen() {
               </View>
             ))
           )}
-          <TouchableOpacity testID="add-product" style={styles.addBtn} onPress={addProduct}>
-            <Plus color="#fff" />
-            <Text style={styles.addBtnText}>Product toevoegen</Text>
-          </TouchableOpacity>
         </View>
 
         <Text style={styles.sectionTitle}>Pakketten</Text>
@@ -325,6 +384,18 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   addBtnText: { color: "#fff", fontWeight: "700" },
+  newProductBox: { gap: 10 },
+  confirmBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    alignSelf: "flex-start",
+    backgroundColor: "#16a34a",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  confirmBtnText: { color: "#fff", fontWeight: "700" },
   tag: {
     backgroundColor: "#e0f2fe",
     paddingVertical: 8,
