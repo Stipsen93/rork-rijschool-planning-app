@@ -394,10 +394,14 @@ export default function PackagesAndHoursScreen() {
         <View style={styles.card}>
           <View style={styles.inlineBetween}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.currencyLabel} testID="hourly-euro-label">€</Text>
+              <Text style={styles.currencyLabel} testID="hourly-euro-label">EU</Text>
               <TextInput
                 testID="hourly-price"
-                style={[styles.input, styles.inputSmall, hourlyLocked && styles.inputDisabled]}
+                style={[
+                  styles.input,
+                  styles.inputSmall,
+                  (hourlyRates.price ?? 0) > 0 ? styles.inputDisabled : styles.inputWhite,
+                ]}
                 placeholder="Prijs per uur (€)"
                 keyboardType="decimal-pad"
                 value={String(hourlyRates.price ?? 0)}
@@ -522,6 +526,7 @@ const styles = StyleSheet.create({
   },
   inputSmall: { minWidth: 120, flex: 1 },
   inputDisabled: { backgroundColor: "#1f2937", borderColor: "#111827", color: "#fff" },
+  inputWhite: { backgroundColor: "#ffffff", borderColor: "#e5e7eb" },
   currencyLabel: { fontSize: 12, fontWeight: "700", color: "#6b7280", marginBottom: 6 },
   addBtn: {
     flexDirection: "row",
