@@ -1,7 +1,8 @@
-import React, { useMemo, useMemo as _useMemo, useState, useCallback } from "react";
+import React, { useMemo, useMemo as _useMemo, useState, useCallback, useEffect } from "react";
 import { Stack, useLocalSearchParams } from "expo-router";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Platform, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 type StatusType = "active" | "irregular" | "inactive" | string | undefined;
 
@@ -47,12 +48,9 @@ export default function StudentProfileScreen() {
     }
   }, [params.status]);
 
-  const [availablePackages, setAvailablePackages] = useState<PackageItem[]>(() => [
-    { id: "30h", name: "30 uur pakket", hours: 30, price: 1500, isProduct: false, vatStatus: "incl" },
-    { id: "20h", name: "20 uur pakket", hours: 20, price: 1000, isProduct: false, vatStatus: "incl" },
-    { id: "10h", name: "10 uur pakket", hours: 10, price: 550, isProduct: false, vatStatus: "incl" },
-    { id: "5h", name: "5 extra uren", hours: 5, price: 300, isProduct: false, vatStatus: "incl" },
-  ]);
+  const [availablePackages, setAvailablePackages] = useState<PackageItem[]>([]);
+  const [settingsPackages, setSettingsPackages] = useState<PackageItem[]>([]);
+  const [settingsProducts, setSettingsProducts] = useState<PackageItem[]>([]);
   const [studentPackages, setStudentPackages] = useState<StudentPackage[]>([]);
 
   const [addVisible, setAddVisible] = useState<boolean>(false);
@@ -60,6 +58,26 @@ export default function StudentProfileScreen() {
   const [paymentTerm, setPaymentTerm] = useState<string>("1x");
   const [customTerms, setCustomTerms] = useState<number>(2);
   const [looseHours, setLooseHours] = useState<string>("");
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [pkgStr, prodStr] = await Promise.all([
+          AsyncStorage.getItem("instructor_packages"),
+          AsyncStorage.getItem("instructor_products"),
+        ]);
+        const pkgs = (pkgStr ? JSON.parse(pkgStr) : []) as { id: string; name: string; hours: number; price: number; vatStatus: "incl" | "excl" }[];
+        const prods = (prodStr ? JSON.parse(prodStr) : []) as { id: string; name: string; price: number; vatStatus: "incl" | "excl" }[];
+        const mappedPkgs: PackageItem[] = pkgs.map((p) => ({ id: p.id, name: p.name, hours: p.hours, price: p.price, vatStatus: p.vatStatus, isProduct: false }));
+        const mappedProds: PackageItem[] = prods.map((p) => ({ id: p.id, name: p.name, hours: 0, price: p.price, vatStatus: p.vatStatus, isProduct: true }));
+        setSettingsPackages(mappedPkgs);
+        setSettingsProducts(mappedProds);
+        setAvailablePackages([...mappedPkgs, ...mappedProds]);
+      } catch (e) {
+        console.log("[StudentProfile] Failed to load settings packages/products", e);
+      }
+    })();
+  }, []);
 
   const openAdd = useCallback(() => {
     setSelectedPackageId(null);
@@ -252,6 +270,8 @@ export default function StudentProfileScreen() {
         visible={addVisible}
         onClose={closeAdd}
         packages={availablePackages}
+        packagesGroup={settingsPackages}
+        productsGroup={settingsProducts}
         selectedPackageId={selectedPackageId}
         setSelectedPackageId={setSelectedPackageId}
         paymentTerm={paymentTerm}
@@ -292,6 +312,8 @@ function AddPackageModal({
   visible,
   onClose,
   packages,
+  packagesGroup,
+  productsGroup,
   selectedPackageId,
   setSelectedPackageId,
   paymentTerm,
@@ -305,6 +327,8 @@ function AddPackageModal({
   visible: boolean;
   onClose: () => void;
   packages: PackageItem[];
+  packagesGroup: PackageItem[];
+  productsGroup: PackageItem[];
   selectedPackageId: string | null;
   setSelectedPackageId: (v: string | null) => void;
   paymentTerm: string;
@@ -323,16 +347,38 @@ function AddPackageModal({
 
           <Text style={styles.modalLabel}>Selecteer Pakket/Uren/Product</Text>
           <View style={styles.dropdownBox}>
-            <View style={{ gap: 8 }}>
-              {packages.map((p) => (
-                <TouchableOpacity key={p.id} onPress={() => setSelectedPackageId(p.id)} style={[styles.optionRow, selectedPackageId === p.id && styles.optionRowActive]}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.optionTitle}>{p.name}</Text>
-                    <Text style={styles.optionSub}>{p.isProduct ? "Product" : `${p.hours} uren`}</Text>
-                  </View>
-                  <Text style={styles.optionPrice}>€{p.price.toFixed(2)}</Text>
-                </TouchableOpacity>
-              ))}
+            <View style={{ gap: 12 }}>
+              <Text style={styles.groupLabel}>Pakketten</Text>
+              {packagesGroup.length === 0 ? (
+                <Text style={styles.mutedText}>Geen pakketten gevonden. Voeg ze toe bij Instellingen → Pakketten/Uren.</Text>
+              ) : (
+                packagesGroup.map((p) => (
+                  <TouchableOpacity key={`pkg-${p.id}`} onPress={() => setSelectedPackageId(p.id)} style={[styles.optionRow, selectedPackageId === p.id && styles.optionRowActive]}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.optionTitle}>{p.name}</Text>
+                      <Text style={styles.optionSub}>{`${p.hours} uren`}</Text>
+                    </View>
+                    <Text style={styles.optionPrice}>€{p.price.toFixed(2)}</Text>
+                  </TouchableOpacity>
+                ))
+              )}
+
+              <View style={{ height: 1, backgroundColor: "#e5e7eb" }} />
+
+              <Text style={styles.groupLabel}>Producten</Text>
+              {productsGroup.length === 0 ? (
+                <Text style={styles.mutedText}>Geen producten gevonden. Voeg ze toe bij Instellingen → Pakketten/Uren.</Text>
+              ) : (
+                productsGroup.map((p) => (
+                  <TouchableOpacity key={`prd-${p.id}`} onPress={() => setSelectedPackageId(p.id)} style={[styles.optionRow, selectedPackageId === p.id && styles.optionRowActive]}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.optionTitle}>{p.name}</Text>
+                      <Text style={styles.optionSub}>Product</Text>
+                    </View>
+                    <Text style={styles.optionPrice}>€{p.price.toFixed(2)}</Text>
+                  </TouchableOpacity>
+                ))
+              )}
             </View>
           </View>
 
@@ -432,6 +478,8 @@ const styles = StyleSheet.create({
   modalCard: { backgroundColor: "#fff", padding: 16, borderTopLeftRadius: 16, borderTopRightRadius: 16, gap: 10 },
   modalTitle: { fontSize: 16, fontWeight: "800" },
   modalLabel: { fontWeight: "700", marginTop: 8 },
+  groupLabel: { fontWeight: "700", color: "#0f172a" },
+  mutedText: { color: "#6b7280" },
   numberBtn: { width: 36, height: 36, borderRadius: 8, backgroundColor: "#e5e7eb", alignItems: "center", justifyContent: "center" },
   numberBtnText: { fontSize: 18, fontWeight: "800" },
   customTerms: { fontWeight: "700" },
