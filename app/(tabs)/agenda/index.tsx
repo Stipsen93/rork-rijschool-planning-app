@@ -19,6 +19,16 @@ function keyFor(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
+function minutesBetween(start: string, end: string): number {
+  const [sh, sm] = start.split(":").map((v) => parseInt(v, 10));
+  const [eh, em] = end.split(":").map((v) => parseInt(v, 10));
+  const s = (Number.isFinite(sh) ? sh : 0) * 60 + (Number.isFinite(sm) ? sm : 0);
+  const e = (Number.isFinite(eh) ? eh : 0) * 60 + (Number.isFinite(em) ? em : 0);
+  let diff = e - s;
+  if (diff < 0) diff += 24 * 60;
+  return diff;
+}
+
 
 export default function AgendaScreen() {
   const [refreshing, setRefreshing] = useState<boolean>(false);
@@ -136,7 +146,28 @@ export default function AgendaScreen() {
             ],
           }}
           onClose={() => setSelectedLesson(null)}
-          onEdit={() => console.log("Edit lesson", selectedLesson)}
+          onEdit={() => {
+            if (!selectedLesson) return;
+            const y = selectedLesson.date.getFullYear();
+            const m = (selectedLesson.date.getMonth() + 1).toString().padStart(2, "0");
+            const d = selectedLesson.date.getDate().toString().padStart(2, "0");
+            const durationMin = minutesBetween(selectedLesson.startTime, selectedLesson.endTime);
+            const id = (selectedLesson as any).id ? String((selectedLesson as any).id) : "";
+            setSelectedLesson(null);
+            router.push({
+              pathname: "/add-lesson",
+              params: {
+                mode: "edit",
+                id,
+                date: `${y}-${m}-${d}`,
+                time: selectedLesson.startTime,
+                durationMinutes: String(durationMin),
+                type: selectedLesson.lessonType ?? "Rijles",
+                location: selectedLesson.location ?? "",
+                notes: selectedLesson.notes ?? "",
+              },
+            });
+          }}
           onCancel={() => {
             const lessonParam = JSON.stringify({
               id: (selectedLesson as any)?.id ?? "",
@@ -157,7 +188,10 @@ export default function AgendaScreen() {
           testID="fab-add-lesson"
           onPress={() => {
             console.log("Open add lesson modal");
-            router.push("/add-lesson");
+            const y = selectedDate.getFullYear();
+            const m = (selectedDate.getMonth() + 1).toString().padStart(2, "0");
+            const d = selectedDate.getDate().toString().padStart(2, "0");
+            router.push({ pathname: "/add-lesson", params: { date: `${y}-${m}-${d}` } });
           }}
           activeOpacity={0.8}
           style={[styles.fab, { bottom: insets.bottom + 56 }]}

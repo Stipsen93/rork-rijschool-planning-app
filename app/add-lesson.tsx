@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { Stack, useRouter } from "expo-router";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { Check, Loader2, X } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -17,7 +17,7 @@ export type Option = { label: string; value: string };
 export default function AddLessonScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { addLesson } = useAgenda();
+  const { addLesson, removeLessonById } = useAgenda();
 
   const baseAppointmentTypes: Option[] = useMemo(() => [
     { label: "Rijles", value: "Rijles" },
@@ -49,6 +49,8 @@ export default function AddLessonScreen() {
   }, [baseAppointmentTypes, productTypes]);
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const params = useLocalSearchParams();
+
   const [category, setCategory] = useState<Category>("Auto");
   const [type, setType] = useState<string>("Rijles");
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
@@ -59,6 +61,7 @@ export default function AddLessonScreen() {
   const [durationMinutes, setDurationMinutes] = useState<number>(0);
   const [location, setLocation] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const isPauseOrLeave = category === "Pauze" || category === "Verlof";
 
@@ -76,6 +79,36 @@ export default function AddLessonScreen() {
     { id: "2", model: "Toyota Yaris", licensePlate: "45-DEF-6", type: "Automaat", year: 2023 },
     { id: "3", model: "Opel Corsa", licensePlate: "78-GHI-9", type: "Handschakeling", year: 2021 },
   ]), []);
+
+  useEffect(() => {
+    try {
+      const mode = typeof params.mode === "string" ? params.mode : Array.isArray(params.mode) ? params.mode[0] : undefined;
+      const dateParam = typeof params.date === "string" ? params.date : Array.isArray(params.date) ? params.date[0] : undefined;
+      const timeParam = typeof params.time === "string" ? params.time : Array.isArray(params.time) ? params.time[0] : undefined;
+      const typeParam = typeof params.type === "string" ? params.type : Array.isArray(params.type) ? params.type[0] : undefined;
+      const durationMinParam = typeof params.durationMinutes === "string" ? params.durationMinutes : Array.isArray(params.durationMinutes) ? params.durationMinutes[0] : undefined;
+      const locationParam = typeof params.location === "string" ? params.location : Array.isArray(params.location) ? params.location[0] : undefined;
+      const notesParam = typeof params.notes === "string" ? params.notes : Array.isArray(params.notes) ? params.notes[0] : undefined;
+      const idParam = typeof params.id === "string" ? params.id : Array.isArray(params.id) ? params.id[0] : undefined;
+
+      if (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) setDate(dateParam);
+      if (timeParam && /^\d{2}:\d{2}$/.test(timeParam)) setTime(timeParam);
+      if (typeParam) setType(typeParam);
+      if (locationParam) setLocation(locationParam);
+      if (notesParam) setNotes(notesParam);
+      if (durationMinParam) {
+        const total = parseInt(durationMinParam, 10);
+        if (Number.isFinite(total)) {
+          setDurationHours(Math.floor(total / 60));
+          setDurationMinutes(total % 60);
+        }
+      }
+      if (mode === "edit" && idParam) setEditingId(idParam);
+    } catch (e) {
+      console.log("[AddLesson] Failed to parse params", e);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const onSave = useCallback(async () => {
     try {
@@ -98,7 +131,11 @@ export default function AddLessonScreen() {
 
         const studentName = mockStudents.find((s) => s.id === selectedStudentId)?.name ?? "Leerling";
 
+        if (editingId) {
+          removeLessonById(editingId);
+        }
         addLesson({
+          id: editingId ?? undefined,
           date: baseDate,
           startTime: time,
           endTime,
@@ -110,7 +147,7 @@ export default function AddLessonScreen() {
         });
       }
 
-      Alert.alert("Opgeslagen", isPauseOrLeave ? `${category} opgeslagen.` : "De les is opgeslagen.");
+      Alert.alert("Opgeslagen", isPauseOrLeave ? `${category} opgeslagen.` : editingId ? "De les is bijgewerkt." : "De les is opgeslagen.");
       router.back();
     } catch (e) {
       console.error(e);
@@ -118,11 +155,11 @@ export default function AddLessonScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [addLesson, category, type, selectedStudentId, selectedVehicleId, date, time, durationHours, durationMinutes, location, notes, isPauseOrLeave, router, mockStudents]);
+  }, [addLesson, removeLessonById, editingId, category, type, selectedStudentId, selectedVehicleId, date, time, durationHours, durationMinutes, location, notes, isPauseOrLeave, router, mockStudents]);
 
   return (
     <ErrorBoundary>
-      <Stack.Screen options={{ title: isPauseOrLeave ? `${category} toevoegen` : "Les toevoegen", headerRight: () => (
+      <Stack.Screen options={{ title: isPauseOrLeave ? `${category} toevoegen` : editingId ? "Les bewerken" : "Les toevoegen", headerRight: () => (
         <TouchableOpacity onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Sluiten" style={styles.iconBtn}>
           <X color="#111827" size={20} />
         </TouchableOpacity>
