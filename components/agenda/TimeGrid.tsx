@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
   timelineCard: {
     position: "relative",
     borderRadius: 16,
-    backgroundColor: "#2b2b2b",
+    backgroundColor: "#6b7280",
     overflow: "hidden",
   },
   workOverlay: {
