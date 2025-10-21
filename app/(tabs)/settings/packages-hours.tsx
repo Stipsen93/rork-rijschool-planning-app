@@ -1,5 +1,5 @@
 import React from "react";
-import { Alert, Platform, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Alert, Platform, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Modal } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Check, Plus, Save, Trash2, ChevronDown, ChevronUp } from "lucide-react-native";
@@ -58,6 +58,12 @@ export default function PackagesAndHoursScreen() {
   const [productDropdownOpen, setProductDropdownOpen] = React.useState<boolean>(false);
 
   const router = useRouter();
+
+  const [confirmState, setConfirmState] = React.useState<{
+    type: "product" | "package";
+    id: string;
+    name: string;
+  } | null>(null);
 
   React.useEffect(() => {
     void loadData();
@@ -162,10 +168,9 @@ export default function PackagesAndHoursScreen() {
   };
 
   const deleteProduct = (id: string) => {
-    confirmCrossPlatform("Verwijderen", "Product verwijderen?", () => {
-      setProducts((prev) => prev.filter((p) => p.id !== id));
-      notifyCrossPlatform("Product is verwijderd.");
-    });
+    const prod = products.find((p) => p.id === id);
+    const name = prod?.name ?? "product";
+    setConfirmState({ type: "product", id, name });
   };
 
   const addPackage = React.useCallback(() => {
@@ -177,10 +182,9 @@ export default function PackagesAndHoursScreen() {
   };
 
   const deletePackage = (id: string) => {
-    confirmCrossPlatform("Verwijderen", "Pakket verwijderen?", () => {
-      setPackages((prev) => prev.filter((p) => p.id !== id));
-      notifyCrossPlatform("Pakket is verwijderd.");
-    });
+    const pkg = packages.find((p) => p.id === id);
+    const name = pkg?.name ?? "pakket";
+    setConfirmState({ type: "package", id, name });
   };
 
   return (
@@ -406,6 +410,51 @@ export default function PackagesAndHoursScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      <Modal
+        visible={!!confirmState}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setConfirmState(null)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard} testID="confirm-delete-modal">
+            <Text style={styles.modalTitle}>Weet je het zeker?</Text>
+            <Text style={styles.modalMsg}>
+              {confirmState?.type === "product" ? "Product" : "Pakket"} {`“${confirmState?.name ?? ""}”`} verwijderen?
+            </Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                testID="cancel-delete"
+                onPress={() => setConfirmState(null)}
+                style={[styles.modalBtn, styles.modalBtnCancel]}
+                accessibilityRole="button"
+              >
+                <Text style={styles.modalBtnCancelText}>Annuleren</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                testID="confirm-delete"
+                onPress={() => {
+                  if (!confirmState) return;
+                  if (confirmState.type === "product") {
+                    setProducts((prev) => prev.filter((p) => p.id !== confirmState.id));
+                    notifyCrossPlatform("Product is verwijderd.");
+                  } else {
+                    setPackages((prev) => prev.filter((p) => p.id !== confirmState.id));
+                    notifyCrossPlatform("Pakket is verwijderd.");
+                  }
+                  setConfirmState(null);
+                }}
+                style={[styles.modalBtn, styles.modalBtnDanger]}
+                accessibilityRole="button"
+              >
+                <Trash2 color="#fff" size={16} />
+                <Text style={styles.modalBtnDangerText}>Verwijderen</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -486,4 +535,14 @@ const styles = StyleSheet.create({
   checkboxRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   checkbox: { width: 18, height: 18, borderRadius: 4, borderWidth: 1, borderColor: "#94a3b8" },
   checkboxChecked: { backgroundColor: "#0ea5e9", borderColor: "#0ea5e9" },
+  modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.35)", alignItems: "center", justifyContent: "center", padding: 24 },
+  modalCard: { width: "90%", maxWidth: 420, backgroundColor: "#fff", borderRadius: 12, padding: 16, gap: 12 },
+  modalTitle: { fontSize: 16, fontWeight: "700", color: "#111827" },
+  modalMsg: { fontSize: 14, color: "#374151" },
+  modalActions: { flexDirection: "row", justifyContent: "flex-end", gap: 8, marginTop: 4 },
+  modalBtn: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10 },
+  modalBtnCancel: { backgroundColor: "#e5e7eb" },
+  modalBtnCancelText: { color: "#111827", fontWeight: "700" },
+  modalBtnDanger: { backgroundColor: "#ef4444" },
+  modalBtnDangerText: { color: "#fff", fontWeight: "700" },
 });
