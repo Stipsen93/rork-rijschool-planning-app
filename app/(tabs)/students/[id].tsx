@@ -527,7 +527,13 @@ function StudentOverviewTable({ studentName, baseItems, products, studentPackage
                 const remainingPaid = Math.max(0, hoursPaid - drivenHours);
                 const plannedColor = plannedHours <= 0
                   ? "#6b7280"
-                  : (noneAdded ? "#6b7280" : (remainingPaid >= plannedHours ? "#16a34a" : (remainingPaid > 0 ? "#f59e0b" : "#2563eb")));
+                  : (drivenHours > hoursPaid
+                      ? "#ef4444"
+                      : (noneAdded
+                          ? "#6b7280"
+                          : (remainingPaid >= plannedHours
+                              ? "#16a34a"
+                              : (remainingPaid > 0 ? "#f59e0b" : "#2563eb"))));
                 return (
                   <Row label="Uren gepland" value={`${round1(plannedHours)} u`} valueColor={plannedColor} />
                 );
