@@ -1,6 +1,8 @@
-import React, { memo, useCallback, useState } from "react";
+import React, { memo, useCallback, useState, useMemo } from "react";
 import { Platform, StyleSheet, Text, View, Image, Pressable } from "react-native";
 import { Users, TrendingUp, TriangleAlert, MessageSquare, NotebookPen } from "lucide-react-native";
+import { useWorkingHours } from "../settings/WorkingHoursStore";
+import { useSettings } from "../settings/SettingsStore";
 
 export interface StudentItem {
   name: string;
@@ -22,11 +24,41 @@ interface Props {
 
 function StudentActivityDashboardComponent({ studentActivity }: Props) {
   const [expanded, setExpanded] = useState<string | null>(null);
-  const weeklyHours = 40;
-  const lessonDurationMinutes = 60;
-  const maxLessons = Math.floor((weeklyHours * 60) / lessonDurationMinutes);
-  const maxActive = Math.floor(maxLessons / 1.5);
-  const capacityDiff = maxActive - studentActivity.activeStudents.length;
+  const { workingHours, loading: whLoading } = useWorkingHours();
+  const { lessonConfig, loading: lcLoading } = useSettings();
+
+  const { weeklyHours, weeklyMinutes, lessonDurationMinutes, maxLessons, maxActive, capacityDiff } = useMemo(() => {
+    const toMinutes = (time: string): number => {
+      const [h, m] = time.split(":").map(Number);
+      return h * 60 + m;
+    };
+
+    let totalMinutes = 0;
+    Object.values(workingHours).forEach((day) => {
+      if (!day.enabled) return;
+      day.ranges.forEach((range) => {
+        totalMinutes += toMinutes(range.end) - toMinutes(range.start);
+      });
+      day.pauses.forEach((pause) => {
+        totalMinutes -= toMinutes(pause.end) - toMinutes(pause.start);
+      });
+    });
+
+    const hours = totalMinutes / 60;
+    const lessonDur = lessonConfig.baseLessonDuration || 60;
+    const maxLessonsPerWeek = Math.floor(totalMinutes / lessonDur);
+    const maxActiveStudents = Math.floor(maxLessonsPerWeek / 1.5);
+    const diff = maxActiveStudents - studentActivity.activeStudents.length;
+
+    return {
+      weeklyHours: hours,
+      weeklyMinutes: totalMinutes,
+      lessonDurationMinutes: lessonDur,
+      maxLessons: maxLessonsPerWeek,
+      maxActive: maxActiveStudents,
+      capacityDiff: diff,
+    };
+  }, [workingHours, lessonConfig.baseLessonDuration, studentActivity.activeStudents.length]);
 
   const toggle = useCallback((key: string) => {
     setExpanded((prev) => (prev === key ? null : key));
@@ -53,7 +85,7 @@ function StudentActivityDashboardComponent({ studentActivity }: Props) {
           )}
           <Text style={styles.capacityTitle}>Leerling Capaciteit</Text>
         </View>
-        <Text style={styles.capacitySub}>{`Gebaseerd op ${weeklyHours} uur/week en ${lessonDurationMinutes}min lessen`}</Text>
+        <Text style={styles.capacitySub}>{`Gebaseerd op ${weeklyHours.toFixed(1)} uur/week en ${lessonDurationMinutes}min lessen`}</Text>
         <View
           style={[styles.capacityBadge, { backgroundColor: capacityDiff >= 0 ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)", borderColor: capacityDiff >= 0 ? "#22c55e66" : "#ef444466" }]}
         >
