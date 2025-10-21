@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
@@ -9,6 +9,7 @@ import { StudentVehicleSection, Student, Vehicle } from "@/components/add-lesson
 import { ScheduleSection } from "@/components/add-lesson/ScheduleSection";
 import { LocationSection } from "@/components/add-lesson/LocationSection";
 import { NotesSection } from "@/components/add-lesson/NotesSection";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export type Option = { label: string; value: string };
 
@@ -16,12 +17,37 @@ export default function AddLessonScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const appointmentTypes: Option[] = useMemo(() => [
+  const baseAppointmentTypes: Option[] = useMemo(() => [
     { label: "Rijles", value: "Rijles" },
     { label: "Praktijkexamen", value: "Praktijkexamen" },
     { label: "Theorieles", value: "Theorieles" },
     { label: "Tussentijdse toets", value: "Tussentijdse toets" },
   ], []);
+
+  const [productTypes, setProductTypes] = useState<string[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem("instructor_products");
+        if (raw) {
+          const parsed = JSON.parse(raw) as Array<{ id: string; name: string; price: number; vatStatus: "incl" | "excl" }>;
+          const names = parsed.map((p) => p.name).filter((n) => typeof n === "string" && n.trim().length > 0);
+          setProductTypes(names);
+        } else {
+          setProductTypes([]);
+        }
+      } catch (e) {
+        console.log("[AddLesson] Failed to load products", e);
+        setProductTypes([]);
+      }
+    })();
+  }, []);
+
+  const appointmentTypes: Option[] = useMemo(() => {
+    const extras = productTypes.map((n) => ({ label: n, value: n }));
+    return [...baseAppointmentTypes, ...extras];
+  }, [baseAppointmentTypes, productTypes]);
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [category, setCategory] = useState<Category>("Auto");
