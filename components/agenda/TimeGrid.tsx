@@ -65,6 +65,19 @@ function Inner({ date, onLessonPress }: TimeGridProps) {
 
   const hours = useMemo(() => Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, "0")}:00`), []);
 
+  const isTimeSlotInWorkingHours = (hour: number): boolean => {
+    if (!enabled) return false;
+    const hourMin = hour * 60;
+    if (!conf.autoLunchBreak) {
+      return hourMin >= startMin && hourMin < endMin;
+    }
+    const breakStart = toMinutes(conf.breakStartTime ?? "12:00");
+    const breakEnd = toMinutes(conf.breakEndTime ?? "13:00");
+    const isInMorningShift = hourMin >= startMin && hourMin < breakStart;
+    const isInAfternoonShift = hourMin >= breakEnd && hourMin < endMin;
+    return isInMorningShift || isInAfternoonShift;
+  };
+
   const PPM = 2.0 as const;
   const timelineHeight = 24 * 60 * PPM;
 
@@ -86,48 +99,17 @@ function Inner({ date, onLessonPress }: TimeGridProps) {
     <View style={styles.wrapper} testID="time-grid">
       <ScrollView ref={scrollRef} horizontal={false} showsVerticalScrollIndicator contentContainerStyle={[styles.scrollContent, { height: timelineHeight + 32 }]}>        
         <View style={styles.timelineCard}>
-          {enabled && (
-            <>
-              {!conf.autoLunchBreak && (
-                <View
-                  testID="work-overlay"
-                  style={[
-                    styles.workOverlay,
-                    { top: startMin * PPM, height: minutesBetween(conf.startTime, conf.endTime) * PPM },
-                  ]}
-                />
-              )}
-              {conf.autoLunchBreak && (
-                <>
-                  <View
-                    testID="work-overlay-morning"
-                    style={[
-                      styles.workOverlay,
-                      { top: startMin * PPM, height: minutesBetween(conf.startTime, conf.breakStartTime ?? conf.startTime) * PPM },
-                    ]}
-                  />
-                  <View
-                    testID="work-overlay-afternoon"
-                    style={[
-                      styles.workOverlay,
-                      {
-                        top: toMinutes(conf.breakEndTime ?? conf.endTime) * PPM,
-                        height: Math.max(0, (toMinutes(conf.endTime) - toMinutes(conf.breakEndTime ?? conf.endTime)) * PPM),
-                      },
-                    ]}
-                  />
-                </>
-              )}
-            </>
-          )}
-
           <View style={styles.gridArea}>
-            {hours.map((h) => (
-              <View key={h} style={styles.gridHourRow}>
-                <View style={styles.hourLine} />
-                <Text style={styles.hourLabel}>{h}</Text>
-              </View>
-            ))}
+            {hours.map((h, idx) => {
+              const isWorking = isTimeSlotInWorkingHours(idx);
+              return (
+                <View key={h} style={styles.gridHourRow}>
+                  {isWorking && <View style={styles.workingTimeSlot} />}
+                  <View style={styles.hourLine} />
+                  <Text style={styles.hourLabel}>{h}</Text>
+                </View>
+              );
+            })}
 
             {lessons.map((l) => {
               const top = toMinutes(l.startTime) * PPM;
@@ -169,12 +151,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#9ca3af",
     overflow: "hidden",
   },
-  workOverlay: {
+  workingTimeSlot: {
     position: "absolute",
+    top: 0,
     left: 0,
     right: 0,
-    width: "100%",
-    borderRadius: 16,
+    height: 120,
     backgroundColor: "#ffffff",
     zIndex: 0,
   },
