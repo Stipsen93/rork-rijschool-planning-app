@@ -1,7 +1,6 @@
 import React, { memo, useMemo, useState } from "react";
-import { Modal, Platform, Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
-import { CalendarDays, Clock, Timer, X } from "lucide-react-native";
-import DateTimePicker from "@react-native-community/datetimepicker";
+import { Modal, Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View, FlatList } from "react-native";
+import { CalendarDays, Clock, ChevronLeft, ChevronRight, Timer, X } from "lucide-react-native";
 
 export interface ScheduleSectionProps {
   selectedDate: string; // YYYY-MM-DD
@@ -45,23 +44,22 @@ function ScheduleSectionComponent({ selectedDate, selectedTime, lessonDurationHo
     d.setMilliseconds(0);
     return d;
   };
-  const pad = (n: number) => String(n).padStart(2, "0");
 
-  const onDatePicked = (_event: unknown, dateObj?: Date) => {
-    if (Platform.OS !== "ios") setShowDate(false);
+
+  const onDatePicked = (dateObj: Date | null) => {
     if (!dateObj) return;
     const y = dateObj.getFullYear();
     const m = pad(dateObj.getMonth() + 1);
     const d = pad(dateObj.getDate());
     onDateChanged(`${y}-${m}-${d}`);
+    setShowDate(false);
   };
 
-  const onTimePicked = (_event: unknown, dateObj?: Date) => {
-    if (Platform.OS !== "ios") setShowTime(false);
-    if (!dateObj) return;
-    const h = pad(dateObj.getHours());
-    const m = pad(dateObj.getMinutes());
-    onTimeChanged(`${h}:${m}`);
+  const onTimePicked = (h: number, m: number) => {
+    const hh = pad(h);
+    const mm = pad(m);
+    onTimeChanged(`${hh}:${mm}`);
+    setShowTime(false);
   };
 
   const durationOptions = useMemo(() => {
@@ -93,21 +91,11 @@ function ScheduleSectionComponent({ selectedDate, selectedTime, lessonDurationHo
           </TouchableOpacity>
           {showDate && (
             <View style={styles.pickerWrap}>
-              <DateTimePicker
-                value={parseDate(selectedDate)}
-                mode="date"
-                display={Platform.OS === "ios" ? "spinner" : "default"}
-                onChange={onDatePicked}
-                maximumDate={new Date(2100, 11, 31)}
-                minimumDate={new Date(2000, 0, 1)}
+              <CalendarPicker
+                initialDate={parseDate(selectedDate)}
+                onSelectDate={onDatePicked}
+                testID="date-picker"
               />
-              {Platform.OS === "ios" && (
-                <View style={styles.iosToolbar}>
-                  <TouchableOpacity onPress={() => setShowDate(false)} style={styles.toolbarBtn}>
-                    <Text style={styles.toolbarBtnText}>Gereed</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
             </View>
           )}
         </View>
@@ -126,20 +114,11 @@ function ScheduleSectionComponent({ selectedDate, selectedTime, lessonDurationHo
           </TouchableOpacity>
           {showTime && (
             <View style={styles.pickerWrap}>
-              <DateTimePicker
-                value={parseTime(selectedTime)}
-                mode="time"
-                is24Hour={true}
-                display={Platform.OS === "ios" ? "spinner" : "default"}
-                onChange={onTimePicked}
+              <TimePicker24h
+                initialTime={parseTime(selectedTime)}
+                onSelectTime={onTimePicked}
+                testID="time-picker"
               />
-              {Platform.OS === "ios" && (
-                <View style={styles.iosToolbar}>
-                  <TouchableOpacity onPress={() => setShowTime(false)} style={styles.toolbarBtn}>
-                    <Text style={styles.toolbarBtnText}>Gereed</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
             </View>
           )}
         </View>
@@ -197,7 +176,149 @@ function ScheduleSectionComponent({ selectedDate, selectedTime, lessonDurationHo
   );
 }
 
+const pad = (n: number) => String(n).padStart(2, "0");
+
 export const ScheduleSection = memo(ScheduleSectionComponent);
+
+interface CalendarPickerProps {
+  initialDate: Date;
+  onSelectDate: (d: Date | null) => void;
+  testID?: string;
+}
+
+const monthNames = [
+  "januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december",
+] as const;
+const weekDays = ["Ma","Di","Wo","Do","Vr","Za","Zo"] as const;
+
+function startOfMonth(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth(), 1);
+}
+function endOfMonth(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth() + 1, 0);
+}
+
+function CalendarPicker({ initialDate, onSelectDate, testID }: CalendarPickerProps) {
+  const [cursor, setCursor] = useState<Date>(startOfMonth(initialDate));
+  const today = new Date();
+  const days: { date: Date; inMonth: boolean }[] = useMemo(() => {
+    const start = startOfMonth(cursor);
+    const end = endOfMonth(cursor);
+    const startWeekDay = (start.getDay() + 6) % 7; // make Monday=0
+    const totalDays = end.getDate();
+    const arr: { date: Date; inMonth: boolean }[] = [];
+    for (let i = 0; i < startWeekDay; i++) {
+      const d = new Date(start);
+      d.setDate(d.getDate() - (startWeekDay - i));
+      arr.push({ date: d, inMonth: false });
+    }
+    for (let i = 1; i <= totalDays; i++) {
+      arr.push({ date: new Date(cursor.getFullYear(), cursor.getMonth(), i), inMonth: true });
+    }
+    const trailing = (7 - (arr.length % 7)) % 7;
+    for (let i = 1; i <= trailing; i++) {
+      const d = new Date(end);
+      d.setDate(end.getDate() + i);
+      arr.push({ date: d, inMonth: false });
+    }
+    return arr;
+  }, [cursor]);
+
+  return (
+    <View testID={testID}>
+      <View style={styles.calendarHeader}>
+        <TouchableOpacity accessibilityRole="button" onPress={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))}>
+          <ChevronLeft size={18} color="#111827" />
+        </TouchableOpacity>
+        <Text style={styles.calendarHeaderTitle}>{monthNames[cursor.getMonth()]} {cursor.getFullYear()}</Text>
+        <TouchableOpacity accessibilityRole="button" onPress={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))}>
+          <ChevronRight size={18} color="#111827" />
+        </TouchableOpacity>
+      </View>
+      <View style={styles.weekRow}>
+        {weekDays.map((w) => (
+          <Text key={w} style={styles.weekCell}>{w}</Text>
+        ))}
+      </View>
+      <View style={styles.daysGrid}>
+        {days.map(({ date, inMonth }) => {
+          const isToday = date.toDateString() === new Date(today.getFullYear(), today.getMonth(), today.getDate()).toDateString();
+          const isSelected = date.toDateString() === new Date(initialDate.getFullYear(), initialDate.getMonth(), initialDate.getDate()).toDateString();
+          return (
+            <Pressable
+              key={date.toISOString()}
+              onPress={() => inMonth && onSelectDate(date)}
+              disabled={!inMonth}
+              style={[styles.dayCell, !inMonth && styles.dayCellOutside, isSelected && styles.daySelected]}
+              testID={`day-${date.getDate()}`}
+            >
+              <Text style={[styles.dayText, !inMonth && styles.dayTextOutside, isSelected && styles.dayTextSelected]}>{date.getDate()}</Text>
+              {isToday && !isSelected && <View style={styles.todayDot} />}
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+interface TimePicker24hProps {
+  initialTime: Date;
+  onSelectTime: (h: number, m: number) => void;
+  testID?: string;
+}
+
+function TimePicker24h({ initialTime, onSelectTime, testID }: TimePicker24hProps) {
+  const [hour, setHour] = useState<number>(initialTime.getHours());
+  const [minute, setMinute] = useState<number>(initialTime.getMinutes());
+
+  const hours = useMemo(() => Array.from({ length: 24 }, (_, i) => i), []);
+  const minutes = useMemo(() => Array.from({ length: 12 }, (_, i) => i * 5), []);
+
+  return (
+    <View testID={testID} style={styles.timePickerWrap}>
+      <Text style={styles.timePickerTitle}>Kies tijd</Text>
+      <View style={styles.timeColumns}>
+        <FlatList
+          data={hours}
+          keyExtractor={(i) => `h-${i}`}
+          style={styles.timeColumn}
+          contentContainerStyle={styles.timeColumnContent}
+          renderItem={({ item }) => (
+            <Pressable
+              onPress={() => setHour(item)}
+              style={[styles.timeItem, item === hour && styles.timeItemSelected]}
+              testID={`hour-${item}`}
+            >
+              <Text style={[styles.timeText, item === hour && styles.timeTextSelected]}>{pad(item)}</Text>
+            </Pressable>
+          )}
+        />
+        <Text style={styles.timeSeparator}>:</Text>
+        <FlatList
+          data={minutes}
+          keyExtractor={(i) => `m-${i}`}
+          style={styles.timeColumn}
+          contentContainerStyle={styles.timeColumnContent}
+          renderItem={({ item }) => (
+            <Pressable
+              onPress={() => setMinute(item)}
+              style={[styles.timeItem, item === minute && styles.timeItemSelected]}
+              testID={`minute-${item}`}
+            >
+              <Text style={[styles.timeText, item === minute && styles.timeTextSelected]}>{pad(item)}</Text>
+            </Pressable>
+          )}
+        />
+      </View>
+      <View style={styles.iosToolbar}>
+        <TouchableOpacity onPress={() => onSelectTime(hour, minute)} style={styles.toolbarBtn}>
+          <Text style={styles.toolbarBtnText}>Gereed</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
 
 const styles = StyleSheet.create({
   container: { gap: 12 },
@@ -223,4 +344,26 @@ const styles = StyleSheet.create({
   optionItemSelected: { backgroundColor: "#eff6ff" },
   optionText: { fontSize: 16, color: "#111827" },
   optionTextSelected: { color: "#2563eb", fontWeight: "700" },
+  calendarHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 10, borderBottomWidth: 1, borderBottomColor: "#e5e7eb", backgroundColor: "#f9fafb" },
+  calendarHeaderTitle: { fontWeight: "700", color: "#111827" },
+  weekRow: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 8, paddingVertical: 6, backgroundColor: "#f3f4f6" },
+  weekCell: { width: `${100 / 7}%`, textAlign: "center", fontSize: 12, color: "#6b7280" },
+  daysGrid: { flexDirection: "row", flexWrap: "wrap" },
+  dayCell: { width: `${100 / 7}%`, aspectRatio: 1, alignItems: "center", justifyContent: "center" },
+  dayCellOutside: { opacity: 0.35 },
+  dayText: { color: "#111827", fontSize: 14 },
+  dayTextOutside: { color: "#6b7280" },
+  daySelected: { backgroundColor: "#eff6ff", borderRadius: 12 },
+  dayTextSelected: { color: "#2563eb", fontWeight: "700" },
+  todayDot: { position: "absolute", bottom: 6, width: 4, height: 4, borderRadius: 2, backgroundColor: "#2563eb" },
+  timePickerWrap: { padding: 12 },
+  timePickerTitle: { fontWeight: "700", marginBottom: 8 },
+  timeColumns: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  timeColumn: { flexGrow: 0, width: 96, maxHeight: 220, borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 10 },
+  timeColumnContent: { paddingVertical: 6 },
+  timeItem: { paddingVertical: 10, alignItems: "center" },
+  timeItemSelected: { backgroundColor: "#eff6ff" },
+  timeText: { fontSize: 18, color: "#111827" },
+  timeTextSelected: { color: "#2563eb", fontWeight: "700" },
+  timeSeparator: { fontSize: 18, fontWeight: "700", marginHorizontal: 4 },
 });
