@@ -1,5 +1,5 @@
 import React from "react";
-import { Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Stack } from "expo-router";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
@@ -17,32 +17,13 @@ type LessonConfig = {
 
 export default function LessonConfigurationScreen() {
   const { lessonConfig, products, updateLessonConfig } = useSettings();
-  const [config, setConfig] = React.useState<LessonConfig>(lessonConfig);
   const [openCancelDropdown, setOpenCancelDropdown] = React.useState<boolean>(false);
-  const [saving, setSaving] = React.useState<boolean>(false);
   const insets = useSafeAreaInsets();
 
-  React.useEffect(() => {
-    setConfig(lessonConfig);
-  }, [lessonConfig]);
-
-  const save = React.useCallback(async () => {
-    setSaving(true);
-    try {
-      await updateLessonConfig(config);
-      if (Platform.OS === "android") {
-        const { ToastAndroid } = require("react-native");
-        ToastAndroid.show("Les configuratie opgeslagen", ToastAndroid.SHORT);
-      } else {
-        Alert.alert("", "Les configuratie opgeslagen");
-      }
-    } catch (e) {
-      console.log("Save configuration error", e);
-      Alert.alert("Fout", "Kan configuratie niet opslaan");
-    } finally {
-      setSaving(false);
-    }
-  }, [config, updateLessonConfig]);
+  const updateConfig = React.useCallback(async (updates: Partial<LessonConfig>) => {
+    const newConfig = { ...lessonConfig, ...updates };
+    await updateLessonConfig(newConfig);
+  }, [lessonConfig, updateLessonConfig]);
 
   return (
     <ErrorBoundary>
@@ -50,11 +31,6 @@ export default function LessonConfigurationScreen() {
         <Stack.Screen
           options={{
             title: "Les configuratie",
-            headerRight: () => (
-              <TouchableOpacity testID="save-lesson-config" onPress={save} style={{ padding: 8 }} accessibilityRole="button">
-                <Text style={{ color: "#0ea5e9", fontWeight: "600" }}>{saving ? "Opslaan…" : "Opslaan"}</Text>
-              </TouchableOpacity>
-            ),
           }}
         />
 
@@ -64,10 +40,10 @@ export default function LessonConfigurationScreen() {
           <Card title="Lesduur Instellingen">
             <DurationControl
               label="Rijles"
-              value={config.baseLessonDuration}
+              value={lessonConfig.baseLessonDuration}
               min={30}
               max={180}
-              onChange={(v) => setConfig((p) => ({ ...p, baseLessonDuration: v }))}
+              onChange={(v) => updateConfig({ baseLessonDuration: v })}
             />
           </Card>
 
@@ -79,11 +55,11 @@ export default function LessonConfigurationScreen() {
                 <View key={prod.id} style={{ marginBottom: 12 }}>
                   <DurationControl
                     label={prod.name}
-                    value={config.productDurations[prod.name] ?? 60}
+                    value={lessonConfig.productDurations[prod.name] ?? 60}
                     min={15}
                     max={180}
                     step={5}
-                    onChange={(v) => setConfig((p) => ({ ...p, productDurations: { ...p.productDurations, [prod.name]: v } }))}
+                    onChange={(v) => updateConfig({ productDurations: { ...lessonConfig.productDurations, [prod.name]: v } })}
                   />
                 </View>
               ))
@@ -94,18 +70,18 @@ export default function LessonConfigurationScreen() {
             <ToggleRow
               title="Automatische wacht/reistijd"
               subtitle="Automatisch wacht/reistijd inplannen tussen lessen"
-              value={config.automaticBreaks}
-              onToggle={() => setConfig((p) => ({ ...p, automaticBreaks: !p.automaticBreaks }))}
+              value={lessonConfig.automaticBreaks}
+              onToggle={() => updateConfig({ automaticBreaks: !lessonConfig.automaticBreaks })}
             />
-            {config.automaticBreaks && (
+            {lessonConfig.automaticBreaks && (
               <View style={{ marginTop: 12 }}>
                 <DurationControl
                   label="Wacht/reistijd tussen lessen"
-                  value={config.breakBetweenLessons}
+                  value={lessonConfig.breakBetweenLessons}
                   min={5}
                   max={60}
                   step={5}
-                  onChange={(v) => setConfig((p) => ({ ...p, breakBetweenLessons: v }))}
+                  onChange={(v) => updateConfig({ breakBetweenLessons: v })}
                 />
               </View>
             )}
@@ -116,8 +92,8 @@ export default function LessonConfigurationScreen() {
             <ToggleRow
               title="Bevestiging vereisen"
               subtitle="Leerlingen moeten lesboekingen bevestigen"
-              value={config.requireConfirmation}
-              onToggle={() => setConfig((p) => ({ ...p, requireConfirmation: !p.requireConfirmation }))}
+              value={lessonConfig.requireConfirmation}
+              onToggle={() => updateConfig({ requireConfirmation: !lessonConfig.requireConfirmation })}
             />
 
             <View style={{ height: 16 }} />
@@ -128,7 +104,7 @@ export default function LessonConfigurationScreen() {
               onPress={() => setOpenCancelDropdown((o) => !o)}
               accessibilityRole="button"
             >
-              <Text style={styles.dropdownText}>{hoursLabel(config.cancellationNoticeHours)}</Text>
+              <Text style={styles.dropdownText}>{hoursLabel(lessonConfig.cancellationNoticeHours)}</Text>
               <ChevronDown color="#6b7280" size={18} />
             </TouchableOpacity>
             {openCancelDropdown && (
@@ -138,7 +114,7 @@ export default function LessonConfigurationScreen() {
                     key={h}
                     style={styles.dropdownItem}
                     onPress={() => {
-                      setConfig((p) => ({ ...p, cancellationNoticeHours: h as LessonConfig["cancellationNoticeHours"] }));
+                      updateConfig({ cancellationNoticeHours: h as LessonConfig["cancellationNoticeHours"] });
                       setOpenCancelDropdown(false);
                     }}
                     accessibilityRole="button"
