@@ -1,59 +1,13 @@
-import React, { memo, useEffect, useMemo, useRef, useState } from "react";
-import { Platform, ScrollView, StyleSheet, Text, View } from "react-native";
-import * as FileSystem from "expo-file-system";
+import React, { memo, useEffect, useMemo, useRef } from "react";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useAgenda } from "@/components/agenda/AgendaStore";
+import { useWorkingHours, type DayKey, type DayConfig } from "@/components/settings/WorkingHoursStore";
 
 export interface TimeGridProps {
   date: Date;
   onLessonPress?: (id: string) => void;
 }
 
-type DayKey =
-  | "Maandag"
-  | "Dinsdag"
-  | "Woensdag"
-  | "Donderdag"
-  | "Vrijdag"
-  | "Zaterdag"
-  | "Zondag";
-
-type DayConfig = {
-  enabled: boolean;
-  startTime: string;
-  endTime: string;
-  breakDuration: number;
-  autoLunchBreak: boolean;
-  breakStartTime?: string;
-  breakEndTime?: string;
-};
-
-type WorkingHours = Record<DayKey, DayConfig>;
-
-const STORAGE_KEY = "instructor_working_hours" as const;
-
-const defaultWorkingHours: WorkingHours = {
-  Maandag: { enabled: true, startTime: "09:00", endTime: "17:00", breakDuration: 30, autoLunchBreak: true },
-  Dinsdag: { enabled: true, startTime: "09:00", endTime: "17:00", breakDuration: 30, autoLunchBreak: true },
-  Woensdag: { enabled: true, startTime: "09:00", endTime: "17:00", breakDuration: 30, autoLunchBreak: true },
-  Donderdag: { enabled: true, startTime: "09:00", endTime: "17:00", breakDuration: 30, autoLunchBreak: true },
-  Vrijdag: { enabled: true, startTime: "09:00", endTime: "17:00", breakDuration: 30, autoLunchBreak: true },
-  Zaterdag: { enabled: false, startTime: "10:00", endTime: "16:00", breakDuration: 30, autoLunchBreak: false },
-  Zondag: { enabled: false, startTime: "10:00", endTime: "16:00", breakDuration: 30, autoLunchBreak: false },
-};
-
-async function storageGetString(key: string): Promise<string | null> {
-  try {
-    if (Platform.OS === "web") {
-      return window.localStorage.getItem(key);
-    }
-    const path = `${FileSystem.documentDirectory ?? ""}${key}.json`;
-    const info = await FileSystem.getInfoAsync(path);
-    if (!info.exists) return null;
-    return await FileSystem.readAsStringAsync(path);
-  } catch {
-    return null;
-  }
-}
 
 function toMinutes(hhmm: string): number {
   const [h, m] = hhmm.split(":").map((v) => parseInt(v, 10));
@@ -101,25 +55,7 @@ function colorForType(type?: string): string {
 function Inner({ date, onLessonPress }: TimeGridProps) {
   const { getLessonsForDate } = useAgenda();
   const lessons = getLessonsForDate(date);
-
-  const [workingHours, setWorkingHours] = useState<WorkingHours>(defaultWorkingHours);
-
-  useEffect(() => {
-    (async () => {
-      const raw = await storageGetString(STORAGE_KEY);
-      if (!raw) return;
-      try {
-        const parsed = JSON.parse(raw) as Record<string, unknown>;
-        const casted = Object.keys(defaultWorkingHours).reduce((acc, key) => {
-          const k = key as DayKey;
-          const src = (parsed as Record<string, unknown>)[k] as Partial<DayConfig> | undefined;
-          acc[k] = { ...defaultWorkingHours[k], ...(src ?? {}) } as DayConfig;
-          return acc;
-        }, {} as WorkingHours);
-        setWorkingHours(casted);
-      } catch {}
-    })();
-  }, []);
+  const { workingHours } = useWorkingHours();
 
   const dayKey = dutchDayName(date);
   const conf = workingHours[dayKey];
@@ -129,7 +65,7 @@ function Inner({ date, onLessonPress }: TimeGridProps) {
 
   const hours = useMemo(() => Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, "0")}:00`), []);
 
-  const PPM = 2.0 as const; // pixels per minute => 120px per hour
+  const PPM = 2.0 as const;
   const timelineHeight = 24 * 60 * PPM;
 
   const scrollRef = useRef<ScrollView | null>(null);
@@ -150,8 +86,19 @@ function Inner({ date, onLessonPress }: TimeGridProps) {
     <View style={styles.wrapper} testID="time-grid">
       <ScrollView ref={scrollRef} horizontal={false} showsVerticalScrollIndicator contentContainerStyle={[styles.scrollContent, { height: timelineHeight + 32 }]}>        
         <View style={styles.timelineCard}>
-          <View style={[styles.workOverlay, { top: enabled ? startMin * PPM : 0, height: enabled ? (minutesBetween(conf.startTime, conf.endTime) * PPM) : 0, opacity: enabled ? 1 : 0 }]} />
-
+          {enabled && (
+            <>
+              {!conf.autoLunchBreak && (
+                <View style={[styles.workOverlay, { top: startMin * PPM, height: minutesBetween(conf.startTime, conf.endTime) * PPM }]} />
+              )}
+              {conf.autoLunchBreak && (
+                <>
+                  <View style={[styles.workOverlay, { top: startMin * PPM, height: minutesBetween(conf.startTime, conf.breakStartTime ?? conf.startTime) * PPM }]} />
+                  <View style={[styles.workOverlay, { top: (toMinutes(conf.breakEndTime ?? conf.endTime) * PPM), height: Math.max(0, (toMinutes(conf.endTime) - toMinutes(conf.breakEndTime ?? conf.endTime)) * PPM) }]} />
+                </>
+              )}
+            </>
+          )}
 
           <View style={styles.gridArea}>
             {hours.map((h) => (
@@ -164,7 +111,7 @@ function Inner({ date, onLessonPress }: TimeGridProps) {
             {lessons.map((l) => {
               const top = toMinutes(l.startTime) * PPM;
               const height = minutesBetween(l.startTime, l.endTime) * PPM;
-              const leftInset = 72;
+              const leftInset = 84;
               return (
                 <View
                   key={String(l.id)}
@@ -198,7 +145,7 @@ const styles = StyleSheet.create({
   timelineCard: {
     position: "relative",
     borderRadius: 16,
-    backgroundColor: "#6b7280",
+    backgroundColor: "#9ca3af",
     overflow: "hidden",
   },
   workOverlay: {
@@ -213,14 +160,14 @@ const styles = StyleSheet.create({
   gridArea: { paddingLeft: 0, paddingRight: 0 },
   gridHourRow: { height: 120, alignItems: "flex-start", justifyContent: "flex-start", paddingHorizontal: 0 },
   hourLabel: { color: "#d1d5db", fontWeight: "700", marginTop: 4, paddingLeft: 12 },
-  hourLine: { height: 1, backgroundColor: "#374151", opacity: 1, alignSelf: "stretch" },
+  hourLine: { height: 1, backgroundColor: "#4b5563", opacity: 1, alignSelf: "stretch" },
 
   lessonBlock: {
     position: "absolute",
-    left: 12,
-    right: 12,
+    left: 84,
+    right: 16,
     borderRadius: 12,
-    padding: 12,
+    padding: 10,
     backgroundColor: "#a78bfa",
     shadowColor: "#000",
     shadowOpacity: 0.12,

@@ -28,6 +28,22 @@ export default function WorkingHoursScreen() {
     setWorkingHours(storedHours);
   }, [storedHours]);
 
+  const lastSavedRef = React.useRef<string>(JSON.stringify(storedHours));
+  React.useEffect(() => {
+    const current = JSON.stringify(workingHours);
+    if (current === lastSavedRef.current) return;
+    const id = setTimeout(async () => {
+      try {
+        await updateWorkingHours(workingHours);
+        lastSavedRef.current = JSON.stringify(workingHours);
+        console.log("WorkingHoursScreen: Auto-saved changes");
+      } catch (e) {
+        console.log("WorkingHoursScreen: Auto-save error", e);
+      }
+    }, 400);
+    return () => clearTimeout(id);
+  }, [workingHours, updateWorkingHours]);
+
   const enabledDays = useMemo(() => Object.entries(workingHours).filter(([, v]) => v.enabled), [workingHours]);
 
   const validate = useCallback((): string | null => {
@@ -54,6 +70,7 @@ export default function WorkingHoursScreen() {
     setIsSaving(true);
     try {
       await updateWorkingHours(workingHours);
+      lastSavedRef.current = JSON.stringify(workingHours);
       if (Platform.OS !== "web") {
         try { await Haptics.selectionAsync(); } catch {}
       }
