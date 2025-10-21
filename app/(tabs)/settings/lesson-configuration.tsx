@@ -3,13 +3,13 @@ import { Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View }
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Stack } from "expo-router";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
-import { Save, Timer, Settings2, Clock, ChevronDown } from "lucide-react-native";
+import { Save, ChevronDown } from "lucide-react-native";
 import * as FileSystem from "expo-file-system";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 type LessonConfig = {
-  practicalLessonDuration: number;
-  theoryLessonDuration: number;
-  examLessonDuration: number;
+  baseLessonDuration: number; // Rijles
+  productDurations: Record<string, number>; // key: product name, value: minutes
   breakBetweenLessons: number;
   automaticBreaks: boolean;
   allowBackToBackLessons: boolean;
@@ -18,11 +18,13 @@ type LessonConfig = {
 };
 
 const STORAGE_KEY = "lesson_configuration" as const;
+const PRODUCTS_KEY = "instructor_products" as const;
+
+type Product = { id: string; name: string; price: number; vatStatus: "incl" | "excl" };
 
 const defaultConfig: LessonConfig = {
-  practicalLessonDuration: 60,
-  theoryLessonDuration: 60,
-  examLessonDuration: 120,
+  baseLessonDuration: 60,
+  productDurations: {},
   breakBetweenLessons: 15,
   automaticBreaks: true,
   allowBackToBackLessons: false,
@@ -60,6 +62,7 @@ export default function LessonConfigurationScreen() {
   const [config, setConfig] = React.useState<LessonConfig>(defaultConfig);
   const [openCancelDropdown, setOpenCancelDropdown] = React.useState<boolean>(false);
   const [saving, setSaving] = React.useState<boolean>(false);
+  const [products, setProducts] = React.useState<Product[]>([]);
   const insets = useSafeAreaInsets();
 
   React.useEffect(() => {
@@ -68,11 +71,37 @@ export default function LessonConfigurationScreen() {
       const raw = await storageGetString(STORAGE_KEY);
       if (raw) {
         try {
-          const parsed = JSON.parse(raw) as Partial<LessonConfig>;
-          setConfig({ ...defaultConfig, ...parsed });
+          const parsed = JSON.parse(raw) as Partial<LessonConfig> & Partial<{ practicalLessonDuration: number; theoryLessonDuration: number; examLessonDuration: number }>;
+          const migrated: LessonConfig = {
+            baseLessonDuration: typeof parsed.baseLessonDuration === "number" ? parsed.baseLessonDuration : (typeof parsed.practicalLessonDuration === "number" ? parsed.practicalLessonDuration : 60),
+            productDurations: parsed.productDurations ?? {},
+            breakBetweenLessons: typeof parsed.breakBetweenLessons === "number" ? parsed.breakBetweenLessons : defaultConfig.breakBetweenLessons,
+            automaticBreaks: typeof parsed.automaticBreaks === "boolean" ? parsed.automaticBreaks : defaultConfig.automaticBreaks,
+            allowBackToBackLessons: typeof parsed.allowBackToBackLessons === "boolean" ? parsed.allowBackToBackLessons : defaultConfig.allowBackToBackLessons,
+            requireConfirmation: typeof parsed.requireConfirmation === "boolean" ? parsed.requireConfirmation : defaultConfig.requireConfirmation,
+            cancellationNoticeHours: (parsed.cancellationNoticeHours as LessonConfig["cancellationNoticeHours"]) ?? defaultConfig.cancellationNoticeHours,
+          };
+          setConfig(migrated);
         } catch (e) {
           console.log("Failed to parse lesson configuration", e);
         }
+      }
+      try {
+        const pStr = await AsyncStorage.getItem(PRODUCTS_KEY);
+        if (pStr) {
+          const list = JSON.parse(pStr) as Product[];
+          setProducts(list);
+          setConfig((prev) => {
+            const nextDurations = { ...prev.productDurations };
+            list.forEach((p) => { if (typeof nextDurations[p.name] !== "number") nextDurations[p.name] = 60; });
+            return { ...prev, productDurations: nextDurations };
+          });
+        } else {
+          setProducts([]);
+        }
+      } catch (e) {
+        console.log("Failed to load products", e);
+        setProducts([]);
       }
     })();
   }, []);
@@ -115,28 +144,31 @@ export default function LessonConfigurationScreen() {
 
           <Card title="Lesduur Instellingen">
             <DurationControl
-              label="Praktijkles"
-              value={config.practicalLessonDuration}
+              label="Rijles"
+              value={config.baseLessonDuration}
               min={30}
               max={180}
-              onChange={(v) => setConfig((p) => ({ ...p, practicalLessonDuration: v }))}
+              onChange={(v) => setConfig((p) => ({ ...p, baseLessonDuration: v }))}
             />
-            <View style={{ height: 12 }} />
-            <DurationControl
-              label="Theorieles"
-              value={config.theoryLessonDuration}
-              min={30}
-              max={120}
-              onChange={(v) => setConfig((p) => ({ ...p, theoryLessonDuration: v }))}
-            />
-            <View style={{ height: 12 }} />
-            <DurationControl
-              label="Praktijk examen"
-              value={config.examLessonDuration}
-              min={60}
-              max={240}
-              onChange={(v) => setConfig((p) => ({ ...p, examLessonDuration: v }))}
-            />
+          </Card>
+
+          <Card title="Productduur (uit Pakketten/Uren)">
+            {products.length === 0 ? (
+              <Text style={styles.muted}>Geen producten gevonden. Voeg producten toe via Instellingen → Pakketten/Uren.</Text>
+            ) : (
+              products.map((prod) => (
+                <View key={prod.id} style={{ marginBottom: 12 }}>
+                  <DurationControl
+                    label={prod.name}
+                    value={config.productDurations[prod.name] ?? 60}
+                    min={15}
+                    max={240}
+                    step={5}
+                    onChange={(v) => setConfig((p) => ({ ...p, productDurations: { ...p.productDurations, [prod.name]: v } }))}
+                  />
+                </View>
+              ))
+            )}
           </Card>
 
           <Card title="Wacht/reistijd">

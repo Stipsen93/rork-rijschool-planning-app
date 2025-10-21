@@ -10,9 +10,28 @@ import { ScheduleSection } from "@/components/add-lesson/ScheduleSection";
 import { LocationSection } from "@/components/add-lesson/LocationSection";
 import { NotesSection } from "@/components/add-lesson/NotesSection";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as FileSystem from "expo-file-system";
 import { useAgenda } from "@/components/agenda/AgendaStore";
 
 export type Option = { label: string; value: string };
+
+type LessonConfigLocal = {
+  baseLessonDuration: number;
+  productDurations: Record<string, number>;
+};
+
+async function storageGetString(key: string): Promise<string | null> {
+  try {
+    if (Platform.OS === "web") return window.localStorage.getItem(key);
+    const path = `${FileSystem.documentDirectory ?? ""}${key}.json`;
+    const info = await FileSystem.getInfoAsync(path);
+    if (!info.exists) return null;
+    return await FileSystem.readAsStringAsync(path);
+  } catch (e) {
+    console.log("[AddLesson] storageGetString error", e);
+    return null;
+  }
+}
 
 export default function AddLessonScreen() {
   const router = useRouter();
@@ -24,6 +43,7 @@ export default function AddLessonScreen() {
   ], []);
 
   const [productTypes, setProductTypes] = useState<string[]>([]);
+  const [lessonConfig, setLessonConfig] = useState<LessonConfigLocal | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -39,6 +59,22 @@ export default function AddLessonScreen() {
       } catch (e) {
         console.log("[AddLesson] Failed to load products", e);
         setProductTypes([]);
+      }
+      try {
+        const confStr = await storageGetString("lesson_configuration");
+        if (confStr) {
+          const parsed = JSON.parse(confStr) as Partial<LessonConfigLocal> & Partial<{ practicalLessonDuration: number; productDurations: Record<string, number> }>;
+          const baseMaybe = (parsed as { baseLessonDuration?: number }).baseLessonDuration;
+          const practicalMaybe = (parsed as { practicalLessonDuration?: number }).practicalLessonDuration;
+          const base: number = typeof baseMaybe === "number" ? baseMaybe : (typeof practicalMaybe === "number" ? practicalMaybe : 60);
+          const durations = (((parsed as unknown) as { productDurations?: Record<string, number> }).productDurations ?? {}) as Record<string, number>;
+          setLessonConfig({ baseLessonDuration: base, productDurations: durations });
+        } else {
+          setLessonConfig({ baseLessonDuration: 60, productDurations: {} });
+        }
+      } catch (e) {
+        console.log("[AddLesson] Failed to load lesson configuration", e);
+        setLessonConfig({ baseLessonDuration: 60, productDurations: {} });
       }
     })();
   }, []);
@@ -59,6 +95,14 @@ export default function AddLessonScreen() {
   const [time, setTime] = useState<string>("09:00");
   const [durationHours, setDurationHours] = useState<number>(1);
   const [durationMinutes, setDurationMinutes] = useState<number>(0);
+
+  useEffect(() => {
+    if (!lessonConfig) return;
+    const minutes = type === "Rijles" ? lessonConfig.baseLessonDuration : (lessonConfig.productDurations[type] ?? lessonConfig.baseLessonDuration ?? 60);
+    const safe = Number.isFinite(minutes) ? minutes : 60;
+    setDurationHours(Math.floor(safe / 60));
+    setDurationMinutes(safe % 60);
+  }, [type, lessonConfig]);
   const [location, setLocation] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
   const [editingId, setEditingId] = useState<string | null>(null);
