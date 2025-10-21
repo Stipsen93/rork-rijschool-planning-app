@@ -89,11 +89,36 @@ export default function StudentProfileScreen() {
             console.log("[StudentProfile] Failed to parse hourly rates", err);
           }
         }
+        if (params.id) {
+          try {
+            const key = `student_packages_${params.id}`;
+            const stored = await AsyncStorage.getItem(key);
+            if (stored) {
+              const parsed = JSON.parse(stored) as StudentPackage[];
+              setStudentPackages(parsed);
+              console.log("[StudentProfile] Loaded student packages from storage", { count: parsed.length });
+            }
+          } catch (err) {
+            console.log("[StudentProfile] Failed to load student packages", err);
+          }
+        }
       } catch (e) {
         console.log("[StudentProfile] Failed to load settings packages/products", e);
       }
     })();
   }, []);
+
+  const saveDebounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!params.id) return;
+    if (saveDebounceRef.current) clearTimeout(saveDebounceRef.current);
+    saveDebounceRef.current = setTimeout(() => {
+      AsyncStorage.setItem(`student_packages_${params.id}` as const, JSON.stringify(studentPackages))
+        .then(() => console.log("[StudentProfile] Persisted student packages", { id: params.id, count: studentPackages.length }))
+        .catch((e) => console.log("[StudentProfile] Failed to persist student packages", e));
+    }, 400);
+    return () => { if (saveDebounceRef.current) clearTimeout(saveDebounceRef.current); };
+  }, [studentPackages, params.id]);
 
   const openAdd = useCallback(() => {
     setSelectedPackageId(null);

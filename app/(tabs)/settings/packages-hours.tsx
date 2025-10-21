@@ -139,6 +139,20 @@ export default function PackagesAndHoursScreen() {
     }
   }, [hourlyRates, packages, products, saving]);
 
+  const initializedRef = React.useRef<boolean>(false);
+  const autoSaveRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  React.useEffect(() => {
+    if (!initializedRef.current) {
+      initializedRef.current = true;
+      return;
+    }
+    if (autoSaveRef.current) clearTimeout(autoSaveRef.current);
+    autoSaveRef.current = setTimeout(() => {
+      void persistAll();
+    }, 350);
+    return () => { if (autoSaveRef.current) clearTimeout(autoSaveRef.current); };
+  }, [products, packages, hourlyRates, persistAll]);
+
   const addProduct = React.useCallback(() => {
     setShowNewProduct((prev) => !prev);
   }, []);
