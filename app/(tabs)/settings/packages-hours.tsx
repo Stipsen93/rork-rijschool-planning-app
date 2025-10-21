@@ -12,6 +12,29 @@ const PRODUCTS_KEY = "instructor_products";
 const PACKAGES_KEY = "instructor_packages";
 const HOURLY_RATES_KEY = "instructor_hourly_rates";
 
+function confirmCrossPlatform(title: string, message: string, onConfirm: () => void) {
+  if (Platform.OS === "web") {
+    const g = globalThis as unknown as { confirm?: (m: string) => boolean; alert?: (m: string) => void };
+    const ok = g.confirm ? g.confirm(`${title}\n\n${message}`) : false;
+    if (ok) onConfirm();
+  } else {
+    Alert.alert(title, message, [
+      { text: "Annuleren", style: "cancel" },
+      { text: "Verwijderen", style: "destructive", onPress: onConfirm },
+    ]);
+  }
+}
+
+function notifyCrossPlatform(message: string) {
+  if (Platform.OS === "web") {
+    const g = globalThis as unknown as { alert?: (m: string) => void };
+    if (g.alert) g.alert(message);
+    else console.log(message);
+  } else {
+    Alert.alert("Info", message);
+  }
+}
+
 export default function PackagesAndHoursScreen() {
   const [loading, setLoading] = React.useState<boolean>(true);
   const [saving, setSaving] = React.useState<boolean>(false);
@@ -139,17 +162,10 @@ export default function PackagesAndHoursScreen() {
   };
 
   const deleteProduct = (id: string) => {
-    Alert.alert("Verwijderen", "Product verwijderen?", [
-      { text: "Annuleren", style: "cancel" },
-      {
-        text: "Verwijderen",
-        style: "destructive",
-        onPress: () => {
-          setProducts((prev) => prev.filter((p) => p.id !== id));
-          setTimeout(() => Alert.alert("Verwijderd", "Product is verwijderd."), 0);
-        },
-      },
-    ]);
+    confirmCrossPlatform("Verwijderen", "Product verwijderen?", () => {
+      setProducts((prev) => prev.filter((p) => p.id !== id));
+      notifyCrossPlatform("Product is verwijderd.");
+    });
   };
 
   const addPackage = React.useCallback(() => {
@@ -161,17 +177,10 @@ export default function PackagesAndHoursScreen() {
   };
 
   const deletePackage = (id: string) => {
-    Alert.alert("Verwijderen", "Pakket verwijderen?", [
-      { text: "Annuleren", style: "cancel" },
-      {
-        text: "Verwijderen",
-        style: "destructive",
-        onPress: () => {
-          setPackages((prev) => prev.filter((p) => p.id !== id));
-          setTimeout(() => Alert.alert("Verwijderd", "Pakket is verwijderd."), 0);
-        },
-      },
-    ]);
+    confirmCrossPlatform("Verwijderen", "Pakket verwijderen?", () => {
+      setPackages((prev) => prev.filter((p) => p.id !== id));
+      notifyCrossPlatform("Pakket is verwijderd.");
+    });
   };
 
   return (
