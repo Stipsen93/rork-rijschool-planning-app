@@ -43,6 +43,7 @@ export default function PackagesAndHoursScreen() {
   const [products, setProducts] = React.useState<Product[]>([]);
   const [packages, setPackages] = React.useState<PackageItem[]>([]);
   const [hourlyRates, setHourlyRates] = React.useState<HourlyRates>({ price: 45, vatStatus: "incl" });
+  const [hourlyLocked, setHourlyLocked] = React.useState<boolean>(true);
 
   const [showNewProduct, setShowNewProduct] = React.useState<boolean>(false);
   const [newProductName, setNewProductName] = React.useState<string>("");
@@ -80,7 +81,13 @@ export default function PackagesAndHoursScreen() {
       ]);
       if (pStr) setProducts(JSON.parse(pStr) as Product[]);
       if (pkgStr) setPackages(JSON.parse(pkgStr) as PackageItem[]);
-      if (rateStr) setHourlyRates(JSON.parse(rateStr) as HourlyRates);
+      if (rateStr) {
+        const r = JSON.parse(rateStr) as HourlyRates;
+        setHourlyRates(r);
+        setHourlyLocked((r.price ?? 0) > 0);
+      } else {
+        setHourlyLocked(false);
+      }
     } catch (e) {
       console.error("Failed to load data", e);
       Alert.alert("Fout", "Kon gegevens niet laden. Probeer opnieuw.");
@@ -386,14 +393,18 @@ export default function PackagesAndHoursScreen() {
         <Text style={styles.sectionTitle}>Uren</Text>
         <View style={styles.card}>
           <View style={styles.inlineBetween}>
-            <TextInput
-              testID="hourly-price"
-              style={[styles.input, styles.inputSmall]}
-              placeholder="Prijs per uur (€)"
-              keyboardType="decimal-pad"
-              value={String(hourlyRates.price ?? 0)}
-              onChangeText={(t) => setHourlyRates((prev) => ({ ...prev, price: Number(t) || 0 }))}
-            />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.currencyLabel} testID="hourly-euro-label">€</Text>
+              <TextInput
+                testID="hourly-price"
+                style={[styles.input, styles.inputSmall, hourlyLocked && styles.inputDisabled]}
+                placeholder="Prijs per uur (€)"
+                keyboardType="decimal-pad"
+                value={String(hourlyRates.price ?? 0)}
+                onChangeText={(t) => setHourlyRates((prev) => ({ ...prev, price: Number(t) || 0 }))}
+                editable={!hourlyLocked}
+              />
+            </View>
             <TouchableOpacity
               testID="hourly-vat"
               onPress={() => setHourlyRates((prev) => ({ ...prev, vatStatus: prev.vatStatus === "incl" ? "excl" : "incl" }))}
@@ -402,9 +413,20 @@ export default function PackagesAndHoursScreen() {
               <Text style={styles.tagText}>{hourlyRates.vatStatus === "incl" ? "Incl. BTW" : "Excl. BTW"}</Text>
             </TouchableOpacity>
           </View>
-          <TouchableOpacity onPress={persistAll} style={[styles.addBtn, { backgroundColor: "#0ea5e9" }]}>
+          <TouchableOpacity
+            testID="hourly-toggle-save"
+            onPress={async () => {
+              if (hourlyLocked) {
+                setHourlyLocked(false);
+              } else {
+                await persistAll();
+                setHourlyLocked(true);
+              }
+            }}
+            style={[styles.addBtn, { backgroundColor: "#0ea5e9" }]}
+          >
             <Save color="#fff" />
-            <Text style={styles.addBtnText}>Uurprijs opslaan</Text>
+            <Text style={styles.addBtnText}>{hourlyLocked ? "Uurprijs wijzigen" : "Uurprijs opslaan"}</Text>
           </TouchableOpacity>
         </View>
 
@@ -499,6 +521,8 @@ const styles = StyleSheet.create({
     borderColor: "#e5e7eb",
   },
   inputSmall: { minWidth: 120, flex: 1 },
+  inputDisabled: { backgroundColor: "#1f2937", borderColor: "#111827", color: "#fff" },
+  currencyLabel: { fontSize: 12, fontWeight: "700", color: "#6b7280", marginBottom: 6 },
   addBtn: {
     flexDirection: "row",
     gap: 8,
