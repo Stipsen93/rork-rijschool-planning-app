@@ -499,13 +499,25 @@ export default function PackagesAndHoursScreen() {
                 <Text style={styles.itemTitle}>Uurprijs</Text>
                 <Text style={styles.itemSubtitle}>€ {hourlyRates.price.toFixed(2)}</Text>
               </View>
-              <TouchableOpacity
-                accessibilityRole="button"
-                testID="hourly-delete"
-                onPress={() => setConfirmState({ type: "hour", id: "hour", name: "Uurprijs" })}
-              >
-                <Trash2 color="#ef4444" />
-              </TouchableOpacity>
+              <View style={styles.actionsRow}>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  testID="hourly-edit"
+                  onPress={() => {
+                    setShowNewHour(true);
+                    setNewHourPrice(String(hourlyRates.price));
+                  }}
+                >
+                  <Pencil color="#0ea5e9" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  testID="hourly-delete"
+                  onPress={() => setConfirmState({ type: "hour", id: "hour", name: "Uurprijs" })}
+                >
+                  <Trash2 color="#ef4444" />
+                </TouchableOpacity>
+              </View>
             </View>
           ) : (
             <>
@@ -547,7 +559,9 @@ export default function PackagesAndHoursScreen() {
           <View style={styles.modalCard} testID="confirm-delete-modal">
             <Text style={styles.modalTitle}>Weet je het zeker?</Text>
             <Text style={styles.modalMsg}>
-              {confirmState?.type === "product" ? "Product" : confirmState?.type === "package" ? "Pakket" : "Uurprijs"} {`“${confirmState?.name ?? ""}”`} verwijderen?
+              {confirmState?.type === "hour"
+                ? "Uurprijs vrwijderen?"
+                : `${confirmState?.type === "product" ? "Product" : "Pakket"} “${confirmState?.name ?? ""}” verwijderen?`}
             </Text>
             <View style={styles.modalActions}>
               <TouchableOpacity
