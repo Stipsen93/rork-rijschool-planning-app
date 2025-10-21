@@ -152,23 +152,12 @@ function Inner({ date, onLessonPress }: TimeGridProps) {
         <View style={styles.timelineCard}>
           <View style={[styles.workOverlay, { top: enabled ? startMin * PPM : 0, height: enabled ? (minutesBetween(conf.startTime, conf.endTime) * PPM) : 0, opacity: enabled ? 1 : 0 }]} />
 
-          <View style={styles.timeLabels}>
-            {hours.map((h, idx) => (
-              <View key={h} style={[styles.labelRow, { height: 60 * PPM / 2 }]}> 
-                {idx === 0 && <View />}
-              </View>
-            ))}
-          </View>
 
           <View style={styles.gridArea}>
             {hours.map((h) => (
               <View key={h} style={styles.gridHourRow}>
-                <View style={styles.leftLabelCell}>
-                  <Text style={styles.leftLabelText}>{h}</Text>
-                </View>
-                <View style={styles.rightRow}>
-                  <View style={styles.hourLine} />
-                </View>
+                <View style={styles.hourLine} />
+                <Text style={styles.hourLabel}>{h}</Text>
               </View>
             ))}
 
@@ -200,7 +189,7 @@ function Inner({ date, onLessonPress }: TimeGridProps) {
 export const TimeGrid = memo(Inner);
 
 const styles = StyleSheet.create({
-  wrapper: { paddingHorizontal: 0 },
+  wrapper: { paddingHorizontal: 0, marginHorizontal: -16 },
   scrollContent: { paddingBottom: 24 },
   timelineCard: {
     position: "relative",
@@ -217,16 +206,14 @@ const styles = StyleSheet.create({
   },
   timeLabels: { position: "absolute", top: 0, left: 0, right: 0 },
   labelRow: { height: 120, justifyContent: "center" },
-  gridArea: { paddingLeft: 48, paddingRight: 0 },
-  gridHourRow: { height: 120, flexDirection: "row", alignItems: "center" },
-  leftLabelCell: { width: 48, position: "absolute", left: 0, paddingLeft: 0 },
-  leftLabelText: { color: "#d1d5db", fontWeight: "700" },
-  rightRow: { flex: 1, height: "100%" },
-  hourLine: { height: 1, backgroundColor: "#374151", opacity: 1 },
+  gridArea: { paddingLeft: 0, paddingRight: 0 },
+  gridHourRow: { height: 120, alignItems: "flex-start", justifyContent: "flex-start", paddingHorizontal: 0 },
+  hourLabel: { color: "#d1d5db", fontWeight: "700", marginTop: 4, paddingLeft: 12 },
+  hourLine: { height: 1, backgroundColor: "#374151", opacity: 1, alignSelf: "stretch" },
 
   lessonBlock: {
     position: "absolute",
-    left: 56,
+    left: 12,
     right: 12,
     borderRadius: 12,
     padding: 12,
@@ -241,6 +228,6 @@ const styles = StyleSheet.create({
   lessonMeta: { color: "#111827", opacity: 0.8, marginTop: 2, fontWeight: "600" },
   lessonLocation: { color: "#111827", opacity: 0.7, marginTop: 4 },
 
-  disabledBanner: { position: "absolute", top: 12, left: 56, backgroundColor: "#f3f4f6", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  disabledBanner: { position: "absolute", top: 12, left: 12, backgroundColor: "#f3f4f6", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
   disabledText: { color: "#6b7280", fontWeight: "600" },
 });
