@@ -217,7 +217,7 @@ export default function StudentProfileScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      <Stack.Screen options={{ title: params.name ?? "Leerling", headerBackTitle: "Terug" }} />
+      <Stack.Screen options={{ title: "Leerlingen", headerBackTitle: "Terug" }} />
       <ScrollView contentContainerStyle={[styles.container, { paddingTop: insets.top + 8 }]} testID="student-profile">
         <View style={styles.headerCard}>
           <View style={styles.avatar} />
