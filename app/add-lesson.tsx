@@ -10,12 +10,14 @@ import { ScheduleSection } from "@/components/add-lesson/ScheduleSection";
 import { LocationSection } from "@/components/add-lesson/LocationSection";
 import { NotesSection } from "@/components/add-lesson/NotesSection";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useAgenda } from "@/components/agenda/AgendaStore";
 
 export type Option = { label: string; value: string };
 
 export default function AddLessonScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { addLesson } = useAgenda();
 
   const baseAppointmentTypes: Option[] = useMemo(() => [
     { label: "Rijles", value: "Rijles" },
@@ -80,6 +82,34 @@ export default function AddLessonScreen() {
       setIsLoading(true);
       console.log("Saving lesson", { category, type, selectedStudentId, selectedVehicleId, date, time, durationHours, durationMinutes, location, notes });
       await new Promise((res) => setTimeout(res, 600));
+
+      if (!isPauseOrLeave) {
+        const [y, m, d] = date.split("-").map((v) => parseInt(v, 10));
+        const baseDate = new Date(Number.isFinite(y) ? y : new Date().getFullYear(), (Number.isFinite(m) ? m : 1) - 1, Number.isFinite(d) ? d : new Date().getDate());
+        const [sh, sm] = time.split(":" ).map((v) => parseInt(v, 10));
+        const startH = Number.isFinite(sh) ? sh : 0;
+        const startM = Number.isFinite(sm) ? sm : 0;
+        const startTotal = startH * 60 + startM;
+        const endTotal = startTotal + durationHours * 60 + durationMinutes;
+        const endH = Math.floor(endTotal / 60) % 24;
+        const endM = endTotal % 60;
+        const pad = (n: number) => String(n).padStart(2, "0");
+        const endTime = `${pad(endH)}:${pad(endM)}`;
+
+        const studentName = mockStudents.find((s) => s.id === selectedStudentId)?.name ?? "Leerling";
+
+        addLesson({
+          date: baseDate,
+          startTime: time,
+          endTime,
+          studentName,
+          lessonType: type,
+          location: location ?? "",
+          notes: notes ?? "",
+          status: "Gepland",
+        });
+      }
+
       Alert.alert("Opgeslagen", isPauseOrLeave ? `${category} opgeslagen.` : "De les is opgeslagen.");
       router.back();
     } catch (e) {
@@ -88,7 +118,7 @@ export default function AddLessonScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [category, type, selectedStudentId, selectedVehicleId, date, time, durationHours, durationMinutes, location, notes, isPauseOrLeave, router]);
+  }, [addLesson, category, type, selectedStudentId, selectedVehicleId, date, time, durationHours, durationMinutes, location, notes, isPauseOrLeave, router, mockStudents]);
 
   return (
     <ErrorBoundary>

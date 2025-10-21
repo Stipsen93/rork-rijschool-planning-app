@@ -24,6 +24,17 @@ function uid() {
   return Math.random().toString(36).slice(2, 10);
 }
 
+function toMinutes(hhmm: string): number {
+  const [h, m] = hhmm.split(":").map((v) => parseInt(v, 10));
+  const hh = Number.isFinite(h) ? h : 0;
+  const mm = Number.isFinite(m) ? m : 0;
+  return hh * 60 + mm;
+}
+
+function byStartTimeAsc(a: AgendaLesson, b: AgendaLesson): number {
+  return toMinutes(a.startTime) - toMinutes(b.startTime);
+}
+
 function seedLessons(): Record<string, AgendaLesson[]> {
   const today = new Date();
   const day = 24 * 60 * 60 * 1000;
@@ -47,8 +58,20 @@ export const [AgendaProvider, useAgenda] = createContextHook(() => {
 
   const getLessonsForDate = useCallback((date: Date): AgendaLesson[] => {
     const key = keyFor(date);
-    return lessonsByDate[key] ?? [];
+    return (lessonsByDate[key] ?? []).slice().sort(byStartTimeAsc);
   }, [lessonsByDate]);
+
+  const addLesson = useCallback((lesson: Omit<AgendaLesson, "id"> & { id?: string }) => {
+    setLessonsByDate((prev) => {
+      const id = lesson.id && `${lesson.id}`.length > 0 ? `${lesson.id}` : uid();
+      const key = keyFor(lesson.date);
+      const existing = prev[key] ?? [];
+      const nextArr = [...existing, { ...lesson, id }].sort(byStartTimeAsc);
+      const next = { ...prev, [key]: nextArr };
+      console.log("AgendaStore: addLesson", { key, count: nextArr.length, id });
+      return next;
+    });
+  }, []);
 
   const removeLessonById = useCallback((id: string) => {
     setLessonsByDate((prev) => {
@@ -67,9 +90,10 @@ export const [AgendaProvider, useAgenda] = createContextHook(() => {
   const value = useMemo(() => ({
     lessonsByDate,
     getLessonsForDate,
+    addLesson,
     removeLessonById,
     keyFor,
-  }), [lessonsByDate, getLessonsForDate, removeLessonById]);
+  }), [lessonsByDate, getLessonsForDate, addLesson, removeLessonById]);
 
   return value;
 });
