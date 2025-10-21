@@ -25,7 +25,9 @@ export default function WorkingHoursScreen() {
   const insets = useSafeAreaInsets();
 
   React.useEffect(() => {
-    setWorkingHours(storedHours);
+    if (storedHours) {
+      setWorkingHours(storedHours);
+    }
   }, [storedHours]);
 
   const lastSavedRef = React.useRef<string>(JSON.stringify(storedHours));
@@ -51,15 +53,17 @@ export default function WorkingHoursScreen() {
     if (!anyEnabled) return "Selecteer minimaal één werkdag";
     for (const [day, conf] of Object.entries(workingHours) as [DayKey, DayConfig][]) {
       if (!conf.enabled) continue;
-      if (conf.ranges.length === 0) return `Voeg minimaal één tijdsblok toe voor ${day}`;
-      for (const r of conf.ranges) {
+      const ranges = conf.ranges ?? [];
+      const pauses = conf.pauses ?? [];
+      if (ranges.length === 0) return `Voeg minimaal één tijdsblok toe voor ${day}`;
+      for (const r of ranges) {
         const [sh, sm] = r.start.split(":").map((n) => parseInt(n, 10));
         const [eh, em] = r.end.split(":").map((n) => parseInt(n, 10));
         const start = sh * 60 + sm;
         const end = eh * 60 + em;
         if (start >= end) return `Eindtijd moet na starttijd zijn voor ${day}`;
       }
-      for (const p of conf.pauses) {
+      for (const p of pauses) {
         const [sh, sm] = p.start.split(":").map((n) => parseInt(n, 10));
         const [eh, em] = p.end.split(":").map((n) => parseInt(n, 10));
         const start = sh * 60 + sm;
@@ -95,12 +99,14 @@ export default function WorkingHoursScreen() {
   const copyFirstEnabledToAll = useCallback(() => {
     const firstEnabled = (Object.entries(workingHours) as [DayKey, DayConfig][]) 
       .find(([, v]) => v.enabled)?.[1] ?? Object.values(workingHours)[0];
+    const baseRanges = firstEnabled?.ranges ?? [];
+    const basePauses = firstEnabled?.pauses ?? [];
     const pairs = (Object.entries(workingHours) as [DayKey, DayConfig][]).map(([k, v]) => [
       k,
       {
         ...v,
-        ranges: firstEnabled.ranges.slice(),
-        pauses: firstEnabled.pauses.slice(),
+        ranges: baseRanges.slice(),
+        pauses: basePauses.slice(),
       } as DayConfig,
     ] as [DayKey, DayConfig]);
     const next: WorkingHours = Object.fromEntries(pairs) as WorkingHours;
@@ -121,13 +127,14 @@ export default function WorkingHoursScreen() {
   const applyTime = useCallback((val: string) => {
     if (!timePickerFor) return;
     setWorkingHours((prev) => {
-      const next = { ...prev };
+      const next = { ...prev } as WorkingHours;
       const dayCfg = next[timePickerFor.day];
-      const list = dayCfg[timePickerFor.group];
-      const item = list[timePickerFor.index];
+      const list = (dayCfg as any)[timePickerFor.group] as { start: string; end: string }[] | undefined;
+      const safeList = Array.isArray(list) ? list : [];
+      const item = safeList[timePickerFor.index];
       if (!item) return next;
       const updated = { ...item, [timePickerFor.part]: val } as { start: string; end: string };
-      const newList = list.slice();
+      const newList = safeList.slice();
       newList[timePickerFor.index] = updated;
       (dayCfg as any)[timePickerFor.group] = newList;
       return next;
@@ -138,41 +145,45 @@ export default function WorkingHoursScreen() {
 
   const addRange = useCallback((day: DayKey) => {
     setWorkingHours((prev) => {
-      const next = { ...prev };
-      const list = next[day].ranges.slice();
+      const next = { ...prev } as WorkingHours;
+      const current = next[day];
+      const list = (current.ranges ?? []).slice();
       const last = list[list.length - 1] ?? { start: "09:00", end: "17:00" };
       list.push({ start: last.end, end: last.end });
-      next[day] = { ...next[day], ranges: list };
+      next[day] = { ...current, ranges: list };
       return next;
     });
   }, []);
 
   const removeRange = useCallback((day: DayKey, index: number) => {
     setWorkingHours((prev) => {
-      const next = { ...prev };
-      const list = next[day].ranges.slice();
+      const next = { ...prev } as WorkingHours;
+      const current = next[day];
+      const list = (current.ranges ?? []).slice();
       list.splice(index, 1);
-      next[day] = { ...next[day], ranges: list };
+      next[day] = { ...current, ranges: list };
       return next;
     });
   }, []);
 
   const addPause = useCallback((day: DayKey) => {
     setWorkingHours((prev) => {
-      const next = { ...prev };
-      const list = next[day].pauses.slice();
+      const next = { ...prev } as WorkingHours;
+      const current = next[day];
+      const list = (current.pauses ?? []).slice();
       list.push({ start: "12:00", end: "12:30" });
-      next[day] = { ...next[day], pauses: list };
+      next[day] = { ...current, pauses: list };
       return next;
     });
   }, []);
 
   const removePause = useCallback((day: DayKey, index: number) => {
     setWorkingHours((prev) => {
-      const next = { ...prev };
-      const list = next[day].pauses.slice();
+      const next = { ...prev } as WorkingHours;
+      const current = next[day];
+      const list = (current.pauses ?? []).slice();
       list.splice(index, 1);
-      next[day] = { ...next[day], pauses: list };
+      next[day] = { ...current, pauses: list };
       return next;
     });
   }, []);
@@ -240,7 +251,7 @@ export default function WorkingHoursScreen() {
                 <View style={styles.cardBody}>
                   <Text style={styles.sectionTitle}>Tijdsblokken</Text>
                   <View style={{ height: 8 }} />
-                  {conf.ranges.map((r, idx) => (
+                  {(conf.ranges ?? []).map((r, idx) => (
                     <View key={`r-${idx}`} style={[styles.row, { alignItems: "center", marginBottom: 8 }]}> 
                       <TimeField label="Start" value={r.start} onPress={() => openTimePicker({ day, group: "ranges", index: idx, part: "start", current: r.start })} />
                       <View style={{ width: 12 }} />
@@ -259,10 +270,10 @@ export default function WorkingHoursScreen() {
 
                   <Text style={styles.sectionTitle}>Pauzes</Text>
                   <View style={{ height: 8 }} />
-                  {conf.pauses.length === 0 && (
+                  {((conf.pauses ?? []).length === 0) && (
                     <Text style={{ color: "#6b7280", marginBottom: 8 }}>Geen pauzes ingesteld</Text>
                   )}
-                  {conf.pauses.map((p, idx) => (
+                  {(conf.pauses ?? []).map((p, idx) => (
                     <View key={`p-${idx}`} style={[styles.row, { alignItems: "center", marginBottom: 8 }]}> 
                       <TimeField label="Start" value={p.start} onPress={() => openTimePicker({ day, group: "pauses", index: idx, part: "start", current: p.start })} />
                       <View style={{ width: 12 }} />
