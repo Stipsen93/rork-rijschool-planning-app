@@ -6,7 +6,7 @@ import { DayStrip } from "@/components/agenda/DayStrip";
 import { MonthlyView } from "@/components/agenda/MonthlyView";
 import { LessonCard } from "@/components/agenda/LessonCard";
 import { LessonDetailSheet } from "@/components/agenda/LessonDetailSheet";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { Plus } from "lucide-react-native";
 import { useAgenda } from "@/components/agenda/AgendaStore";
 
@@ -41,6 +41,14 @@ export default function AgendaScreen() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [showMonthly, setShowMonthly] = useState<boolean>(false);
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        setSelectedLesson(null);
+      };
+    }, [])
+  );
 
   const { getLessonsForDate: getLessonsForDateFromStore, lessonsByDate } = useAgenda();
   const insets = useSafeAreaInsets();
