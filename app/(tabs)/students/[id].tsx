@@ -323,8 +323,8 @@ export default function StudentProfileScreen() {
                 );
               })}
 
-              <TouchableOpacity onPress={openAdd} style={[styles.secondaryBtn]}>
-                <Text style={styles.secondaryBtnText}>Nieuw pakket of uren toevoegen</Text>
+              <TouchableOpacity onPress={openAdd} style={[styles.primaryBtn]}>
+                <Text style={styles.primaryBtnText}>Nieuw pakket of uren toevoegen</Text>
               </TouchableOpacity>
             </View>
           )}
