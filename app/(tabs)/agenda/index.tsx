@@ -5,6 +5,7 @@ import { AgendaHeader } from "@/components/agenda/AgendaHeader";
 import { DayStrip } from "@/components/agenda/DayStrip";
 import { MonthlyView } from "@/components/agenda/MonthlyView";
 import { LessonCard } from "@/components/agenda/LessonCard";
+import { TimeGrid } from "@/components/agenda/TimeGrid";
 import { LessonDetailSheet } from "@/components/agenda/LessonDetailSheet";
 import { useRouter, useFocusEffect } from "expo-router";
 import { Plus } from "lucide-react-native";
@@ -104,26 +105,13 @@ export default function AgendaScreen() {
           lessonCounts={lessonCounts}
         />
 
-        <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>Lessen op geselecteerde dag</Text></View>
-        {getLessonsForDate(selectedDate).map((lsn, idx) => (
-          <LessonCard
-            key={`${keyFor(selectedDate)}-${idx}`}
-            lesson={lsn}
-            onPress={() => setSelectedLesson(lsn)}
-            onDelete={() => {
-              const lessonParam = JSON.stringify({
-                id: (lsn as any).id ?? "",
-                studentName: lsn.studentName,
-                lessonType: lsn.lessonType,
-                startTime: lsn.startTime,
-                endTime: lsn.endTime,
-                date: lsn.date?.toString(),
-              });
-              setSelectedLesson(null);
-              router.push({ pathname: "/lesson-cancellation-screen", params: { lesson: lessonParam } });
-            }}
-          />
-        ))}
+        <TimeGrid
+          date={selectedDate}
+          onLessonPress={(id) => {
+            const l = getLessonsForDate(selectedDate).find((x) => String((x as any).id) === id);
+            if (l) setSelectedLesson(l);
+          }}
+        />
 
         <View style={{ height: 40 }} />
       </ScrollView>
