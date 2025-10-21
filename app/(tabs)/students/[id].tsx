@@ -3,6 +3,7 @@ import { Stack, useLocalSearchParams } from "expo-router";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Platform, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Pencil, Trash2, X } from "lucide-react-native";
 
 type StatusType = "active" | "irregular" | "inactive" | string | undefined;
 
@@ -22,6 +23,10 @@ type StudentPackage = {
   installments: { installmentNumber: number; amount: number; paid: boolean; paidDate?: string | null; dueDate?: string | null }[];
   paymentStatus: "paid" | "unpaid" | "partial";
   addedDate: string;
+  customName?: string;
+  customPrice?: number;
+  customHours?: number;
+  includedProductIds?: string[];
 };
 
 export default function StudentProfileScreen() {
@@ -58,6 +63,7 @@ export default function StudentProfileScreen() {
   const [paymentTerm, setPaymentTerm] = useState<string>("1x");
   const [customTerms, setCustomTerms] = useState<number>(2);
   const [looseHours, setLooseHours] = useState<string>("");
+  const [editIdx, setEditIdx] = useState<number | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -146,6 +152,21 @@ export default function StudentProfileScreen() {
     });
   }, []);
 
+  const unmarkInstallment = useCallback((pkgIndex: number, installmentIndex: number) => {
+    setStudentPackages(prev => {
+      const copy = [...prev];
+      const target = copy[pkgIndex];
+      if (!target) return prev;
+      const inst = [...target.installments];
+      if (installmentIndex < 0 || installmentIndex >= inst.length) return prev;
+      inst[installmentIndex] = { ...inst[installmentIndex], paid: false, paidDate: null };
+      const paidCount = inst.filter(i => i.paid).length;
+      const paymentStatus: StudentPackage["paymentStatus"] = paidCount === inst.length ? "paid" : paidCount > 0 ? "partial" : "unpaid";
+      copy[pkgIndex] = { ...target, installments: inst, paymentStatus };
+      return copy;
+    });
+  }, []);
+
   const setPaymentStatus = useCallback((pkgIndex: number, status: StudentPackage["paymentStatus"]) => {
     setStudentPackages(prev => {
       const copy = [...prev];
@@ -213,9 +234,12 @@ export default function StudentProfileScreen() {
                   <View key={pkg.id} style={styles.pkgCard}>
                     <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                       <View style={{ flex: 1, paddingRight: 8 }}>
-                        <Text style={styles.pkgTitle}>{info?.name ?? "Onbekend pakket"}</Text>
-                        <Text style={styles.pkgSub}>{info?.isProduct ? `Product • €${(info?.price ?? 0).toFixed(2)}` : `${info?.hours ?? 0} uren • €${(info?.price ?? 0).toFixed(2)}`}</Text>
+                        <Text style={styles.pkgTitle}>{pkg.customName ?? info?.name ?? "Onbekend pakket"}</Text>
+                        <Text style={styles.pkgSub}>{info?.isProduct ? `Product • €${(pkg.customPrice ?? info?.price ?? 0).toFixed(2)}` : `${pkg.customHours ?? info?.hours ?? 0} uren • €${(pkg.customPrice ?? info?.price ?? 0).toFixed(2)}`}</Text>
                       </View>
+                      <TouchableOpacity onPress={() => setEditIdx(idx)} accessibilityRole="button" testID={`edit-pkg-${idx}`} style={{ padding: 8 }}>
+                        <Pencil size={20} color="#111827" />
+                      </TouchableOpacity>
                     </View>
 
                     {pkg.installments.length > 0 ? (
@@ -226,16 +250,16 @@ export default function StudentProfileScreen() {
                         </View>
                         <View style={styles.dropdownBox}>
                           <Text style={styles.dropdownLabel}>Markeer termijn als betaald</Text>
-                          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                          <View style={{ gap: 8 }}>
                             {pkg.installments.map((inst, i) => (
-                              <TouchableOpacity
-                                key={i}
-                                onPress={() => (!inst.paid ? markInstallmentPaid(idx, i) : undefined)}
-                                style={[styles.chip, inst.paid && { backgroundColor: "#16a34a" }]}>
-                                <Text style={[styles.chipText, inst.paid && { color: "#fff" }]}>
-                                  Termijn {inst.installmentNumber} {inst.paid ? "• Betaald" : ""}
-                                </Text>
-                              </TouchableOpacity>
+                              <View key={i} style={styles.termRow}>
+                                <TouchableOpacity
+                                  onPress={() => (!inst.paid ? markInstallmentPaid(idx, i) : unmarkInstallment(idx, i))}
+                                  style={[styles.termBtn, inst.paid && styles.termBtnPaid]}>
+                                  <Text style={[styles.termBtnText, inst.paid && styles.termBtnTextPaid]}>Termijn {inst.installmentNumber}</Text>
+                                </TouchableOpacity>
+                                <Text style={styles.termDateText}>{inst.paid && inst.paidDate ? formatDate(inst.paidDate) : "–"}</Text>
+                              </View>
                             ))}
                           </View>
                         </View>
@@ -282,6 +306,16 @@ export default function StudentProfileScreen() {
         setLooseHours={setLooseHours}
         onConfirm={onAddConfirm}
       />
+
+      <EditStudentPackageModal
+        visible={editIdx !== null}
+        onClose={() => setEditIdx(null)}
+        pkgIndex={editIdx}
+        studentPackages={studentPackages}
+        setStudentPackages={setStudentPackages}
+        basePackages={availablePackages}
+        productsGroup={settingsProducts}
+      />
     </View>
   );
 }
@@ -299,12 +333,192 @@ function labelForStatus(status?: StatusType) {
   }
 }
 
+function formatDate(iso: string) {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString();
+  } catch {
+    return iso;
+  }
+}
+
 function StatCard({ title, value, color }: { title: string; value: string; color: string }) {
   return (
     <View style={[styles.statCard, { borderColor: color + "33" }]}>
       <Text style={[styles.statValue, { color }]}>{value}</Text>
       <Text style={styles.statTitle}>{title}</Text>
     </View>
+  );
+}
+
+function EditStudentPackageModal({
+  visible,
+  onClose,
+  pkgIndex,
+  studentPackages,
+  setStudentPackages,
+  basePackages,
+  productsGroup,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  pkgIndex: number | null;
+  studentPackages: StudentPackage[];
+  setStudentPackages: React.Dispatch<React.SetStateAction<StudentPackage[]>>;
+  basePackages: PackageItem[];
+  productsGroup: PackageItem[];
+}) {
+  const pkg = typeof pkgIndex === "number" ? studentPackages[pkgIndex] : undefined;
+  const base = pkg ? basePackages.find(p => p.id === pkg.packageId) : undefined;
+
+  const [name, setName] = useState<string>(pkg?.customName ?? base?.name ?? "");
+  const [price, setPrice] = useState<string>((pkg?.customPrice ?? base?.price ?? 0).toString());
+  const [hours, setHours] = useState<string>((pkg?.customHours ?? base?.hours ?? 0).toString());
+  const [includedIds, setIncludedIds] = useState<string[]>(pkg?.includedProductIds ?? []);
+
+  useEffect(() => {
+    if (!pkg) return;
+    setName(pkg.customName ?? base?.name ?? "");
+    setPrice((pkg.customPrice ?? base?.price ?? 0).toString());
+    setHours((pkg.customHours ?? base?.hours ?? 0).toString());
+    setIncludedIds(pkg.includedProductIds ?? []);
+  }, [pkgIndex]);
+
+  const toggleIncluded = useCallback((id: string) => {
+    setIncludedIds(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]));
+  }, []);
+
+  const save = useCallback(() => {
+    if (typeof pkgIndex !== "number") return;
+    setStudentPackages(prev => {
+      const copy = [...prev];
+      const target = copy[pkgIndex];
+      if (!target) return prev;
+      copy[pkgIndex] = {
+        ...target,
+        customName: name.trim() || undefined,
+        customPrice: Number.isFinite(Number(price)) ? Number(price) : target.customPrice,
+        customHours: Number.isFinite(Number(hours)) ? Number(hours) : target.customHours,
+        includedProductIds: includedIds,
+      };
+      return copy;
+    });
+    onClose();
+  }, [hours, includedIds, name, onClose, pkgIndex, price, setStudentPackages]);
+
+  const confirmDelete = useCallback(() => {
+    Alert.alert("Verwijderen", "Dit pakket/product voor deze leerling verwijderen?", [
+      { text: "Annuleren", style: "cancel" },
+      { text: "Verwijderen", style: "destructive", onPress: () => {
+        if (typeof pkgIndex !== "number") return;
+        setStudentPackages(prev => prev.filter((_, i) => i !== pkgIndex));
+        onClose();
+      } },
+    ]);
+  }, [onClose, pkgIndex, setStudentPackages]);
+
+  const togglePaid = useCallback((i: number) => {
+    if (typeof pkgIndex !== "number") return;
+    const target = studentPackages[pkgIndex];
+    if (!target) return;
+    const inst = target.installments[i];
+    if (!inst) return;
+    if (inst.paid) {
+      setStudentPackages(prev => {
+        const copy = [...prev];
+        const t = copy[pkgIndex];
+        const arr = [...t.installments];
+        arr[i] = { ...arr[i], paid: false, paidDate: null };
+        const paidCount = arr.filter(x => x.paid).length;
+        const paymentStatus: StudentPackage["paymentStatus"] = paidCount === arr.length ? "paid" : paidCount > 0 ? "partial" : "unpaid";
+        copy[pkgIndex] = { ...t, installments: arr, paymentStatus };
+        return copy;
+      });
+    } else {
+      setStudentPackages(prev => {
+        const copy = [...prev];
+        const t = copy[pkgIndex];
+        const arr = [...t.installments];
+        arr[i] = { ...arr[i], paid: true, paidDate: new Date().toISOString() };
+        const paidCount = arr.filter(x => x.paid).length;
+        const paymentStatus: StudentPackage["paymentStatus"] = paidCount === arr.length ? "paid" : paidCount > 0 ? "partial" : "unpaid";
+        copy[pkgIndex] = { ...t, installments: arr, paymentStatus };
+        return copy;
+      });
+    }
+  }, [pkgIndex, setStudentPackages, studentPackages]);
+
+  if (!pkg) return null;
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent>
+      <View style={styles.modalBackdrop}>
+        <View style={styles.modalCard}>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+            <Text style={styles.modalTitle}>Pakket/Product bewerken</Text>
+            <TouchableOpacity onPress={onClose} accessibilityRole="button" style={{ padding: 8 }}>
+              <X size={22} color="#111827" />
+            </TouchableOpacity>
+          </View>
+
+          <Text style={styles.modalLabel}>Naam</Text>
+          <TextInput value={name} onChangeText={setName} style={styles.input} placeholder="Naam" />
+
+          <Text style={styles.modalLabel}>Prijs (€)</Text>
+          <TextInput value={price} onChangeText={setPrice} keyboardType={Platform.OS === "web" ? "numeric" : "decimal-pad"} style={styles.input} />
+
+          {!base?.isProduct && (
+            <>
+              <Text style={styles.modalLabel}>Uren</Text>
+              <TextInput value={hours} onChangeText={setHours} keyboardType={Platform.OS === "web" ? "numeric" : "number-pad"} style={styles.input} />
+            </>
+          )}
+
+          <Text style={styles.modalLabel}>Inbegrepen producten</Text>
+          <View style={styles.dropdownBox}>
+            <View style={{ gap: 8 }}>
+              {productsGroup.map(p => (
+                <TouchableOpacity key={p.id} onPress={() => toggleIncluded(p.id)} style={[styles.optionRow, includedIds.includes(p.id) && styles.optionRowActive]}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.optionTitle}>{p.name}</Text>
+                    <Text style={styles.optionSub}>€{p.price.toFixed(2)}</Text>
+                  </View>
+                  <Text style={styles.optionPrice}>{includedIds.includes(p.id) ? "✓" : ""}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          <Text style={styles.modalLabel}>Termijnen</Text>
+          <View style={{ gap: 8 }}>
+            {pkg.installments.map((inst, i) => (
+              <View key={i} style={styles.termRow}>
+                <TouchableOpacity onPress={() => togglePaid(i)} style={[styles.termBtn, inst.paid && styles.termBtnPaid]}>
+                  <Text style={[styles.termBtnText, inst.paid && styles.termBtnTextPaid]}>Termijn {inst.installmentNumber}</Text>
+                </TouchableOpacity>
+                <Text style={styles.termDateText}>{inst.paid && inst.paidDate ? formatDate(inst.paidDate) : "–"}</Text>
+              </View>
+            ))}
+          </View>
+
+          <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
+            <TouchableOpacity onPress={onClose} style={[styles.secondaryBtn, { flex: 1 }]}>
+              <Text style={styles.secondaryBtnText}>Sluiten</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={save} style={[styles.primaryBtn, { flex: 1 }]} testID="save-student-pkg">
+              <Text style={styles.primaryBtnText}>Opslaan</Text>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity onPress={confirmDelete} style={[styles.destructiveBtn]} testID="delete-student-pkg">
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 }}>
+              <Trash2 size={18} color="#fff" />
+              <Text style={styles.destructiveBtnText}>Verwijderen</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -469,6 +683,12 @@ const styles = StyleSheet.create({
   dropdownLabel: { color: "#6b7280", marginBottom: 6 },
   chip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: "#e5e7eb" },
   chipText: { color: "#111827", fontWeight: "700" },
+  termRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  termBtn: { paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10, backgroundColor: "#e5e7eb" },
+  termBtnPaid: { backgroundColor: "#16a34a" },
+  termBtnText: { fontWeight: "700", color: "#111827" },
+  termBtnTextPaid: { color: "#fff" },
+  termDateText: { color: "#111827", fontWeight: "700" },
   optionRow: { flexDirection: "row", alignItems: "center", paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: "#e5e7eb", backgroundColor: "#fff" },
   optionRowActive: { borderColor: "#0ea5e9", backgroundColor: "#f0f9ff" },
   optionTitle: { fontWeight: "700" },
@@ -484,4 +704,6 @@ const styles = StyleSheet.create({
   numberBtnText: { fontSize: 18, fontWeight: "800" },
   customTerms: { fontWeight: "700" },
   input: { borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10 },
+  destructiveBtn: { backgroundColor: "#ef4444", paddingVertical: 12, borderRadius: 12, marginTop: 8 },
+  destructiveBtnText: { color: "#fff", fontWeight: "700", textAlign: "center" },
 });
