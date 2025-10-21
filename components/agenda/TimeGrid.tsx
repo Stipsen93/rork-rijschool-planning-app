@@ -63,28 +63,30 @@ function Inner({ date, onLessonPress }: TimeGridProps) {
   const { workingHours } = useWorkingHours();
 
   const dayKey = dutchDayName(date);
-  const conf = workingHours[dayKey];
-  const enabled = conf.enabled;
+  const conf = workingHours?.[dayKey];
+  const enabled = conf?.enabled ?? false;
+  const ranges = conf?.ranges ?? [];
+  const pauses = conf?.pauses ?? [];
 
   const hours = useMemo(() => Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, "0")}:00`), []);
 
   const earliestStartMin = useMemo(() => {
-    if (!enabled || conf.ranges.length === 0) return 8 * 60;
-    return Math.min(...conf.ranges.map((r) => toMinutes(r.start)));
-  }, [enabled, conf.ranges]);
+    if (!enabled || ranges.length === 0) return 8 * 60;
+    return Math.min(...ranges.map((r) => toMinutes(r.start)));
+  }, [enabled, ranges]);
 
   const isHourWorking = (hour: number): boolean => {
     if (!enabled) return false;
     const slotStart = hour * 60;
     const slotEnd = slotStart + 60;
     let workingOverlap = 0;
-    for (const r of conf.ranges) {
+    for (const r of ranges) {
       const rStart = toMinutes(r.start);
       const rEnd = toMinutes(r.end);
       workingOverlap += intervalOverlap(slotStart, slotEnd, rStart, rEnd);
     }
     let pauseOverlap = 0;
-    for (const p of conf.pauses) {
+    for (const p of pauses) {
       const pStart = toMinutes(p.start);
       const pEnd = toMinutes(p.end);
       pauseOverlap += intervalOverlap(slotStart, slotEnd, pStart, pEnd);
