@@ -101,6 +101,7 @@ export default function PackagesAndHoursScreen() {
     setNewProductName("");
     setNewProductPrice("");
     setNewProductVat("incl");
+    setShowNewProduct(false);
     console.log("[PackagesHours] Product added", next);
   }, [newProductName, newProductPrice, newProductVat]);
 
@@ -129,6 +130,7 @@ export default function PackagesAndHoursScreen() {
     setNewPackageVat("incl");
     setNewPackageSelectedProducts([]);
     setProductDropdownOpen(false);
+    setShowNewPackage(false);
     console.log("[PackagesHours] Package added", next);
   }, [newPackageName, newPackageHours, newPackagePrice, newPackageVat, newPackageSelectedProducts]);
 
