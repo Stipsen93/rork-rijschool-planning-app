@@ -518,13 +518,16 @@ function StudentOverviewTable({ studentName, baseItems, products, studentPackage
     <View style={styles.card}>
       <Text style={styles.sectionTitle}>Overzicht</Text>
       <View style={{ gap: 10 }}>
-        {(() => { const neutral = drivenHours === 0 && plannedHours === 0 && hoursPaid === 0; return (
-          <>
-            <Row label="Uren gereden" value={`${round1(drivenHours)} u`} valueColor={neutral ? "#6b7280" : "#22c55e"} />
-            <Row label="Uren gepland" value={`${round1(plannedHours)} u`} valueColor={neutral ? "#6b7280" : "#2563eb"} />
-            <Row label="Uren betaald" value={`${round1(hoursPaid)} u`} valueColor={neutral ? "#6b7280" : "#111827"} />
-          </>
-        ); })()}
+        {(() => {
+          const neutral = drivenHours === 0 && plannedHours === 0 && hoursPaid === 0;
+          return (
+            <>
+              <Row label="Uren gereden" value={`${round1(drivenHours)} u`} valueColor={drivenHours > 0 ? "#22c55e" : "#6b7280"} />
+              <Row label="Uren gepland" value={`${round1(plannedHours)} u`} valueColor={plannedHours > 0 ? "#2563eb" : "#6b7280"} />
+              <Row label="Uren betaald" value={`${round1(hoursPaid)} u`} valueColor={neutral ? "#6b7280" : "#111827"} />
+            </>
+          );
+        })()}
 
         <Row
           label="Uren over"
