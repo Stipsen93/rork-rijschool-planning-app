@@ -37,12 +37,14 @@ export default function AddLessonScreen() {
 
   const isPauseOrLeave = category === "Pauze" || category === "Verlof";
 
-  const mockStudents: Student[] = useMemo(() => ([
-    { id: "1", name: "Emma van der Berg", email: "emma@example.com", profileImage: "https://images.unsplash.com/photo-1494790108755-2616b612b5bc?w=150", recentLessons: 12, hoursCompleted: 18 },
-    { id: "2", name: "Lucas Janssen", email: "lucas@example.com", profileImage: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150", recentLessons: 8, hoursCompleted: 12 },
-    { id: "3", name: "Sophie de Wit", email: "sophie@example.com", profileImage: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150", recentLessons: 25, hoursCompleted: 40 },
-    { id: "4", name: "Daan Bakker", email: "daan@example.com", profileImage: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150", recentLessons: 15, hoursCompleted: 22 },
-  ]), []);
+  const mockStudents: Student[] = useMemo(() => (
+    Array.from({ length: 18 }).map((_, i) => ({
+      id: String(i + 1),
+      name: `Leerling ${i + 1}`,
+      email: `student${i + 1}@mail.com`,
+      status: i % 3 === 0 ? "active" : i % 3 === 1 ? "irregular" : "inactive",
+    }))
+  ), []);
 
   const mockVehicles: Vehicle[] = useMemo(() => ([
     { id: "1", model: "Volkswagen Polo", licensePlate: "12-ABC-3", type: "Handschakeling", year: 2022 },

@@ -1,8 +1,8 @@
 import React, { memo, useMemo, useState } from "react";
-import { FlatList, Image, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { FlatList, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { Search, ChevronDown, ChevronRight } from "lucide-react-native";
 
-export type Student = { id: string; name: string; email: string; profileImage: string; recentLessons: number; hoursCompleted: number };
+export type Student = { id: string; name: string; email: string; status: "active" | "irregular" | "inactive" };
 export type Vehicle = { id: string; model: string; licensePlate: string; type: string; year: number };
 
 export interface StudentVehicleSectionProps {
@@ -46,14 +46,14 @@ function StudentVehicleSectionComponent({ students, vehicles, selectedStudentId,
           {!showStudentSearch && selectedStudent && (
             <View style={styles.selectedCard}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-                <Image source={{ uri: selectedStudent.profileImage }} style={styles.avatar} />
+                <View style={styles.avatar} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.studentName} numberOfLines={2}>{selectedStudent.name}</Text>
                   <Text style={styles.studentEmail} numberOfLines={1}>{selectedStudent.email}</Text>
                 </View>
+                <View style={[styles.statusDot, { backgroundColor: selectedStudent.status === "active" ? "#22c55e" : selectedStudent.status === "irregular" ? "#f59e0b" : "#ef4444" }]} />
               </View>
               <View style={styles.rowBetween}>
-                <Text style={styles.studentStats}>{`${selectedStudent.recentLessons} lessen`}</Text>
                 <Pressable onPress={() => setShowStudentSearch(true)} accessibilityRole="button">
                   <Text style={styles.changeBtn}>Wijzig</Text>
                 </Pressable>
@@ -84,11 +84,11 @@ function StudentVehicleSectionComponent({ students, vehicles, selectedStudentId,
                 style={{ maxHeight: 240 }}
                 renderItem={({ item }) => (
                   <Pressable onPress={() => { onStudentSelected(item.id); setShowStudentSearch(false); setQuery(""); }} style={({ pressed }) => [styles.studentItem, pressed && Platform.OS !== "web" && { backgroundColor: "#f3f4f6" }]}>
-                    <Image source={{ uri: item.profileImage }} style={styles.avatarSmall} />
+                    <View style={styles.avatarSmall} />
                     <View style={{ flex: 1 }}>
                       <Text style={styles.studentItemName} numberOfLines={1}>{item.name}</Text>
                       <Text style={styles.studentItemEmail} numberOfLines={1}>{item.email}</Text>
-                      <Text style={styles.studentItemMeta} numberOfLines={1}>{`${item.recentLessons} lessen • ${item.hoursCompleted} uur`}</Text>
+                      <View style={[styles.statusDot, { backgroundColor: item.status === "active" ? "#22c55e" : item.status === "irregular" ? "#f59e0b" : "#ef4444" }]} />
                     </View>
                     <ChevronRight size={18} color="#6b7280" />
                   </Pressable>
@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
   searchLauncher: { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 8, padding: 12, backgroundColor: "#fff" },
   placeholder: { color: "#6b7280" },
   selectedCard: { padding: 12, backgroundColor: "#eff6ff", borderRadius: 8, borderWidth: 1, borderColor: "#93c5fd", gap: 12 },
-  avatar: { width: 48, height: 48, borderRadius: 6 },
+  avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: "#e5e7eb" },
   rowBetween: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   studentName: { fontWeight: "700" },
   studentEmail: { color: "#6b7280" },
@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
   input: { flex: 1 },
   cancel: { color: "#2563eb", fontWeight: "600" },
   studentItem: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10, paddingHorizontal: 8 },
-  avatarSmall: { width: 40, height: 40, borderRadius: 20 },
+  avatarSmall: { width: 40, height: 40, borderRadius: 20, backgroundColor: "#e5e7eb" },
   studentItemName: { fontWeight: "600" },
   studentItemEmail: { color: "#6b7280", fontSize: 12 },
   studentItemMeta: { color: "#2563eb", fontSize: 12 },
@@ -150,4 +150,5 @@ const styles = StyleSheet.create({
   menu: { marginTop: 8, borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 8, overflow: "hidden", backgroundColor: "#fff" },
   menuItem: { paddingVertical: 12, paddingHorizontal: 12 },
   menuText: { color: "#111827" },
+  statusDot: { width: 10, height: 10, borderRadius: 5 },
 });
