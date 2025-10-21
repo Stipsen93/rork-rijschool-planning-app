@@ -1,4 +1,4 @@
-import React, { memo, useEffect, useMemo, useState } from "react";
+import React, { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import * as FileSystem from "expo-file-system";
 import { useAgenda } from "@/components/agenda/AgendaStore";
@@ -132,9 +132,23 @@ function Inner({ date, onLessonPress }: TimeGridProps) {
   const PPM = 2.0 as const; // pixels per minute => 120px per hour
   const timelineHeight = 24 * 60 * PPM;
 
+  const scrollRef = useRef<ScrollView | null>(null);
+
+  useEffect(() => {
+    const y = Math.max(0, (enabled ? startMin : 8 * 60) * PPM - 180);
+    const id = setTimeout(() => {
+      try {
+        scrollRef.current?.scrollTo({ y, animated: true });
+      } catch (e) {
+        console.log("TimeGrid initial scroll error", e);
+      }
+    }, 50);
+    return () => clearTimeout(id);
+  }, [dayKey, enabled, startMin]);
+
   return (
     <View style={styles.wrapper} testID="time-grid">
-      <ScrollView horizontal={false} showsVerticalScrollIndicator contentContainerStyle={[styles.scrollContent, { height: timelineHeight + 32 }]}>        
+      <ScrollView ref={scrollRef} horizontal={false} showsVerticalScrollIndicator contentContainerStyle={[styles.scrollContent, { height: timelineHeight + 32 }]}>        
         <View style={styles.timelineCard}>
           <View style={[styles.workOverlay, { top: enabled ? startMin * PPM : 0, height: enabled ? (minutesBetween(conf.startTime, conf.endTime) * PPM) : 0, opacity: enabled ? 1 : 0 }]} />
 

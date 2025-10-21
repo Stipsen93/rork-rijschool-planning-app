@@ -90,20 +90,25 @@ export default function AgendaScreen() {
         showsVerticalScrollIndicator
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
+        stickyHeaderIndices={[0, 1]}
       >
-        <AgendaHeader
-          currentDate={currentDate}
-          onPreviousWeek={onPrevWeek}
-          onNextWeek={onNextWeek}
-          onMonthlyView={() => setShowMonthly(true)}
-        />
+        <View style={styles.stickyHeader}>
+          <AgendaHeader
+            currentDate={currentDate}
+            onPreviousWeek={onPrevWeek}
+            onNextWeek={onNextWeek}
+            onMonthlyView={() => setShowMonthly(true)}
+          />
+        </View>
 
-        <DayStrip
-          currentWeekStart={currentDate}
-          selectedDate={selectedDate}
-          onDateSelected={onDateSelected}
-          lessonCounts={lessonCounts}
-        />
+        <View style={styles.stickyHeader}>
+          <DayStrip
+            currentWeekStart={currentDate}
+            selectedDate={selectedDate}
+            onDateSelected={onDateSelected}
+            lessonCounts={lessonCounts}
+          />
+        </View>
 
         <TimeGrid
           date={selectedDate}
@@ -206,6 +211,9 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 120,
     gap: 12,
+  },
+  stickyHeader: {
+    backgroundColor: "#f8fafc",
   },
   sectionHeader: { marginTop: 8 },
   sectionTitle: { fontSize: 16, fontWeight: "700" },
