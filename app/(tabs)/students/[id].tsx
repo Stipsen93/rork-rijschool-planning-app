@@ -4,7 +4,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput,
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Pencil, Trash2, X } from "lucide-react-native";
-import { useAgenda } from "@/components/agenda/AgendaStore";
+import { useAgenda, AgendaLesson } from "@/components/agenda/AgendaStore";
 
 type StatusType = "active" | "irregular" | "inactive" | string | undefined;
 
@@ -243,16 +243,6 @@ export default function StudentProfileScreen() {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Recente lessen</Text>
-          {["Theorieles • 2 okt 2025 • 60 min", "Praktijkles • 28 sep 2025 • 90 min", "Praktijkles • 25 sep 2025 • 90 min"].map((t, i) => (
-            <View key={i} style={styles.lessonRow}>
-              <Text style={styles.lessonText}>{t}</Text>
-              <View style={styles.lessonBadge}><Text style={styles.lessonBadgeText}>Voltooid</Text></View>
-            </View>
-          ))}
-        </View>
-
-        <View style={styles.card}>
           <Text style={styles.sectionTitle}>Pakketten/Uren</Text>
           {studentPackages.length === 0 ? (
             <View style={styles.emptyBox}>
@@ -327,6 +317,8 @@ export default function StudentProfileScreen() {
             </View>
           )}
         </View>
+
+        <RecentLessonsCard studentName={params.name ?? ""} />
 
         <View style={{ height: 80 }} />
       </ScrollView>
@@ -410,6 +402,91 @@ function Row({ label, value, valueColor }: { label: string; value: string; value
     <View style={styles.overviewRow}>
       <Text style={styles.overviewLabel}>{label}</Text>
       <Text style={[styles.overviewValue, valueColor ? { color: valueColor } : null]}>{value}</Text>
+    </View>
+  );
+}
+
+function RecentLessonsCard({ studentName }: { studentName: string }) {
+  const { lessonsByDate } = useAgenda();
+  const now = new Date();
+
+  const [lessonPayments, setLessonPayments] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    AsyncStorage.getItem(`lesson_payments_${studentName}`).then((stored) => {
+      if (stored) {
+        setLessonPayments(JSON.parse(stored));
+      }
+    }).catch((e) => console.log("[RecentLessons] Failed to load payment status", e));
+  }, [studentName]);
+
+  const saveDebouncePRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (saveDebouncePRef.current) clearTimeout(saveDebouncePRef.current);
+    saveDebouncePRef.current = setTimeout(() => {
+      AsyncStorage.setItem(`lesson_payments_${studentName}`, JSON.stringify(lessonPayments))
+        .then(() => console.log("[RecentLessons] Saved payment status"))
+        .catch((e) => console.log("[RecentLessons] Failed to save payment status", e));
+    }, 400);
+    return () => { if (saveDebouncePRef.current) clearTimeout(saveDebouncePRef.current); };
+  }, [lessonPayments, studentName]);
+
+  const pastLessons = useMemo(() => {
+    const arr: AgendaLesson[] = [];
+    Object.values(lessonsByDate).forEach((day) => {
+      day.forEach((l) => {
+        if ((l.studentName ?? "") === studentName) {
+          const endDate = new Date(l.date);
+          const [eh, em] = l.endTime.split(":").map((v) => parseInt(v, 10));
+          endDate.setHours(Number.isFinite(eh) ? eh : 0, Number.isFinite(em) ? em : 0, 0, 0);
+          if (endDate.getTime() <= now.getTime()) {
+            arr.push(l);
+          }
+        }
+      });
+    });
+    return arr.sort((a, b) => b.date.getTime() - a.date.getTime());
+  }, [lessonsByDate, studentName, now]);
+
+  const togglePayment = useCallback((lessonId: string) => {
+    setLessonPayments((prev) => ({
+      ...prev,
+      [lessonId]: !prev[lessonId],
+    }));
+  }, []);
+
+  function minutesDuration(startHHMM: string, endHHMM: string): number {
+    const [sh, sm] = startHHMM.split(":").map((v) => parseInt(v, 10));
+    const [eh, em] = endHHMM.split(":").map((v) => parseInt(v, 10));
+    const s = (Number.isFinite(sh) ? sh : 0) * 60 + (Number.isFinite(sm) ? sm : 0);
+    const e = (Number.isFinite(eh) ? eh : 0) * 60 + (Number.isFinite(em) ? em : 0);
+    return Math.max(0, e - s);
+  }
+
+  return (
+    <View style={styles.card}>
+      <Text style={styles.sectionTitle}>Recente lessen</Text>
+      {pastLessons.length === 0 ? (
+        <Text style={styles.emptyText}>Nog geen afgesloten lessen</Text>
+      ) : (
+        pastLessons.map((lesson) => {
+          const isPaid = lessonPayments[lesson.id] === true;
+          const duration = minutesDuration(lesson.startTime, lesson.endTime);
+          return (
+            <View key={lesson.id} style={styles.lessonRow}>
+              <Text style={styles.lessonText}>
+                {lesson.lessonType ?? "Les"} • {formatDate(lesson.date.toISOString())} • {duration} min
+              </Text>
+              <TouchableOpacity
+                onPress={() => togglePayment(lesson.id)}
+                style={[styles.lessonBadge, isPaid ? styles.lessonBadgePaid : styles.lessonBadgeUnpaid]}
+              >
+                <Text style={styles.lessonBadgeText}>{isPaid ? "Betaald" : "Niet betaald"}</Text>
+              </TouchableOpacity>
+            </View>
+          );
+        })
+      )}
     </View>
   );
 }
@@ -997,8 +1074,11 @@ const styles = StyleSheet.create({
   statusValue: { fontWeight: "700" },
   lessonRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   lessonText: { color: "#111827" },
-  lessonBadge: { backgroundColor: "#16a34a", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
+  lessonBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
+  lessonBadgePaid: { backgroundColor: "#16a34a" },
+  lessonBadgeUnpaid: { backgroundColor: "#ef4444" },
   lessonBadgeText: { color: "#fff", fontWeight: "700" },
+  emptyText: { color: "#6b7280", textAlign: "center", paddingVertical: 8 },
   emptyBox: { padding: 16, borderRadius: 12, borderWidth: 1, borderColor: "#e5e7eb", backgroundColor: "#f9fafb", alignItems: "center" },
   emptyTitle: { fontWeight: "700", fontSize: 16, textAlign: "center" },
   emptySub: { color: "#6b7280", marginTop: 4, textAlign: "center" },
