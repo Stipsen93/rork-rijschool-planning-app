@@ -1,4 +1,4 @@
-import React, { memo } from "react";
+import React, { memo, useMemo } from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
 import { CalendarDays, Clock, Timer } from "lucide-react-native";
 
@@ -18,6 +18,28 @@ export interface ScheduleSectionProps {
 }
 
 function ScheduleSectionComponent({ selectedDate, selectedTime, lessonDurationHours, lessonDurationMinutes, location, onDateChanged, onTimeChanged, onDurationChanged, onLocationChanged, isFullDay = false, showLocationField = true, testID }: ScheduleSectionProps) {
+  const durationString = useMemo(() => {
+    const h = Math.max(0, Number(lessonDurationHours || 0));
+    const m = Math.max(0, Math.min(59, Number(lessonDurationMinutes || 0)));
+    const hh = String(h).padStart(2, "0");
+    const mm = String(m).padStart(2, "0");
+    return `${hh}:${mm}`;
+  }, [lessonDurationHours, lessonDurationMinutes]);
+
+  const handleDurationChange = (v: string) => {
+    const cleaned = v.replace(/[^0-9:]/g, "");
+    const parts = cleaned.split(":");
+    if (parts.length === 1) {
+      const h = Number(parts[0] ?? "0");
+      if (!Number.isNaN(h)) onDurationChanged(h, 0);
+      return;
+    }
+    const h = Number(parts[0] ?? "0");
+    const mRaw = Number(parts[1] ?? "0");
+    const m = Number.isNaN(mRaw) ? 0 : Math.max(0, Math.min(59, mRaw));
+    if (!Number.isNaN(h)) onDurationChanged(h, m);
+  };
+
   return (
     <View style={styles.container} testID={testID ?? "schedule-section"}>
       <Text style={styles.title}>Schema</Text>
@@ -39,15 +61,17 @@ function ScheduleSectionComponent({ selectedDate, selectedTime, lessonDurationHo
         </View>
         <View style={styles.cell}>
           <Text style={styles.header}>Lengte</Text>
-          <View style={[styles.row, { gap: 8 }]}>
-            <View style={[styles.inputWrap, styles.inputSmall]}>
-              <Timer size={16} color="#2563eb" />
-              <TextInput value={String(lessonDurationHours)} onChangeText={(v) => onDurationChanged(Number(v || 0), lessonDurationMinutes)} placeholder="Uur" keyboardType="number-pad" style={styles.input} testID="duration-hours" />
-            </View>
-            <View style={[styles.inputWrap, styles.inputSmall]}>
-              <Timer size={16} color="#2563eb" />
-              <TextInput value={String(lessonDurationMinutes)} onChangeText={(v) => onDurationChanged(lessonDurationHours, Number(v || 0))} placeholder="Min" keyboardType="number-pad" style={styles.input} testID="duration-mins" />
-            </View>
+          <View style={styles.inputWrap}>
+            <Timer size={16} color="#2563eb" />
+            <TextInput
+              value={durationString}
+              onChangeText={handleDurationChange}
+              placeholder="HH:MM"
+              keyboardType="number-pad"
+              style={styles.input}
+              autoCapitalize="none"
+              testID="duration-input"
+            />
           </View>
         </View>
       </View>
