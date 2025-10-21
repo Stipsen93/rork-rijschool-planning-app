@@ -3,7 +3,7 @@ import { Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View }
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Stack } from "expo-router";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
-import { Save, ChevronDown } from "lucide-react-native";
+import { ChevronDown } from "lucide-react-native";
 import * as FileSystem from "expo-file-system";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -152,7 +152,7 @@ export default function LessonConfigurationScreen() {
             />
           </Card>
 
-          <Card title="Productduur (uit Pakketten/Uren)">
+          <Card title="Productduur">
             {products.length === 0 ? (
               <Text style={styles.muted}>Geen producten gevonden. Voeg producten toe via Instellingen → Pakketten/Uren.</Text>
             ) : (
@@ -162,7 +162,7 @@ export default function LessonConfigurationScreen() {
                     label={prod.name}
                     value={config.productDurations[prod.name] ?? 60}
                     min={15}
-                    max={240}
+                    max={180}
                     step={5}
                     onChange={(v) => setConfig((p) => ({ ...p, productDurations: { ...p.productDurations, [prod.name]: v } }))}
                   />
@@ -230,12 +230,6 @@ export default function LessonConfigurationScreen() {
               </View>
             )}
           </Card>
-
-          <View style={{ height: 24 }} />
-          <TouchableOpacity testID="primary-save" style={styles.primaryButton} onPress={save} accessibilityRole="button">
-            <Save color="#fff" size={18} />
-            <Text style={styles.primaryButtonText}>Configuratie Opslaan</Text>
-          </TouchableOpacity>
 
           <View style={{ height: 24 }} />
         </ScrollView>
