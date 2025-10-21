@@ -1,8 +1,8 @@
 import React from "react";
 import { Alert, Platform, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Modal } from "react-native";
 import { Stack, useRouter } from "expo-router";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Check, Plus, Save, Trash2, ChevronDown, ChevronUp, Pencil } from "lucide-react-native";
+import { useSettings } from "@/components/settings/SettingsStore";
 
 type Product = { id: string; name: string; price: number; vatStatus: "incl" | "excl" };
 type PackageItem = { id: string; name: string; hours: number; price: number; vatStatus: "incl" | "excl"; selectedProducts: string[] };
@@ -28,10 +28,6 @@ type EditState =
       dropdownOpen: boolean;
     };
 
-const PRODUCTS_KEY = "instructor_products";
-const PACKAGES_KEY = "instructor_packages";
-const HOURLY_RATES_KEY = "instructor_hourly_rates";
-
 function confirmCrossPlatform(title: string, message: string, onConfirm: () => void) {
   if (Platform.OS === "web") {
     const g = globalThis as unknown as { confirm?: (m: string) => boolean; alert?: (m: string) => void };
@@ -56,13 +52,12 @@ function notifyCrossPlatform(message: string) {
 }
 
 export default function PackagesAndHoursScreen() {
-  const [loading, setLoading] = React.useState<boolean>(true);
-  const [saving, setSaving] = React.useState<boolean>(false);
+  const { products: globalProducts, packages: globalPackages, hourlyRates: globalHourlyRates, updateProducts, updatePackages, updateHourlyRates, loading: globalLoading } = useSettings();
+  
   const [refreshing, setRefreshing] = React.useState<boolean>(false);
-
-  const [products, setProducts] = React.useState<Product[]>([]);
-  const [packages, setPackages] = React.useState<PackageItem[]>([]);
-  const [hourlyRates, setHourlyRates] = React.useState<HourlyRates>({ price: 0, vatStatus: "incl" });
+  const [products, setProducts] = React.useState<Product[]>(globalProducts);
+  const [packages, setPackages] = React.useState<PackageItem[]>(globalPackages);
+  const [hourlyRates, setHourlyRates] = React.useState<HourlyRates>(globalHourlyRates);
   const [showNewHour, setShowNewHour] = React.useState<boolean>(false);
   const [newHourPrice, setNewHourPrice] = React.useState<string>("");
 
@@ -90,54 +85,10 @@ export default function PackagesAndHoursScreen() {
   } | null>(null);
 
   React.useEffect(() => {
-    void loadData();
-  }, []);
-
-  const loadData = React.useCallback(async () => {
-    console.log("[PackagesHours] Loading data from AsyncStorage...");
-    try {
-      setLoading(true);
-      const [pStr, pkgStr, rateStr] = await Promise.all([
-        AsyncStorage.getItem(PRODUCTS_KEY),
-        AsyncStorage.getItem(PACKAGES_KEY),
-        AsyncStorage.getItem(HOURLY_RATES_KEY),
-      ]);
-      if (pStr) setProducts(JSON.parse(pStr) as Product[]);
-      if (pkgStr) setPackages(JSON.parse(pkgStr) as PackageItem[]);
-      if (rateStr) {
-        const r = JSON.parse(rateStr) as HourlyRates;
-        setHourlyRates(r);
-        setShowNewHour(false);
-      } else {
-        setShowNewHour(false);
-      }
-    } catch (e) {
-      console.error("Failed to load data", e);
-      Alert.alert("Fout", "Kon gegevens niet laden. Probeer opnieuw.");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
-
-  const persistAll = React.useCallback(async () => {
-    if (saving) return;
-    console.log("[PackagesHours] Saving data...");
-    try {
-      setSaving(true);
-      await Promise.all([
-        AsyncStorage.setItem(PRODUCTS_KEY, JSON.stringify(products)),
-        AsyncStorage.setItem(PACKAGES_KEY, JSON.stringify(packages)),
-        AsyncStorage.setItem(HOURLY_RATES_KEY, JSON.stringify(hourlyRates)),
-      ]);
-      if (Platform.OS === "web") console.log("Saved successfully");
-    } catch (e) {
-      console.error("Failed to save", e);
-      Alert.alert("Fout", "Opslaan mislukt. Probeer opnieuw.");
-    } finally {
-      setSaving(false);
-    }
-  }, [hourlyRates, packages, products, saving]);
+    setProducts(globalProducts);
+    setPackages(globalPackages);
+    setHourlyRates(globalHourlyRates);
+  }, [globalProducts, globalPackages, globalHourlyRates]);
 
   const initializedRef = React.useRef<boolean>(false);
   const autoSaveRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -148,10 +99,12 @@ export default function PackagesAndHoursScreen() {
     }
     if (autoSaveRef.current) clearTimeout(autoSaveRef.current);
     autoSaveRef.current = setTimeout(() => {
-      void persistAll();
+      void updateProducts(products);
+      void updatePackages(packages);
+      void updateHourlyRates(hourlyRates);
     }, 350);
     return () => { if (autoSaveRef.current) clearTimeout(autoSaveRef.current); };
-  }, [products, packages, hourlyRates, persistAll]);
+  }, [products, packages, hourlyRates, updateProducts, updatePackages, updateHourlyRates]);
 
   const addProduct = React.useCallback(() => {
     setShowNewProduct((prev) => !prev);
@@ -307,9 +260,12 @@ export default function PackagesAndHoursScreen() {
           headerRight: () => (
             <TouchableOpacity
               testID="save-btn"
-              onPress={persistAll}
-              disabled={saving}
-              style={[styles.headerBtn, saving && { opacity: 0.5 }]}
+              onPress={() => {
+                void updateProducts(products);
+                void updatePackages(packages);
+                void updateHourlyRates(hourlyRates);
+              }}
+              style={styles.headerBtn}
             >
               <Save color="#0ea5e9" />
             </TouchableOpacity>
@@ -320,7 +276,13 @@ export default function PackagesAndHoursScreen() {
       <ScrollView
         contentContainerStyle={styles.container}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void loadData(); }} />
+          <RefreshControl refreshing={refreshing} onRefresh={() => {
+            setRefreshing(true);
+            setProducts(globalProducts);
+            setPackages(globalPackages);
+            setHourlyRates(globalHourlyRates);
+            setRefreshing(false);
+          }} />
         }
       >
         <Text style={styles.sectionTitle}>Producten</Text>

@@ -4,114 +4,33 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Stack } from "expo-router";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { ChevronDown } from "lucide-react-native";
-import * as FileSystem from "expo-file-system";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useSettings } from "@/components/settings/SettingsStore";
 
 type LessonConfig = {
-  baseLessonDuration: number; // Rijles
-  productDurations: Record<string, number>; // key: product name, value: minutes
+  baseLessonDuration: number;
+  productDurations: Record<string, number>;
   breakBetweenLessons: number;
   automaticBreaks: boolean;
-  allowBackToBackLessons: boolean;
   requireConfirmation: boolean;
   cancellationNoticeHours: 2 | 4 | 12 | 24 | 48;
 };
 
-const STORAGE_KEY = "lesson_configuration" as const;
-const PRODUCTS_KEY = "instructor_products" as const;
-
-type Product = { id: string; name: string; price: number; vatStatus: "incl" | "excl" };
-
-const defaultConfig: LessonConfig = {
-  baseLessonDuration: 60,
-  productDurations: {},
-  breakBetweenLessons: 15,
-  automaticBreaks: false,
-  allowBackToBackLessons: false,
-  requireConfirmation: true,
-  cancellationNoticeHours: 24,
-};
-
-async function storageGetString(key: string): Promise<string | null> {
-  try {
-    if (Platform.OS === "web") return window.localStorage.getItem(key);
-    const path = `${FileSystem.documentDirectory ?? ""}${key}.json`;
-    const info = await FileSystem.getInfoAsync(path);
-    if (!info.exists) return null;
-    return await FileSystem.readAsStringAsync(path);
-  } catch (e) {
-    console.log("storageGetString error", e);
-    return null;
-  }
-}
-
-async function storageSetString(key: string, value: string): Promise<void> {
-  try {
-    if (Platform.OS === "web") {
-      window.localStorage.setItem(key, value);
-      return;
-    }
-    const path = `${FileSystem.documentDirectory ?? ""}${key}.json`;
-    await FileSystem.writeAsStringAsync(path, value);
-  } catch (e) {
-    console.log("storageSetString error", e);
-  }
-}
-
 export default function LessonConfigurationScreen() {
-  const [config, setConfig] = React.useState<LessonConfig>(defaultConfig);
+  const { lessonConfig, products, updateLessonConfig } = useSettings();
+  const [config, setConfig] = React.useState<LessonConfig>(lessonConfig);
   const [openCancelDropdown, setOpenCancelDropdown] = React.useState<boolean>(false);
   const [saving, setSaving] = React.useState<boolean>(false);
-  const [products, setProducts] = React.useState<Product[]>([]);
   const insets = useSafeAreaInsets();
 
   React.useEffect(() => {
-    (async () => {
-      console.log("Loading lesson configuration...");
-      const raw = await storageGetString(STORAGE_KEY);
-      if (raw) {
-        try {
-          const parsed = JSON.parse(raw) as Partial<LessonConfig> & Partial<{ practicalLessonDuration: number; theoryLessonDuration: number; examLessonDuration: number }>;
-          const migrated: LessonConfig = {
-            baseLessonDuration: typeof parsed.baseLessonDuration === "number" ? parsed.baseLessonDuration : (typeof parsed.practicalLessonDuration === "number" ? parsed.practicalLessonDuration : 60),
-            productDurations: parsed.productDurations ?? {},
-            breakBetweenLessons: typeof parsed.breakBetweenLessons === "number" ? parsed.breakBetweenLessons : defaultConfig.breakBetweenLessons,
-            automaticBreaks: typeof parsed.automaticBreaks === "boolean" ? parsed.automaticBreaks : defaultConfig.automaticBreaks,
-            allowBackToBackLessons: typeof parsed.allowBackToBackLessons === "boolean" ? parsed.allowBackToBackLessons : defaultConfig.allowBackToBackLessons,
-            requireConfirmation: typeof parsed.requireConfirmation === "boolean" ? parsed.requireConfirmation : defaultConfig.requireConfirmation,
-            cancellationNoticeHours: (parsed.cancellationNoticeHours as LessonConfig["cancellationNoticeHours"]) ?? defaultConfig.cancellationNoticeHours,
-          };
-          setConfig(migrated);
-        } catch (e) {
-          console.log("Failed to parse lesson configuration", e);
-        }
-      }
-      try {
-        const pStr = await AsyncStorage.getItem(PRODUCTS_KEY);
-        if (pStr) {
-          const list = JSON.parse(pStr) as Product[];
-          setProducts(list);
-          setConfig((prev) => {
-            const nextDurations = { ...prev.productDurations };
-            list.forEach((p) => { if (typeof nextDurations[p.name] !== "number") nextDurations[p.name] = 60; });
-            return { ...prev, productDurations: nextDurations };
-          });
-        } else {
-          setProducts([]);
-        }
-      } catch (e) {
-        console.log("Failed to load products", e);
-        setProducts([]);
-      }
-    })();
-  }, []);
+    setConfig(lessonConfig);
+  }, [lessonConfig]);
 
   const save = React.useCallback(async () => {
     setSaving(true);
     try {
-      await storageSetString(STORAGE_KEY, JSON.stringify(config));
+      await updateLessonConfig(config);
       if (Platform.OS === "android") {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
         const { ToastAndroid } = require("react-native");
         ToastAndroid.show("Les configuratie opgeslagen", ToastAndroid.SHORT);
       } else {
@@ -123,7 +42,7 @@ export default function LessonConfigurationScreen() {
     } finally {
       setSaving(false);
     }
-  }, [config]);
+  }, [config, updateLessonConfig]);
 
   return (
     <ErrorBoundary>

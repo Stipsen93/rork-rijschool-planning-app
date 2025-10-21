@@ -9,80 +9,25 @@ import { StudentVehicleSection, Student, Vehicle } from "@/components/add-lesson
 import { ScheduleSection } from "@/components/add-lesson/ScheduleSection";
 import { LocationSection } from "@/components/add-lesson/LocationSection";
 import { NotesSection } from "@/components/add-lesson/NotesSection";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as FileSystem from "expo-file-system";
 import { useAgenda } from "@/components/agenda/AgendaStore";
+import { useSettings } from "@/components/settings/SettingsStore";
 
 export type Option = { label: string; value: string };
-
-type LessonConfigLocal = {
-  baseLessonDuration: number;
-  productDurations: Record<string, number>;
-};
-
-async function storageGetString(key: string): Promise<string | null> {
-  try {
-    if (Platform.OS === "web") return window.localStorage.getItem(key);
-    const path = `${FileSystem.documentDirectory ?? ""}${key}.json`;
-    const info = await FileSystem.getInfoAsync(path);
-    if (!info.exists) return null;
-    return await FileSystem.readAsStringAsync(path);
-  } catch (e) {
-    console.log("[AddLesson] storageGetString error", e);
-    return null;
-  }
-}
 
 export default function AddLessonScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { addLesson, removeLessonById } = useAgenda();
+  const { products, getDurationForType } = useSettings();
 
   const baseAppointmentTypes: Option[] = useMemo(() => [
     { label: "Rijles", value: "Rijles" },
   ], []);
 
-  const [productTypes, setProductTypes] = useState<string[]>([]);
-  const [lessonConfig, setLessonConfig] = useState<LessonConfigLocal | null>(null);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const raw = await AsyncStorage.getItem("instructor_products");
-        if (raw) {
-          const parsed = JSON.parse(raw) as Array<{ id: string; name: string; price: number; vatStatus: "incl" | "excl" }>;
-          const names = parsed.map((p) => p.name).filter((n) => typeof n === "string" && n.trim().length > 0);
-          setProductTypes(names);
-        } else {
-          setProductTypes([]);
-        }
-      } catch (e) {
-        console.log("[AddLesson] Failed to load products", e);
-        setProductTypes([]);
-      }
-      try {
-        const confStr = await storageGetString("lesson_configuration");
-        if (confStr) {
-          const parsed = JSON.parse(confStr) as Partial<LessonConfigLocal> & Partial<{ practicalLessonDuration: number; productDurations: Record<string, number> }>;
-          const baseMaybe = (parsed as { baseLessonDuration?: number }).baseLessonDuration;
-          const practicalMaybe = (parsed as { practicalLessonDuration?: number }).practicalLessonDuration;
-          const base: number = typeof baseMaybe === "number" ? baseMaybe : (typeof practicalMaybe === "number" ? practicalMaybe : 60);
-          const durations = (((parsed as unknown) as { productDurations?: Record<string, number> }).productDurations ?? {}) as Record<string, number>;
-          setLessonConfig({ baseLessonDuration: base, productDurations: durations });
-        } else {
-          setLessonConfig({ baseLessonDuration: 60, productDurations: {} });
-        }
-      } catch (e) {
-        console.log("[AddLesson] Failed to load lesson configuration", e);
-        setLessonConfig({ baseLessonDuration: 60, productDurations: {} });
-      }
-    })();
-  }, []);
-
   const appointmentTypes: Option[] = useMemo(() => {
-    const extras = productTypes.map((n) => ({ label: n, value: n }));
-    return [...baseAppointmentTypes, ...extras];
-  }, [baseAppointmentTypes, productTypes]);
+    const productOptions = products.map((p) => ({ label: p.name, value: p.name }));
+    return [...baseAppointmentTypes, ...productOptions];
+  }, [baseAppointmentTypes, products]);
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const params = useLocalSearchParams();
@@ -97,12 +42,11 @@ export default function AddLessonScreen() {
   const [durationMinutes, setDurationMinutes] = useState<number>(0);
 
   useEffect(() => {
-    if (!lessonConfig) return;
-    const minutes = type === "Rijles" ? lessonConfig.baseLessonDuration : (lessonConfig.productDurations[type] ?? lessonConfig.baseLessonDuration ?? 60);
+    const minutes = getDurationForType(type);
     const safe = Number.isFinite(minutes) ? minutes : 60;
     setDurationHours(Math.floor(safe / 60));
     setDurationMinutes(safe % 60);
-  }, [type, lessonConfig]);
+  }, [type, getDurationForType]);
   const [location, setLocation] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
   const [editingId, setEditingId] = useState<string | null>(null);
