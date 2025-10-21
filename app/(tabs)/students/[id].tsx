@@ -57,6 +57,7 @@ export default function StudentProfileScreen() {
   const [settingsPackages, setSettingsPackages] = useState<PackageItem[]>([]);
   const [settingsProducts, setSettingsProducts] = useState<PackageItem[]>([]);
   const [studentPackages, setStudentPackages] = useState<StudentPackage[]>([]);
+  const [hourlyPrice, setHourlyPrice] = useState<number>(0);
 
   const [addVisible, setAddVisible] = useState<boolean>(false);
   const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
@@ -68,9 +69,10 @@ export default function StudentProfileScreen() {
   useEffect(() => {
     (async () => {
       try {
-        const [pkgStr, prodStr] = await Promise.all([
+        const [pkgStr, prodStr, hourlyStr] = await Promise.all([
           AsyncStorage.getItem("instructor_packages"),
           AsyncStorage.getItem("instructor_products"),
+          AsyncStorage.getItem("instructor_hourly_rates"),
         ]);
         const pkgs = (pkgStr ? JSON.parse(pkgStr) : []) as { id: string; name: string; hours: number; price: number; vatStatus: "incl" | "excl" }[];
         const prods = (prodStr ? JSON.parse(prodStr) : []) as { id: string; name: string; price: number; vatStatus: "incl" | "excl" }[];
@@ -79,6 +81,14 @@ export default function StudentProfileScreen() {
         setSettingsPackages(mappedPkgs);
         setSettingsProducts(mappedProds);
         setAvailablePackages([...mappedPkgs, ...mappedProds]);
+        if (hourlyStr) {
+          try {
+            const parsed = JSON.parse(hourlyStr) as { price?: number };
+            setHourlyPrice(Number(parsed?.price ?? 0));
+          } catch (err) {
+            console.log("[StudentProfile] Failed to parse hourly rates", err);
+          }
+        }
       } catch (e) {
         console.log("[StudentProfile] Failed to load settings packages/products", e);
       }
@@ -119,7 +129,7 @@ export default function StudentProfileScreen() {
       Alert.alert("Ongeldig aantal", "Voer een geldig aantal uren in");
       return;
     }
-    const pricePerHour = 45;
+    const pricePerHour = hourlyPrice > 0 ? hourlyPrice : 45;
     const totalPrice = hoursNum * pricePerHour;
     const terms = paymentTerm === "custom" ? customTerms : paymentTerm === "1x" ? 1 : parseInt(paymentTerm.replace("x", ""), 10);
     const installmentAmount = terms > 0 ? totalPrice / terms : totalPrice;
@@ -131,6 +141,9 @@ export default function StudentProfileScreen() {
       installments,
       paymentStatus: terms === 1 ? "unpaid" : "unpaid",
       addedDate: new Date().toISOString(),
+      customName: "Losse uren",
+      customPrice: totalPrice,
+      customHours: hoursNum,
     };
     setStudentPackages(prev => [...prev, sp]);
     console.log("Added loose hours", { hoursNum, totalPrice });
@@ -230,12 +243,17 @@ export default function StudentProfileScreen() {
             <View style={{ gap: 12 }}>
               {studentPackages.map((pkg, idx) => {
                 const info = availablePackages.find(p => p.id === pkg.packageId);
+                const isLoose = pkg.packageId.startsWith("loose_hours_");
+                const title = isLoose ? "Losse uren" : (pkg.customName ?? info?.name ?? "Onbekend pakket");
+                const priceVal = isLoose ? (pkg.customPrice ?? 0) : (pkg.customPrice ?? info?.price ?? 0);
+                const hoursVal = isLoose ? (pkg.customHours ?? 0) : (pkg.customHours ?? info?.hours ?? 0);
+                const isProduct = Boolean(info?.isProduct) && !isLoose;
                 return (
                   <View key={pkg.id} style={styles.pkgCard}>
                     <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                       <View style={{ flex: 1, paddingRight: 8 }}>
-                        <Text style={styles.pkgTitle}>{pkg.customName ?? info?.name ?? "Onbekend pakket"}</Text>
-                        <Text style={styles.pkgSub}>{info?.isProduct ? `Product • €${(pkg.customPrice ?? info?.price ?? 0).toFixed(2)}` : `${pkg.customHours ?? info?.hours ?? 0} uren • €${(pkg.customPrice ?? info?.price ?? 0).toFixed(2)}`}</Text>
+                        <Text style={styles.pkgTitle}>{`${title} • ${formatDate(pkg.addedDate)}`}</Text>
+                        <Text style={styles.pkgSub}>{isProduct ? `Product • €${priceVal.toFixed(2)}` : `${hoursVal} uren • €${priceVal.toFixed(2)}`}</Text>
                       </View>
                       <TouchableOpacity onPress={() => setEditIdx(idx)} accessibilityRole="button" testID={`edit-pkg-${idx}`} style={{ padding: 8 }}>
                         <Pencil size={20} color="#111827" />
