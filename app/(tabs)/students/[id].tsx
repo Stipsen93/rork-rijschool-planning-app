@@ -523,7 +523,15 @@ function StudentOverviewTable({ studentName, baseItems, products, studentPackage
           return (
             <>
               <Row label="Uren gereden" value={`${round1(drivenHours)} u`} valueColor={drivenHours > 0 ? "#22c55e" : "#6b7280"} />
-              <Row label="Uren gepland" value={`${round1(plannedHours)} u`} valueColor={plannedHours > 0 ? "#2563eb" : "#6b7280"} />
+              {(() => {
+                const remainingPaid = Math.max(0, hoursPaid - drivenHours);
+                const plannedColor = plannedHours <= 0
+                  ? "#6b7280"
+                  : (noneAdded ? "#6b7280" : (remainingPaid >= plannedHours ? "#16a34a" : (remainingPaid > 0 ? "#f59e0b" : "#2563eb")));
+                return (
+                  <Row label="Uren gepland" value={`${round1(plannedHours)} u`} valueColor={plannedColor} />
+                );
+              })()}
               <Row label="Uren betaald" value={`${round1(hoursPaid)} u`} valueColor={neutral ? "#6b7280" : "#111827"} />
             </>
           );
