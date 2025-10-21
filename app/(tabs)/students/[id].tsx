@@ -228,7 +228,7 @@ export default function StudentProfileScreen() {
           </View>
         </View>
 
-        <StudentOverviewTable studentName={params.name ?? ""} products={settingsProducts} studentPackages={studentPackages} />
+        <StudentOverviewTable studentName={params.name ?? ""} baseItems={availablePackages} products={settingsProducts} studentPackages={studentPackages} />
 
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Status informatie</Text>
@@ -414,7 +414,7 @@ function Row({ label, value, valueColor }: { label: string; value: string; value
   );
 }
 
-function StudentOverviewTable({ studentName, products, studentPackages }: { studentName: string; products: PackageItem[]; studentPackages: StudentPackage[]; }) {
+function StudentOverviewTable({ studentName, baseItems, products, studentPackages }: { studentName: string; baseItems: PackageItem[]; products: PackageItem[]; studentPackages: StudentPackage[]; }) {
   const { lessonsByDate } = useAgenda();
   const now = new Date();
 
@@ -449,17 +449,17 @@ function StudentOverviewTable({ studentName, products, studentPackages }: { stud
 
   const totalAddedHours = useMemo(() => {
     return studentPackages.reduce((sum, sp) => {
-      const baseItem = products.find((p) => p.id === sp.packageId);
+      const baseItem = baseItems.find((p) => p.id === sp.packageId);
       const isProduct = baseItem?.isProduct === true;
       if (isProduct) return sum;
       const base = sp.customHours ?? (baseItem?.hours ?? 0);
       return sum + (base || 0);
     }, 0);
-  }, [products, studentPackages]);
+  }, [baseItems, studentPackages]);
 
   const hoursPaid = useMemo(() => {
     return studentPackages.reduce((sum, sp) => {
-      const baseItem = products.find((p) => p.id === sp.packageId);
+      const baseItem = baseItems.find((p) => p.id === sp.packageId);
       const isProduct = baseItem?.isProduct === true;
       if (isProduct) return sum;
       const baseHours = sp.customHours ?? (baseItem?.hours ?? 0);
@@ -470,7 +470,7 @@ function StudentOverviewTable({ studentName, products, studentPackages }: { stud
       const fraction = total * (paidCount / terms);
       return sum + fraction;
     }, 0);
-  }, [products, studentPackages]);
+  }, [baseItems, studentPackages]);
 
   const hoursOver = useMemo(() => {
     const remaining = totalAddedHours - drivenHours - plannedHours;
