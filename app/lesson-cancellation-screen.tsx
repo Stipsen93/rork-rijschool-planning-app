@@ -6,6 +6,7 @@ import { CalendarDays, Clock, ArrowLeft } from "lucide-react-native";
 import CancellationOptions from "@/components/cancellation/CancellationOptions";
 import CancellationReason from "@/components/cancellation/CancellationReason";
 import NotesInput from "@/components/cancellation/NotesInput";
+import { useAgenda } from "@/components/agenda/AgendaStore";
 
 interface LessonParam {
   id?: string | number;
@@ -21,6 +22,7 @@ export default function LessonCancellationScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ lesson?: string }>();
+  const { removeLessonById } = useAgenda();
 
   const lesson: LessonParam | null = useMemo(() => {
     try {
@@ -40,10 +42,19 @@ export default function LessonCancellationScreen() {
 
   const confirm = useCallback(() => {
     console.log("Confirm cancellation", { selectedReason, chargeCredit, notifyStudent, keepInAgenda, notes });
-    Alert.alert("Les geannuleerd", "De les is succesvol geannuleerd.", [
-      { text: "OK", onPress: () => router.back() },
-    ]);
-  }, [router, selectedReason, chargeCredit, notifyStudent, keepInAgenda, notes]);
+    const id = (lesson?.id ?? "").toString();
+    try {
+      if (!keepInAgenda && id) {
+        removeLessonById(id);
+      }
+      Alert.alert("Les geannuleerd", keepInAgenda ? "De les blijft zichtbaar in de agenda." : "De les is succesvol uit de agenda verwijderd.", [
+        { text: "OK", onPress: () => router.back() },
+      ]);
+    } catch (e) {
+      Alert.alert("Fout", "Er ging iets mis bij het annuleren. Probeer het opnieuw.");
+      console.log("Cancellation error", e);
+    }
+  }, [router, selectedReason, chargeCredit, notifyStudent, keepInAgenda, notes, lesson?.id, removeLessonById]);
 
   const dateText = useMemo(() => {
     if (!lesson?.date) return "Onbekende datum";

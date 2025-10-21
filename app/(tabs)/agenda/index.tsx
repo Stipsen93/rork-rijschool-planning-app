@@ -8,6 +8,7 @@ import { LessonCard } from "@/components/agenda/LessonCard";
 import { LessonDetailSheet } from "@/components/agenda/LessonDetailSheet";
 import { useRouter } from "expo-router";
 import { Plus } from "lucide-react-native";
+import { useAgenda } from "@/components/agenda/AgendaStore";
 
 export type Lesson = { id?: string | number; studentName?: string; lessonType?: string; startTime: string; endTime: string; date: Date; status?: string; location?: string; notes?: string };
 
@@ -18,23 +19,6 @@ function keyFor(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
-function buildLessons(): Record<string, Lesson[]> {
-  const today = new Date();
-  const day = 24 * 60 * 60 * 1000;
-  const d = (offset: number) => new Date(today.getTime() + offset * day);
-  return {
-    [keyFor(d(0))]: [
-      { studentName: "Emma", lessonType: "Praktijkles", startTime: "10:00", endTime: "11:00", date: d(0) },
-      { studentName: "Lucas", lessonType: "Theorieles", startTime: "13:00", endTime: "14:00", date: d(0) },
-    ],
-    [keyFor(d(1))]: [
-      { studentName: "Sophie", lessonType: "Praktijkles", startTime: "09:00", endTime: "10:00", date: d(1) },
-    ],
-    [keyFor(d(3))]: [
-      { studentName: "Daan", lessonType: "Toets", startTime: "15:00", endTime: "16:00", date: d(3) },
-    ],
-  };
-}
 
 export default function AgendaScreen() {
   const [refreshing, setRefreshing] = useState<boolean>(false);
@@ -48,19 +32,18 @@ export default function AgendaScreen() {
   const [showMonthly, setShowMonthly] = useState<boolean>(false);
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
 
-  const lessons = useMemo(() => buildLessons(), []);
+  const { getLessonsForDate: getLessonsForDateFromStore, lessonsByDate } = useAgenda();
   const insets = useSafeAreaInsets();
 
   const lessonCounts: Record<string, number> = useMemo(() => {
     const map: Record<string, number> = {};
-    Object.entries(lessons).forEach(([k, arr]) => (map[k] = arr.length));
+    Object.entries(lessonsByDate).forEach(([k, arr]) => (map[k] = arr.length));
     return map;
-  }, [lessons]);
+  }, [lessonsByDate]);
 
   const getLessonsForDate = useCallback((date: Date): Lesson[] => {
-    const key = keyFor(date);
-    return lessons[key] ?? [];
-  }, [lessons]);
+    return getLessonsForDateFromStore(date) as Lesson[];
+  }, [getLessonsForDateFromStore]);
 
   const onRefresh = useCallback(() => {
     console.log("Refreshing agenda...");
@@ -109,7 +92,18 @@ export default function AgendaScreen() {
             key={`${keyFor(selectedDate)}-${idx}`}
             lesson={lsn}
             onPress={() => setSelectedLesson(lsn)}
-            onDelete={() => console.log("Delete lesson", lsn)}
+            onDelete={() => {
+              const lessonParam = JSON.stringify({
+                id: (lsn as any).id ?? "",
+                studentName: lsn.studentName,
+                lessonType: lsn.lessonType,
+                startTime: lsn.startTime,
+                endTime: lsn.endTime,
+                date: lsn.date?.toString(),
+              });
+              setSelectedLesson(null);
+              router.push({ pathname: "/lesson-cancellation-screen", params: { lesson: lessonParam } });
+            }}
           />
         ))}
 
@@ -125,7 +119,7 @@ export default function AgendaScreen() {
             setCurrentDate(new Date(sel.getFullYear(), sel.getMonth(), sel.getDate() - ((sel.getDay() || 7) - 1)));
             setShowMonthly(false);
           }}
-          lessons={lessons}
+          lessons={lessonsByDate}
           onClose={() => setShowMonthly(false)}
         />
       )}
@@ -145,7 +139,7 @@ export default function AgendaScreen() {
           onEdit={() => console.log("Edit lesson", selectedLesson)}
           onCancel={() => {
             const lessonParam = JSON.stringify({
-              id: selectedLesson?.id,
+              id: (selectedLesson as any)?.id ?? "",
               studentName: selectedLesson?.studentName,
               lessonType: selectedLesson?.lessonType,
               startTime: selectedLesson?.startTime,
