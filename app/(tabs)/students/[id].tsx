@@ -522,7 +522,7 @@ function StudentOverviewTable({ studentName, baseItems, products, studentPackage
           const neutral = drivenHours === 0 && plannedHours === 0 && hoursPaid === 0;
           return (
             <>
-              <Row label="Uren gereden" value={`${round1(drivenHours)} u`} valueColor={drivenHours > 0 ? "#22c55e" : "#6b7280"} />
+              <Row label="Uren gereden" value={`${round1(drivenHours)} u`} valueColor={drivenHours <= 0 ? "#6b7280" : (drivenHours > hoursPaid ? "#ef4444" : "#22c55e")} />
               {(() => {
                 const remainingPaid = Math.max(0, hoursPaid - drivenHours);
                 const plannedColor = plannedHours <= 0
