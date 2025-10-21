@@ -527,6 +527,8 @@ function StudentOverviewTable({ studentName, baseItems, products, studentPackage
           valueColor={
             noneAdded
               ? "#6b7280"
+              : aggregatePaymentStatus === "unpaid" && drivenHours === 0
+              ? "#6b7280"
               : aggregatePaymentStatus === "partial"
               ? "#f59e0b"
               : aggregatePaymentStatus === "paid"
