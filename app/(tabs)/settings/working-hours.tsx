@@ -18,7 +18,7 @@ function showToast(msg: string, _color: string = "#16a34a") {
 
 export default function WorkingHoursScreen() {
   const { workingHours: storedHours, updateWorkingHours, loading } = useWorkingHours();
-  const [workingHours, setWorkingHours] = useState<WorkingHours>(storedHours);
+  const [workingHours, setWorkingHours] = useState<WorkingHours>(storedHours ?? defaultWorkingHours);
   const [expandedDay, setExpandedDay] = useState<DayKey | null>(null);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [timePickerFor, setTimePickerFor] = useState<null | { day: DayKey; group: "ranges" | "pauses"; index: number; part: "start" | "end"; current: string }>(null);
@@ -229,7 +229,7 @@ export default function WorkingHoursScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.dayTitle, { color: conf.enabled ? "#111827" : "#9ca3af" }]}>{day}</Text>
                   <Text style={[styles.daySubtitle, { color: conf.enabled ? "#0ea5e9" : "#9ca3af" }]}>
-                    {conf.enabled ? (conf.ranges[0] ? `${conf.ranges[0].start} - ${conf.ranges[0].end}` : "Geen tijdsblokken") : "Niet actief"}
+                    {conf.enabled ? (conf.ranges?.[0] ? `${conf.ranges?.[0]?.start} - ${conf.ranges?.[0]?.end}` : "Geen tijdsblokken") : "Niet actief"}
                   </Text>
                 </View>
 
