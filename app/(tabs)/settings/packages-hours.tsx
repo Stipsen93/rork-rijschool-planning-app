@@ -2,7 +2,7 @@ import React from "react";
 import { Alert, Platform, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Check, Plus, Save, Trash2 } from "lucide-react-native";
+import { Check, Plus, Save, Trash2, ChevronDown, ChevronUp } from "lucide-react-native";
 
 type Product = { id: string; name: string; price: number; vatStatus: "incl" | "excl" };
 type PackageItem = { id: string; name: string; hours: number; price: number; vatStatus: "incl" | "excl"; selectedProducts: string[] };
@@ -31,6 +31,8 @@ export default function PackagesAndHoursScreen() {
   const [newPackageHours, setNewPackageHours] = React.useState<string>("");
   const [newPackagePrice, setNewPackagePrice] = React.useState<string>("");
   const [newPackageVat, setNewPackageVat] = React.useState<"incl" | "excl">("incl");
+  const [newPackageSelectedProducts, setNewPackageSelectedProducts] = React.useState<string[]>([]);
+  const [productDropdownOpen, setProductDropdownOpen] = React.useState<boolean>(false);
 
   const router = useRouter();
 
@@ -119,14 +121,16 @@ export default function PackagesAndHoursScreen() {
       return;
     }
     const id = String(Date.now());
-    const next: PackageItem = { id, name, hours: hoursNum, price: priceNum, vatStatus: newPackageVat, selectedProducts: [] };
+    const next: PackageItem = { id, name, hours: hoursNum, price: priceNum, vatStatus: newPackageVat, selectedProducts: newPackageSelectedProducts };
     setPackages((prev) => [...prev, next]);
     setNewPackageName("");
     setNewPackageHours("");
     setNewPackagePrice("");
     setNewPackageVat("incl");
+    setNewPackageSelectedProducts([]);
+    setProductDropdownOpen(false);
     console.log("[PackagesHours] Package added", next);
-  }, [newPackageName, newPackageHours, newPackagePrice, newPackageVat]);
+  }, [newPackageName, newPackageHours, newPackagePrice, newPackageVat, newPackageSelectedProducts]);
 
   const updateProduct = (id: string, patch: Partial<Product>) => {
     setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
@@ -314,6 +318,45 @@ export default function PackagesAndHoursScreen() {
                   <Text style={styles.tagText}>{newPackageVat === "incl" ? "Incl. BTW" : "Excl. BTW"}</Text>
                 </TouchableOpacity>
               </View>
+              <View style={{ gap: 8 }}>
+                <TouchableOpacity
+                  testID="product-dropdown-toggle"
+                  onPress={() => setProductDropdownOpen((p) => !p)}
+                  style={[styles.input, styles.dropdownToggle]}
+                  accessibilityRole="button"
+                >
+                  <View style={styles.inlineBetween}>
+                    <Text>{newPackageSelectedProducts.length > 0 ? `${newPackageSelectedProducts.length} geselecteerd` : "Producten kiezen"}</Text>
+                    {productDropdownOpen ? <ChevronUp color="#64748b" /> : <ChevronDown color="#64748b" />}
+                  </View>
+                </TouchableOpacity>
+                {productDropdownOpen && (
+                  <View style={styles.dropdownPanel} testID="product-dropdown-panel">
+                    {products.length === 0 ? (
+                      <Text style={styles.muted}>Geen producten beschikbaar. Voeg ze eerst bij Producten toe.</Text>
+                    ) : (
+                      products.map((prod) => {
+                        const checked = newPackageSelectedProducts.includes(prod.id);
+                        return (
+                          <TouchableOpacity
+                            key={`np-${prod.id}`}
+                            style={styles.checkboxRow}
+                            onPress={() => {
+                              setNewPackageSelectedProducts((prev) =>
+                                prev.includes(prod.id) ? prev.filter((id) => id !== prod.id) : [...prev, prod.id]
+                              );
+                            }}
+                          >
+                            <View style={[styles.checkbox, checked && styles.checkboxChecked]} />
+                            <Text style={{ flex: 1 }}>{prod.name}</Text>
+                            <Text style={styles.muted}>€ {prod.price.toFixed(2)}</Text>
+                          </TouchableOpacity>
+                        );
+                      })
+                    )}
+                  </View>
+                )}
+              </View>
               <TouchableOpacity testID="confirm-add-package" onPress={confirmAddPackage} style={styles.confirmBtn}>
                 <Check color="#fff" size={16} />
                 <Text style={styles.confirmBtnText}>Toevoegen</Text>
@@ -463,6 +506,8 @@ const styles = StyleSheet.create({
   },
   addBtnText: { color: "#fff", fontWeight: "700" },
   newProductBox: { gap: 10 },
+  dropdownToggle: { paddingVertical: 12 },
+  dropdownPanel: { backgroundColor: "#f8fafc", borderRadius: 8, borderWidth: 1, borderColor: "#e5e7eb", padding: 8, gap: 8 },
   confirmBtn: {
     flexDirection: "row",
     alignItems: "center",
