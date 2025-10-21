@@ -224,6 +224,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
+    marginHorizontal: -16,
   },
   stickyHeaderInner: {
     paddingTop: 8,
