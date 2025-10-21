@@ -47,9 +47,7 @@ export default function LessonCancellationScreen() {
       if (!keepInAgenda && id) {
         removeLessonById(id);
       }
-      Alert.alert("Les geannuleerd", keepInAgenda ? "De les blijft zichtbaar in de agenda." : "De les is succesvol uit de agenda verwijderd.", [
-        { text: "OK", onPress: () => router.back() },
-      ]);
+      router.replace("/(tabs)/agenda");
     } catch (e) {
       Alert.alert("Fout", "Er ging iets mis bij het annuleren. Probeer het opnieuw.");
       console.log("Cancellation error", e);

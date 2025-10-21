@@ -1,6 +1,6 @@
 import React, { memo } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
-import { Trash2, MapPin, Plus } from "lucide-react-native";
+import { MapPin, Plus } from "lucide-react-native";
 
 export type LessonCardLesson = {
   id?: string | number;
@@ -86,9 +86,11 @@ function LessonCardComponent({ lesson, onPress, onDelete }: LessonCardProps) {
         )}
       </View>
 
-      <Pressable accessibilityRole="button" onPress={confirmDelete} style={styles.deleteBtn} testID="delete-lesson">
-        {isBooked ? <Trash2 size={18} color="#ef4444" /> : <Plus size={18} color="#2f95dc" />}
-      </Pressable>
+      {!isBooked && (
+        <Pressable accessibilityRole="button" onPress={confirmDelete} style={styles.deleteBtn} testID="add-lesson-slot">
+          <Plus size={18} color="#2f95dc" />
+        </Pressable>
+      )}
     </Pressable>
   );
 }
