@@ -190,15 +190,15 @@ const styles = StyleSheet.create({
   scrollContent: { paddingBottom: 24 },
   timelineCard: {
     position: "relative",
-    borderRadius: 0,
-    backgroundColor: "#1f2937",
+    borderRadius: 16,
+    backgroundColor: "#2b2b2b",
     overflow: "hidden",
   },
   workOverlay: {
     position: "absolute",
     left: 64,
     right: 0,
-    borderRadius: 0,
+    borderRadius: 16,
     backgroundColor: "#ffffff",
   },
   timeLabels: { position: "absolute", top: 0, left: 0, right: 0 },
