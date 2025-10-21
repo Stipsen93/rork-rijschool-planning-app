@@ -43,7 +43,7 @@ export default function PackagesAndHoursScreen() {
   const [products, setProducts] = React.useState<Product[]>([]);
   const [packages, setPackages] = React.useState<PackageItem[]>([]);
   const [hourlyRates, setHourlyRates] = React.useState<HourlyRates>({ price: 0, vatStatus: "incl" });
-  const [showNewHour, setShowNewHour] = React.useState<boolean>(true);
+  const [showNewHour, setShowNewHour] = React.useState<boolean>(false);
   const [newHourPrice, setNewHourPrice] = React.useState<string>("");
 
   const [showNewProduct, setShowNewProduct] = React.useState<boolean>(false);
@@ -85,9 +85,9 @@ export default function PackagesAndHoursScreen() {
       if (rateStr) {
         const r = JSON.parse(rateStr) as HourlyRates;
         setHourlyRates(r);
-        setShowNewHour((r.price ?? 0) <= 0);
+        setShowNewHour(false);
       } else {
-        setShowNewHour(true);
+        setShowNewHour(false);
       }
     } catch (e) {
       console.error("Failed to load data", e);
@@ -487,7 +487,7 @@ export default function PackagesAndHoursScreen() {
                     notifyCrossPlatform("Pakket is verwijderd.");
                   } else {
                     setHourlyRates({ price: 0, vatStatus: "incl" });
-                    setShowNewHour(true);
+                    setShowNewHour(false);
                     notifyCrossPlatform("Uurprijs is verwijderd.");
                   }
                   setConfirmState(null);
