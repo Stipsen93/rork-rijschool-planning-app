@@ -2,11 +2,31 @@ import React from "react";
 import { Alert, Platform, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Modal } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Check, Plus, Save, Trash2, ChevronDown, ChevronUp } from "lucide-react-native";
+import { Check, Plus, Save, Trash2, ChevronDown, ChevronUp, Pencil } from "lucide-react-native";
 
 type Product = { id: string; name: string; price: number; vatStatus: "incl" | "excl" };
 type PackageItem = { id: string; name: string; hours: number; price: number; vatStatus: "incl" | "excl"; selectedProducts: string[] };
 type HourlyRates = { price: number; vatStatus: "incl" | "excl" };
+
+type EditState =
+  | null
+  | {
+      type: "product";
+      id: string;
+      name: string;
+      price: string;
+      vatStatus: "incl" | "excl";
+    }
+  | {
+      type: "package";
+      id: string;
+      name: string;
+      hours: string;
+      price: string;
+      vatStatus: "incl" | "excl";
+      selectedProducts: string[];
+      dropdownOpen: boolean;
+    };
 
 const PRODUCTS_KEY = "instructor_products";
 const PACKAGES_KEY = "instructor_packages";
@@ -58,6 +78,8 @@ export default function PackagesAndHoursScreen() {
   const [newPackageVat, setNewPackageVat] = React.useState<"incl" | "excl">("incl");
   const [newPackageSelectedProducts, setNewPackageSelectedProducts] = React.useState<string[]>([]);
   const [productDropdownOpen, setProductDropdownOpen] = React.useState<boolean>(false);
+
+  const [editState, setEditState] = React.useState<EditState>(null);
 
   const router = useRouter();
 
@@ -212,6 +234,57 @@ export default function PackagesAndHoursScreen() {
     setConfirmState({ type: "package", id, name });
   };
 
+  const beginEditProduct = (id: string) => {
+    const prod = products.find((p) => p.id === id);
+    if (!prod) return;
+    setEditState({ type: "product", id, name: prod.name, price: String(prod.price), vatStatus: prod.vatStatus });
+  };
+
+  const beginEditPackage = (id: string) => {
+    const pkg = packages.find((p) => p.id === id);
+    if (!pkg) return;
+    setEditState({
+      type: "package",
+      id,
+      name: pkg.name,
+      hours: String(pkg.hours),
+      price: String(pkg.price),
+      vatStatus: pkg.vatStatus,
+      selectedProducts: [...pkg.selectedProducts],
+      dropdownOpen: false,
+    });
+  };
+
+  const confirmEdit = () => {
+    if (!editState) return;
+    if (editState.type === "product") {
+      const name = editState.name.trim();
+      const priceNum = Number(editState.price);
+      if (!name || Number.isNaN(priceNum) || priceNum < 0) {
+        Alert.alert("Let op", "Controleer de naam en prijs.");
+        return;
+      }
+      updateProduct(editState.id, { name, price: priceNum, vatStatus: editState.vatStatus });
+      setEditState(null);
+    } else {
+      const name = editState.name.trim();
+      const hoursNum = Number(editState.hours);
+      const priceNum = Number(editState.price);
+      if (!name || Number.isNaN(hoursNum) || hoursNum <= 0 || Number.isNaN(priceNum) || priceNum < 0) {
+        Alert.alert("Let op", "Controleer de naam, uren en prijs.");
+        return;
+      }
+      updatePackage(editState.id, {
+        name,
+        hours: hoursNum,
+        price: priceNum,
+        vatStatus: editState.vatStatus,
+        selectedProducts: editState.selectedProducts,
+      });
+      setEditState(null);
+    }
+  };
+
   return (
     <View style={styles.screen} testID="packages-hours-screen">
       <Stack.Screen
@@ -291,9 +364,14 @@ export default function PackagesAndHoursScreen() {
                     € {p.price.toFixed(2)} {p.vatStatus === "incl" ? "(incl. btw)" : "(excl. btw)"}
                   </Text>
                 </View>
-                <TouchableOpacity accessibilityRole="button" onPress={() => deleteProduct(p.id)}>
-                  <Trash2 color="#ef4444" />
-                </TouchableOpacity>
+                <View style={styles.actionsRow}>
+                  <TouchableOpacity accessibilityRole="button" testID={`edit-product-${p.id}`} onPress={() => beginEditProduct(p.id)}>
+                    <Pencil color="#0ea5e9" />
+                  </TouchableOpacity>
+                  <TouchableOpacity accessibilityRole="button" onPress={() => deleteProduct(p.id)}>
+                    <Trash2 color="#ef4444" />
+                  </TouchableOpacity>
+                </View>
               </View>
             ))
           )}
@@ -400,9 +478,14 @@ export default function PackagesAndHoursScreen() {
                     € {pk.price.toFixed(2)} • {pk.hours} uur {pk.vatStatus === "incl" ? "(incl. btw)" : "(excl. btw)"}
                   </Text>
                 </View>
-                <TouchableOpacity accessibilityRole="button" onPress={() => deletePackage(pk.id)}>
-                  <Trash2 color="#ef4444" />
-                </TouchableOpacity>
+                <View style={styles.actionsRow}>
+                  <TouchableOpacity accessibilityRole="button" testID={`edit-package-${pk.id}`} onPress={() => beginEditPackage(pk.id)}>
+                    <Pencil color="#0ea5e9" />
+                  </TouchableOpacity>
+                  <TouchableOpacity accessibilityRole="button" onPress={() => deletePackage(pk.id)}>
+                    <Trash2 color="#ef4444" />
+                  </TouchableOpacity>
+                </View>
               </View>
             ))
           )}
@@ -502,6 +585,155 @@ export default function PackagesAndHoursScreen() {
           </View>
         </View>
       </Modal>
+
+      <Modal
+        visible={!!editState}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setEditState(null)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard} testID="edit-item-modal">
+            <Text style={styles.modalTitle}>{editState?.type === "product" ? "Product bewerken" : "Pakket bewerken"}</Text>
+            {editState?.type === "product" ? (
+              <View style={{ gap: 10 }}>
+                <TextInput
+                  testID="edit-product-name"
+                  style={styles.input}
+                  placeholder="Productnaam"
+                  placeholderTextColor="#9ca3af"
+                  value={editState.name}
+                  onChangeText={(t) => setEditState((prev) => (prev && prev.type === "product" ? { ...prev, name: t } : prev))}
+                />
+                <View style={styles.inlineBetween}>
+                  <TextInput
+                    testID="edit-product-price"
+                    style={[styles.input, styles.inputSmall]}
+                    placeholder="Prijs (€)"
+                    placeholderTextColor="#9ca3af"
+                    keyboardType="decimal-pad"
+                    value={editState.price}
+                    onChangeText={(t) => setEditState((prev) => (prev && prev.type === "product" ? { ...prev, price: t } : prev))}
+                  />
+                  <TouchableOpacity
+                    testID="edit-product-vat"
+                    onPress={() => setEditState((prev) => (prev && prev.type === "product" ? { ...prev, vatStatus: prev.vatStatus === "incl" ? "excl" : "incl" } : prev))}
+                    style={styles.tag}
+                  >
+                    <Text style={styles.tagText}>{editState.vatStatus === "incl" ? "Incl. BTW" : "Excl. BTW"}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : editState ? (
+              <View style={{ gap: 10 }}>
+                <TextInput
+                  testID="edit-package-name"
+                  style={styles.input}
+                  placeholder="Pakketnaam"
+                  placeholderTextColor="#9ca3af"
+                  value={editState.name}
+                  onChangeText={(t) => setEditState((prev) => (prev && prev.type === "package" ? { ...prev, name: t } : prev))}
+                />
+                <View style={styles.inlineBetween}>
+                  <TextInput
+                    testID="edit-package-hours"
+                    style={[styles.input, styles.inputSmall]}
+                    placeholder="Uren"
+                    placeholderTextColor="#9ca3af"
+                    keyboardType="number-pad"
+                    value={editState.hours}
+                    onChangeText={(t) => setEditState((prev) => (prev && prev.type === "package" ? { ...prev, hours: t } : prev))}
+                  />
+                  <TextInput
+                    testID="edit-package-price"
+                    style={[styles.input, styles.inputSmall]}
+                    placeholder="Prijs (€)"
+                    placeholderTextColor="#9ca3af"
+                    keyboardType="decimal-pad"
+                    value={editState.price}
+                    onChangeText={(t) => setEditState((prev) => (prev && prev.type === "package" ? { ...prev, price: t } : prev))}
+                  />
+                  <TouchableOpacity
+                    testID="edit-package-vat"
+                    onPress={() => setEditState((prev) => (prev && prev.type === "package" ? { ...prev, vatStatus: prev.vatStatus === "incl" ? "excl" : "incl" } : prev))}
+                    style={styles.tag}
+                  >
+                    <Text style={styles.tagText}>{editState.vatStatus === "incl" ? "Incl. BTW" : "Excl. BTW"}</Text>
+                  </TouchableOpacity>
+                </View>
+                <TouchableOpacity
+                  testID="edit-product-dropdown-toggle"
+                  onPress={() => setEditState((prev) => (prev && prev.type === "package" ? { ...prev, dropdownOpen: !prev.dropdownOpen } : prev))}
+                  style={[styles.input, styles.dropdownToggle]}
+                  accessibilityRole="button"
+                >
+                  <View style={styles.inlineBetween}>
+                    <Text>
+                      {editState.type === "package" && editState.selectedProducts.length > 0
+                        ? `${editState.selectedProducts.length} geselecteerd`
+                        : "Producten kiezen"}
+                    </Text>
+                    {editState.type === "package" && editState.dropdownOpen ? <ChevronUp color="#64748b" /> : <ChevronDown color="#64748b" />}
+                  </View>
+                </TouchableOpacity>
+                {editState.type === "package" && editState.dropdownOpen && (
+                  <View style={styles.dropdownPanel}>
+                    {products.length === 0 ? (
+                      <Text style={styles.muted}>Geen producten beschikbaar. Voeg ze eerst bij Producten toe.</Text>
+                    ) : (
+                      products.map((prod) => {
+                        const checked = editState.selectedProducts.includes(prod.id);
+                        return (
+                          <TouchableOpacity
+                            key={`ep-${prod.id}`}
+                            style={styles.checkboxRow}
+                            onPress={() =>
+                              setEditState((prev) =>
+                                prev && prev.type === "package"
+                                  ? {
+                                      ...prev,
+                                      selectedProducts: checked
+                                        ? prev.selectedProducts.filter((id) => id !== prod.id)
+                                        : [...prev.selectedProducts, prod.id],
+                                    }
+                                  : prev
+                              )
+                            }
+                          >
+                            <View style={[styles.checkbox, checked && styles.checkboxChecked]} />
+                            <Text style={{ flex: 1 }}>{prod.name}</Text>
+                            <Text style={styles.muted}>€ {prod.price.toFixed(2)}</Text>
+                          </TouchableOpacity>
+                        );
+                      })
+                    )}
+                  </View>
+                )}
+              </View>
+            ) : null}
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                testID="cancel-edit"
+                onPress={() => setEditState(null)}
+                style={[styles.modalBtn, styles.modalBtnCancel]}
+                accessibilityRole="button"
+              >
+                <Text style={styles.modalBtnCancelText}>Annuleren</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                testID="confirm-edit"
+                onPress={confirmEdit}
+                style={[styles.modalBtn, styles.modalBtnPrimary]}
+                accessibilityRole="button"
+              >
+                <Check color="#fff" size={16} />
+                <Text style={styles.modalBtnPrimaryText}>Opslaan</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -533,6 +765,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 12,
   },
+  actionsRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   itemTitle: { fontSize: 16, fontWeight: "600", color: "#0f172a" },
   itemSubtitle: { fontSize: 12, color: "#6b7280", marginTop: 2 },
   inline: { flexDirection: "row", alignItems: "center", gap: 8 },
@@ -597,4 +830,6 @@ const styles = StyleSheet.create({
   modalBtnCancelText: { color: "#111827", fontWeight: "700" },
   modalBtnDanger: { backgroundColor: "#ef4444" },
   modalBtnDangerText: { color: "#fff", fontWeight: "700" },
+  modalBtnPrimary: { backgroundColor: "#0ea5e9" },
+  modalBtnPrimaryText: { color: "#fff", fontWeight: "700" },
 });
