@@ -42,8 +42,9 @@ export default function PackagesAndHoursScreen() {
 
   const [products, setProducts] = React.useState<Product[]>([]);
   const [packages, setPackages] = React.useState<PackageItem[]>([]);
-  const [hourlyRates, setHourlyRates] = React.useState<HourlyRates>({ price: 45, vatStatus: "incl" });
-  const [hourlyLocked, setHourlyLocked] = React.useState<boolean>(true);
+  const [hourlyRates, setHourlyRates] = React.useState<HourlyRates>({ price: 0, vatStatus: "incl" });
+  const [showNewHour, setShowNewHour] = React.useState<boolean>(true);
+  const [newHourPrice, setNewHourPrice] = React.useState<string>("");
 
   const [showNewProduct, setShowNewProduct] = React.useState<boolean>(false);
   const [newProductName, setNewProductName] = React.useState<string>("");
@@ -61,7 +62,7 @@ export default function PackagesAndHoursScreen() {
   const router = useRouter();
 
   const [confirmState, setConfirmState] = React.useState<{
-    type: "product" | "package";
+    type: "product" | "package" | "hour";
     id: string;
     name: string;
   } | null>(null);
@@ -84,9 +85,9 @@ export default function PackagesAndHoursScreen() {
       if (rateStr) {
         const r = JSON.parse(rateStr) as HourlyRates;
         setHourlyRates(r);
-        setHourlyLocked((r.price ?? 0) > 0);
+        setShowNewHour((r.price ?? 0) <= 0);
       } else {
-        setHourlyLocked(false);
+        setShowNewHour(true);
       }
     } catch (e) {
       console.error("Failed to load data", e);
@@ -183,6 +184,23 @@ export default function PackagesAndHoursScreen() {
   const addPackage = React.useCallback(() => {
     setShowNewPackage((prev) => !prev);
   }, []);
+
+  const toggleAddHour = React.useCallback(() => {
+    setShowNewHour((prev) => !prev);
+  }, []);
+
+  const confirmAddHour = React.useCallback(() => {
+    const priceNum = Number(newHourPrice);
+    if (Number.isNaN(priceNum) || priceNum <= 0) {
+      Alert.alert("Let op", "Voer een geldige uurprijs in.");
+      return;
+    }
+    const next: HourlyRates = { price: priceNum, vatStatus: "incl" };
+    setHourlyRates(next);
+    setNewHourPrice("");
+    setShowNewHour(false);
+    console.log("[PackagesHours] Hourly price set", next);
+  }, [newHourPrice]);
 
   const updatePackage = (id: string, patch: Partial<PackageItem>) => {
     setPackages((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
@@ -392,46 +410,45 @@ export default function PackagesAndHoursScreen() {
 
         <Text style={styles.sectionTitle}>Uren</Text>
         <View style={styles.card}>
-          <View style={styles.inlineBetween}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.currencyLabel} testID="hourly-euro-label">EU</Text>
-              <TextInput
-                testID="hourly-price"
-                style={[
-                  styles.input,
-                  styles.inputSmall,
-                  (hourlyRates.price ?? 0) > 0 ? styles.inputDisabled : styles.inputWhite,
-                ]}
-                placeholder="Prijs per uur (€)"
-                keyboardType="decimal-pad"
-                value={String(hourlyRates.price ?? 0)}
-                onChangeText={(t) => setHourlyRates((prev) => ({ ...prev, price: Number(t) || 0 }))}
-                editable={!hourlyLocked}
-              />
+          {!showNewHour && (hourlyRates.price ?? 0) > 0 ? (
+            <View style={styles.listRow} testID="hourly-list-row">
+              <View style={{ flex: 1 }}>
+                <Text style={styles.itemTitle}>Uurprijs</Text>
+                <Text style={styles.itemSubtitle}>€ {hourlyRates.price.toFixed(2)}</Text>
+              </View>
+              <TouchableOpacity
+                accessibilityRole="button"
+                testID="hourly-delete"
+                onPress={() => setConfirmState({ type: "hour", id: "hour", name: "Uurprijs" })}
+              >
+                <Trash2 color="#ef4444" />
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity
-              testID="hourly-vat"
-              onPress={() => setHourlyRates((prev) => ({ ...prev, vatStatus: prev.vatStatus === "incl" ? "excl" : "incl" }))}
-              style={styles.tag}
-            >
-              <Text style={styles.tagText}>{hourlyRates.vatStatus === "incl" ? "Incl. BTW" : "Excl. BTW"}</Text>
-            </TouchableOpacity>
-          </View>
-          <TouchableOpacity
-            testID="hourly-toggle-save"
-            onPress={async () => {
-              if (hourlyLocked) {
-                setHourlyLocked(false);
-              } else {
-                await persistAll();
-                setHourlyLocked(true);
-              }
-            }}
-            style={[styles.addBtn, { backgroundColor: "#0ea5e9" }]}
-          >
-            <Save color="#fff" />
-            <Text style={styles.addBtnText}>{hourlyLocked ? "Uurprijs wijzigen" : "Uurprijs opslaan"}</Text>
-          </TouchableOpacity>
+          ) : (
+            <>
+              <TouchableOpacity testID="add-hour" style={[styles.addBtn, styles.addBtnBlue]} onPress={toggleAddHour}>
+                <Plus color="#fff" />
+                <Text style={styles.addBtnText}>Uurprijs toevoegen</Text>
+              </TouchableOpacity>
+              {showNewHour && (
+                <View style={styles.newProductBox}>
+                  <TextInput
+                    testID="new-hour-price"
+                    style={[styles.input, styles.inputSmall, styles.inputWhite]}
+                    placeholder="Uurprijs (€)"
+                    placeholderTextColor="#9ca3af"
+                    keyboardType="decimal-pad"
+                    value={newHourPrice}
+                    onChangeText={setNewHourPrice}
+                  />
+                  <TouchableOpacity testID="confirm-add-hour" onPress={confirmAddHour} style={[styles.confirmBtn, styles.confirmBtnBlue]}>
+                    <Check color="#fff" size={16} />
+                    <Text style={styles.confirmBtnText}>Toevoegen</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </>
+          )}
         </View>
 
         <View style={{ height: 40 }} />
@@ -447,7 +464,7 @@ export default function PackagesAndHoursScreen() {
           <View style={styles.modalCard} testID="confirm-delete-modal">
             <Text style={styles.modalTitle}>Weet je het zeker?</Text>
             <Text style={styles.modalMsg}>
-              {confirmState?.type === "product" ? "Product" : "Pakket"} {`“${confirmState?.name ?? ""}”`} verwijderen?
+              {confirmState?.type === "product" ? "Product" : confirmState?.type === "package" ? "Pakket" : "Uurprijs"} {`“${confirmState?.name ?? ""}”`} verwijderen?
             </Text>
             <View style={styles.modalActions}>
               <TouchableOpacity
@@ -465,9 +482,13 @@ export default function PackagesAndHoursScreen() {
                   if (confirmState.type === "product") {
                     setProducts((prev) => prev.filter((p) => p.id !== confirmState.id));
                     notifyCrossPlatform("Product is verwijderd.");
-                  } else {
+                  } else if (confirmState.type === "package") {
                     setPackages((prev) => prev.filter((p) => p.id !== confirmState.id));
                     notifyCrossPlatform("Pakket is verwijderd.");
+                  } else {
+                    setHourlyRates({ price: 0, vatStatus: "incl" });
+                    setShowNewHour(true);
+                    notifyCrossPlatform("Uurprijs is verwijderd.");
                   }
                   setConfirmState(null);
                 }}
@@ -538,6 +559,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   addBtnText: { color: "#fff", fontWeight: "700" },
+  addBtnBlue: { backgroundColor: "#0ea5e9" },
   newProductBox: { gap: 10 },
   dropdownToggle: { paddingVertical: 12 },
   dropdownPanel: { backgroundColor: "#f8fafc", borderRadius: 8, borderWidth: 1, borderColor: "#e5e7eb", padding: 8, gap: 8 },
@@ -551,6 +573,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 8,
   },
+  confirmBtnBlue: { backgroundColor: "#0ea5e9" },
   confirmBtnText: { color: "#fff", fontWeight: "700" },
   tag: {
     backgroundColor: "#e0f2fe",
