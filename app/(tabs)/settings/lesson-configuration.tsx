@@ -26,7 +26,7 @@ const defaultConfig: LessonConfig = {
   baseLessonDuration: 60,
   productDurations: {},
   breakBetweenLessons: 15,
-  automaticBreaks: true,
+  automaticBreaks: false,
   allowBackToBackLessons: false,
   requireConfirmation: true,
   cancellationNoticeHours: 24,
@@ -193,13 +193,7 @@ export default function LessonConfigurationScreen() {
           </Card>
 
           <Card title="Planning Opties">
-            <ToggleRow
-              title="Rug-aan-rug lessen toestaan"
-              subtitle="Sta lessen toe die direct na elkaar gepland zijn"
-              value={config.allowBackToBackLessons}
-              onToggle={() => setConfig((p) => ({ ...p, allowBackToBackLessons: !p.allowBackToBackLessons }))}
-            />
-            <View style={{ height: 8 }} />
+            
             <ToggleRow
               title="Bevestiging vereisen"
               subtitle="Leerlingen moeten lesboekingen bevestigen"
