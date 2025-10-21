@@ -90,13 +90,25 @@ function ScheduleSectionComponent({ selectedDate, selectedTime, lessonDurationHo
             <Text style={styles.inputText}>{selectedDate}</Text>
           </TouchableOpacity>
           {showDate && (
-            <View style={styles.pickerWrap}>
-              <CalendarPicker
-                initialDate={parseDate(selectedDate)}
-                onSelectDate={onDatePicked}
-                testID="date-picker"
-              />
-            </View>
+            <Modal visible animationType="fade" transparent>
+              <View style={styles.modalBackdrop} testID="date-picker-modal">
+                <View style={styles.modalCard}>
+                  <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>Kies datum</Text>
+                    <TouchableOpacity accessibilityRole="button" onPress={() => setShowDate(false)}>
+                      <X size={20} color="#111827" />
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.pickerWrap}>
+                    <CalendarPicker
+                      initialDate={parseDate(selectedDate)}
+                      onSelectDate={onDatePicked}
+                      testID="date-picker"
+                    />
+                  </View>
+                </View>
+              </View>
+            </Modal>
           )}
         </View>
         <View style={styles.cell}>
@@ -113,13 +125,25 @@ function ScheduleSectionComponent({ selectedDate, selectedTime, lessonDurationHo
             <Text style={styles.inputText}>{isFullDay ? "09:00" : selectedTime}</Text>
           </TouchableOpacity>
           {showTime && (
-            <View style={styles.pickerWrap}>
-              <TimePicker24h
-                initialTime={parseTime(selectedTime)}
-                onSelectTime={onTimePicked}
-                testID="time-picker"
-              />
-            </View>
+            <Modal visible animationType="fade" transparent>
+              <View style={styles.modalBackdrop} testID="time-picker-modal">
+                <View style={styles.modalCard}>
+                  <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>Kies tijd</Text>
+                    <TouchableOpacity accessibilityRole="button" onPress={() => setShowTime(false)}>
+                      <X size={20} color="#111827" />
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.pickerWrap}>
+                    <TimePicker24h
+                      initialTime={parseTime(selectedTime)}
+                      onSelectTime={onTimePicked}
+                      testID="time-picker"
+                    />
+                  </View>
+                </View>
+              </View>
+            </Modal>
           )}
         </View>
         <View style={styles.cell}>
