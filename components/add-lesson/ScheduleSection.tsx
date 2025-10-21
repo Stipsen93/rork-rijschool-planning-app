@@ -40,11 +40,11 @@ function ScheduleSectionComponent({ selectedDate, selectedTime, lessonDurationHo
         <View style={styles.cell}>
           <Text style={styles.header}>Lengte</Text>
           <View style={[styles.row, { gap: 8 }]}>
-            <View style={styles.inputWrap}>
+            <View style={[styles.inputWrap, styles.inputSmall]}>
               <Timer size={16} color="#2563eb" />
               <TextInput value={String(lessonDurationHours)} onChangeText={(v) => onDurationChanged(Number(v || 0), lessonDurationMinutes)} placeholder="Uur" keyboardType="number-pad" style={styles.input} testID="duration-hours" />
             </View>
-            <View style={styles.inputWrap}>
+            <View style={[styles.inputWrap, styles.inputSmall]}>
               <Timer size={16} color="#2563eb" />
               <TextInput value={String(lessonDurationMinutes)} onChangeText={(v) => onDurationChanged(lessonDurationHours, Number(v || 0))} placeholder="Min" keyboardType="number-pad" style={styles.input} testID="duration-mins" />
             </View>
@@ -71,6 +71,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 16, fontWeight: "700" },
   header: { fontSize: 12, color: "#6b7280", marginBottom: 6, fontWeight: "600" },
   inputWrap: { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 10, backgroundColor: "#fff" },
+  inputSmall: { flex: 1, minWidth: 0 },
   input: { flex: 1 },
   tableRow: { flexDirection: "row", gap: 12 },
   cell: { flex: 1 },
