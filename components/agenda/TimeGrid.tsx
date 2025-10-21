@@ -1,5 +1,5 @@
 import React, { memo, useEffect, useMemo, useRef } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useAgenda } from "@/components/agenda/AgendaStore";
 import { useWorkingHours, type DayKey, type DayConfig } from "@/components/settings/WorkingHoursStore";
 
@@ -134,19 +134,19 @@ function Inner({ date, onLessonPress }: TimeGridProps) {
               const height = minutesBetween(l.startTime, l.endTime) * PPM;
               const leftInset = 84;
               return (
-                <View
+                <Pressable
                   key={String(l.id)}
                   style={[
                     styles.lessonBlock,
                     { top, height, left: leftInset, right: 12, backgroundColor: colorForType(l.lessonType) },
                   ]}
-                  onTouchEndCapture={() => onLessonPress?.(String(l.id))}
+                  onPress={() => onLessonPress?.(String(l.id))}
                   testID={`lesson-block-${l.id}`}
                 >
                   <Text style={styles.lessonTitle}>{l.studentName ?? ""}</Text>
                   <Text style={styles.lessonMeta}>{`${l.startTime} - ${l.endTime}`}</Text>
                   {!!l.location && <Text numberOfLines={1} style={styles.lessonLocation}>{l.location}</Text>}
-                </View>
+                </Pressable>
               );
             })}
           </View>
