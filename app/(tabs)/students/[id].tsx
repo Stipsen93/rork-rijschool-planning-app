@@ -418,6 +418,7 @@ function EditStudentPackageModal({
   const [price, setPrice] = useState<string>((pkg?.customPrice ?? base?.price ?? 0).toString());
   const [hours, setHours] = useState<string>((pkg?.customHours ?? base?.hours ?? 0).toString());
   const [includedIds, setIncludedIds] = useState<string[]>(pkg?.includedProductIds ?? []);
+  const [confirmOpen, setConfirmOpen] = useState<boolean>(false);
 
   useEffect(() => {
     if (!pkg) return;
@@ -450,14 +451,14 @@ function EditStudentPackageModal({
   }, [hours, includedIds, name, onClose, pkgIndex, price, setStudentPackages]);
 
   const confirmDelete = useCallback(() => {
-    Alert.alert("Verwijderen", "Dit pakket/product voor deze leerling verwijderen?", [
-      { text: "Annuleren", style: "cancel" },
-      { text: "Verwijderen", style: "destructive", onPress: () => {
-        if (typeof pkgIndex !== "number") return;
-        setStudentPackages(prev => prev.filter((_, i) => i !== pkgIndex));
-        onClose();
-      } },
-    ]);
+    setConfirmOpen(true);
+  }, []);
+
+  const performDelete = useCallback(() => {
+    if (typeof pkgIndex !== "number") return;
+    setStudentPackages(prev => prev.filter((_, i) => i !== pkgIndex));
+    setConfirmOpen(false);
+    onClose();
   }, [onClose, pkgIndex, setStudentPackages]);
 
   const togglePaid = useCallback((i: number) => {
@@ -561,6 +562,25 @@ function EditStudentPackageModal({
           </TouchableOpacity>
         </View>
       </View>
+
+      <Modal visible={confirmOpen} transparent animationType="fade">
+        <View style={styles.modalBackdrop}>
+          <View style={styles.confirmCard}>
+            <Text style={styles.modalTitle}>{pkg?.packageId?.startsWith("loose_hours_") ? "Losse uren verwijderen?" : (base?.isProduct ? "Product verwijderen?" : "Pakket verwijderen?")}</Text>
+            <Text style={styles.mutedText}>
+              Deze actie verwijdert dit item alleen voor deze leerling.
+            </Text>
+            <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
+              <TouchableOpacity onPress={() => setConfirmOpen(false)} style={[styles.secondaryBtn, { flex: 1 }]} testID="cancel-delete-student-pkg">
+                <Text style={styles.secondaryBtnText}>Annuleren</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={performDelete} style={[styles.destructiveBtn, { flex: 1 }]} testID="confirm-delete-student-pkg">
+                <Text style={styles.destructiveBtnText}>Verwijderen</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </Modal>
   );
 }
@@ -739,6 +759,7 @@ const styles = StyleSheet.create({
   optionPrice: { fontWeight: "800" },
   modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
   modalCard: { backgroundColor: "#fff", padding: 16, borderTopLeftRadius: 16, borderTopRightRadius: 16, gap: 10 },
+  confirmCard: { backgroundColor: "#fff", padding: 16, borderRadius: 12, marginHorizontal: 16 },
   modalTitle: { fontSize: 16, fontWeight: "800" },
   modalLabel: { fontWeight: "700", marginTop: 8 },
   groupLabel: { fontWeight: "700", color: "#0f172a" },
