@@ -477,6 +477,26 @@ function StudentOverviewTable({ studentName, baseItems, products, studentPackage
     return remaining < 0 ? 0 : remaining;
   }, [totalAddedHours, drivenHours, plannedHours]);
 
+  const aggregatePaymentStatus = useMemo(() => {
+    const hoursPackages = studentPackages.filter((sp) => {
+      const baseItem = baseItems.find((p) => p.id === sp.packageId);
+      return baseItem?.isProduct !== true;
+    });
+    if (hoursPackages.length === 0) return "unpaid" as const;
+    let anyPaid = false;
+    let allPaid = true;
+    for (const sp of hoursPackages) {
+      const terms = sp.installments.length;
+      const spAllPaid = terms > 0 ? sp.installments.every((i) => i.paid) : sp.paymentStatus === "paid";
+      const spAnyPaid = terms > 0 ? sp.installments.some((i) => i.paid) : sp.paymentStatus === "paid";
+      if (spAnyPaid) anyPaid = true;
+      if (!spAllPaid) allPaid = false;
+    }
+    if (allPaid) return "paid" as const;
+    if (anyPaid) return "partial" as const;
+    return "unpaid" as const;
+  }, [baseItems, studentPackages]);
+
   const productRows = useMemo(() => {
     return products.map((prod) => {
       const direct = studentPackages.filter((sp) => sp.packageId === prod.id);
@@ -501,7 +521,19 @@ function StudentOverviewTable({ studentName, baseItems, products, studentPackage
         <Row label="Uren gereden" value={`${round1(drivenHours)} u`} valueColor={noneAdded ? "#6b7280" : "#22c55e"} />
         <Row label="Uren gepland" value={`${round1(plannedHours)} u`} valueColor={noneAdded ? "#6b7280" : "#2563eb"} />
         <Row label="Uren betaald" value={`${round1(hoursPaid)} u`} valueColor={noneAdded ? "#6b7280" : "#111827"} />
-        <Row label="Uren over" value={`${round1(hoursOver)} u`} valueColor={noneAdded ? "#6b7280" : (hoursOver > 0 ? "#16a34a" : "#ef4444")} />
+        <Row
+          label="Uren over"
+          value={`${round1(hoursOver)} u`}
+          valueColor={
+            noneAdded
+              ? "#6b7280"
+              : aggregatePaymentStatus === "partial"
+              ? "#f59e0b"
+              : aggregatePaymentStatus === "paid"
+              ? "#16a34a"
+              : (hoursOver > 0 ? "#16a34a" : "#ef4444")
+          }
+        />
         <View style={{ height: 8 }} />
         {productRows.map((pr) => (
           <View key={pr.name} style={styles.overviewRow}>
