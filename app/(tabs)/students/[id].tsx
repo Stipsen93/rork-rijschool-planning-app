@@ -532,7 +532,7 @@ function StudentOverviewTable({ studentName, baseItems, products, studentPackage
                   <Row label="Uren gepland" value={`${round1(plannedHours)} u`} valueColor={plannedColor} />
                 );
               })()}
-              <Row label="Uren betaald" value={`${round1(hoursPaid)} u`} valueColor={neutral ? "#6b7280" : "#111827"} />
+              <Row label="Uren betaald" value={`${round1(hoursPaid)} u`} valueColor={hoursPaid > 0 ? "#16a34a" : "#6b7280"} />
             </>
           );
         })()}
