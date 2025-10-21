@@ -1,7 +1,7 @@
 import React, { memo, useEffect, useMemo, useRef } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useAgenda } from "@/components/agenda/AgendaStore";
-import { useWorkingHours, type DayKey, type DayConfig } from "@/components/settings/WorkingHoursStore";
+import { useWorkingHours, type DayKey } from "@/components/settings/WorkingHoursStore";
 
 export interface TimeGridProps {
   date: Date;
@@ -57,10 +57,63 @@ function intervalOverlap(aStart: number, aEnd: number, bStart: number, bEnd: num
   return Math.max(0, end - start);
 }
 
+function lessonsOverlap(a: { startTime: string; endTime: string }, b: { startTime: string; endTime: string }): boolean {
+  const aStart = toMinutes(a.startTime);
+  const aEnd = toMinutes(a.endTime);
+  const bStart = toMinutes(b.startTime);
+  const bEnd = toMinutes(b.endTime);
+  return intervalOverlap(aStart, aEnd, bStart, bEnd) > 0;
+}
+
+type LessonLayout = {
+  lesson: any;
+  column: number;
+  totalColumns: number;
+};
+
+function calculateLessonLayout(lessons: any[]): LessonLayout[] {
+  if (lessons.length === 0) return [];
+
+  const sortedLessons = [...lessons].sort((a, b) => toMinutes(a.startTime) - toMinutes(b.startTime));
+  const layouts: LessonLayout[] = [];
+  const groups: any[][] = [];
+
+  for (const lesson of sortedLessons) {
+    let placed = false;
+
+    for (const group of groups) {
+      const overlapsWithAny = group.some(existing => lessonsOverlap(lesson, existing));
+      if (overlapsWithAny) {
+        group.push(lesson);
+        placed = true;
+        break;
+      }
+    }
+
+    if (!placed) {
+      groups.push([lesson]);
+    }
+  }
+
+  for (const group of groups) {
+    const totalColumns = group.length;
+    group.forEach((lesson, index) => {
+      layouts.push({
+        lesson,
+        column: index,
+        totalColumns,
+      });
+    });
+  }
+
+  return layouts;
+}
+
 function Inner({ date, onLessonPress }: TimeGridProps) {
   const { getLessonsForDate } = useAgenda();
   const lessons = getLessonsForDate(date);
   const { workingHours } = useWorkingHours();
+  const { width: windowWidth } = useWindowDimensions();
 
   const dayKey = dutchDayName(date);
   const conf = workingHours?.[dayKey];
@@ -127,16 +180,29 @@ function Inner({ date, onLessonPress }: TimeGridProps) {
               );
             })}
 
-            {lessons.map((l) => {
+            {calculateLessonLayout(lessons).map(({ lesson: l, column, totalColumns }) => {
               const top = toMinutes(l.startTime) * PPM;
               const height = minutesBetween(l.startTime, l.endTime) * PPM;
               const leftInset = 84;
+              const rightInset = 12;
+              
+              const availableWidth = windowWidth - 32 - leftInset - rightInset;
+              const columnWidth = availableWidth / totalColumns;
+              const leftPos = leftInset + (columnWidth * column);
+              const blockWidth = columnWidth - (column < totalColumns - 1 ? 4 : 0);
+              
               return (
                 <Pressable
                   key={String(l.id)}
                   style={[
                     styles.lessonBlock,
-                    { top, height, left: leftInset, right: 12, backgroundColor: colorForType(l.lessonType) },
+                    { 
+                      top, 
+                      height, 
+                      left: leftPos,
+                      width: blockWidth,
+                      backgroundColor: colorForType(l.lessonType) 
+                    },
                   ]}
                   onPress={() => onLessonPress?.(String(l.id))}
                   testID={`lesson-block-${l.id}`}
@@ -185,8 +251,6 @@ const styles = StyleSheet.create({
 
   lessonBlock: {
     position: "absolute",
-    left: 84,
-    right: 16,
     borderRadius: 12,
     padding: 10,
     backgroundColor: "#a78bfa",

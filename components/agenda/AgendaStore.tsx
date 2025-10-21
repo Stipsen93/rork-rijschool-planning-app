@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import createContextHook from "@nkzw/create-context-hook";
 
 export type AgendaLesson = {
@@ -42,7 +42,9 @@ function seedLessons(): Record<string, AgendaLesson[]> {
   return {
     [keyFor(d(0))]: [
       { id: uid(), studentName: "Emma", lessonType: "Praktijkles", startTime: "10:00", endTime: "11:00", date: d(0) },
-      { id: uid(), studentName: "Lucas", lessonType: "Theorieles", startTime: "13:00", endTime: "14:00", date: d(0) },
+      { id: uid(), studentName: "Lucas", lessonType: "Theorieles", startTime: "10:30", endTime: "11:30", date: d(0) },
+      { id: uid(), studentName: "Sarah", lessonType: "Praktijkles", startTime: "10:00", endTime: "11:00", date: d(0) },
+      { id: uid(), studentName: "Mike", lessonType: "Toets", startTime: "13:00", endTime: "14:00", date: d(0) },
     ],
     [keyFor(d(1))]: [
       { id: uid(), studentName: "Sophie", lessonType: "Praktijkles", startTime: "09:00", endTime: "10:00", date: d(1) },
