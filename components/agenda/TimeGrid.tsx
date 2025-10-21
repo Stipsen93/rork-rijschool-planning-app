@@ -164,10 +164,14 @@ function Inner({ date, onLessonPress }: TimeGridProps) {
             {lessons.map((l) => {
               const top = toMinutes(l.startTime) * PPM;
               const height = minutesBetween(l.startTime, l.endTime) * PPM;
+              const leftInset = 72;
               return (
                 <View
                   key={String(l.id)}
-                  style={[styles.lessonBlock, { top, height, backgroundColor: colorForType(l.lessonType) }]}
+                  style={[
+                    styles.lessonBlock,
+                    { top, height, left: leftInset, right: 12, backgroundColor: colorForType(l.lessonType) },
+                  ]}
                   onTouchEndCapture={() => onLessonPress?.(String(l.id))}
                   testID={`lesson-block-${l.id}`}
                 >
