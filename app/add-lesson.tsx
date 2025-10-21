@@ -19,9 +19,6 @@ export default function AddLessonScreen() {
 
   const baseAppointmentTypes: Option[] = useMemo(() => [
     { label: "Rijles", value: "Rijles" },
-    { label: "Praktijkexamen", value: "Praktijkexamen" },
-    { label: "Theorieles", value: "Theorieles" },
-    { label: "Tussentijdse toets", value: "Tussentijdse toets" },
   ], []);
 
   const [productTypes, setProductTypes] = useState<string[]>([]);

@@ -1,6 +1,6 @@
 import React, { memo, useMemo, useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
-import { ChevronDown, Car, CalendarCheck, School, ClipboardCheck, HelpCircle } from "lucide-react-native";
+import { ChevronDown, Car, CalendarCheck, School, ClipboardCheck } from "lucide-react-native";
 
 export type Category = "Auto" | "Pauze" | "Verlof";
 
@@ -25,7 +25,7 @@ function iconForType(type: string) {
     case "Tussentijdse toets":
       return <CalendarCheck size={18} color="#2563eb" />;
     default:
-      return <HelpCircle size={18} color="#2563eb" />;
+      return <ClipboardCheck size={18} color="#2563eb" />;
   }
 }
 
