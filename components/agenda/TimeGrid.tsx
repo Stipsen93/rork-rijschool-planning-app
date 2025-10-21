@@ -8,7 +8,6 @@ export interface TimeGridProps {
   onLessonPress?: (id: string) => void;
 }
 
-
 function toMinutes(hhmm: string): number {
   const [h, m] = hhmm.split(":").map((v) => parseInt(v, 10));
   const hh = Number.isFinite(h) ? h : 0;
@@ -52,6 +51,12 @@ function colorForType(type?: string): string {
   }
 }
 
+function intervalOverlap(aStart: number, aEnd: number, bStart: number, bEnd: number): number {
+  const start = Math.max(aStart, bStart);
+  const end = Math.min(aEnd, bEnd);
+  return Math.max(0, end - start);
+}
+
 function Inner({ date, onLessonPress }: TimeGridProps) {
   const { getLessonsForDate } = useAgenda();
   const lessons = getLessonsForDate(date);
@@ -60,22 +65,31 @@ function Inner({ date, onLessonPress }: TimeGridProps) {
   const dayKey = dutchDayName(date);
   const conf = workingHours[dayKey];
   const enabled = conf.enabled;
-  const startMin = toMinutes(conf.startTime);
-  const endMin = toMinutes(conf.endTime);
 
   const hours = useMemo(() => Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, "0")}:00`), []);
 
-  const isTimeSlotInWorkingHours = (hour: number): boolean => {
+  const earliestStartMin = useMemo(() => {
+    if (!enabled || conf.ranges.length === 0) return 8 * 60;
+    return Math.min(...conf.ranges.map((r) => toMinutes(r.start)));
+  }, [enabled, conf.ranges]);
+
+  const isHourWorking = (hour: number): boolean => {
     if (!enabled) return false;
-    const hourMin = hour * 60;
-    if (!conf.autoLunchBreak) {
-      return hourMin >= startMin && hourMin < endMin;
+    const slotStart = hour * 60;
+    const slotEnd = slotStart + 60;
+    let workingOverlap = 0;
+    for (const r of conf.ranges) {
+      const rStart = toMinutes(r.start);
+      const rEnd = toMinutes(r.end);
+      workingOverlap += intervalOverlap(slotStart, slotEnd, rStart, rEnd);
     }
-    const breakStart = toMinutes(conf.breakStartTime ?? "12:00");
-    const breakEnd = toMinutes(conf.breakEndTime ?? "13:00");
-    const isInMorningShift = hourMin >= startMin && hourMin < breakStart;
-    const isInAfternoonShift = hourMin >= breakEnd && hourMin < endMin;
-    return isInMorningShift || isInAfternoonShift;
+    let pauseOverlap = 0;
+    for (const p of conf.pauses) {
+      const pStart = toMinutes(p.start);
+      const pEnd = toMinutes(p.end);
+      pauseOverlap += intervalOverlap(slotStart, slotEnd, pStart, pEnd);
+    }
+    return workingOverlap - pauseOverlap > 0;
   };
 
   const PPM = 2.0 as const;
@@ -84,7 +98,7 @@ function Inner({ date, onLessonPress }: TimeGridProps) {
   const scrollRef = useRef<ScrollView | null>(null);
 
   useEffect(() => {
-    const y = Math.max(0, (enabled ? startMin : 8 * 60) * PPM - 180);
+    const y = Math.max(0, (enabled ? earliestStartMin : 8 * 60) * PPM - 180);
     const id = setTimeout(() => {
       try {
         scrollRef.current?.scrollTo({ y, animated: true });
@@ -93,7 +107,7 @@ function Inner({ date, onLessonPress }: TimeGridProps) {
       }
     }, 50);
     return () => clearTimeout(id);
-  }, [dayKey, enabled, startMin]);
+  }, [dayKey, enabled, earliestStartMin]);
 
   return (
     <View style={styles.wrapper} testID="time-grid">
@@ -101,7 +115,7 @@ function Inner({ date, onLessonPress }: TimeGridProps) {
         <View style={styles.timelineCard}>
           <View style={styles.gridArea}>
             {hours.map((h, idx) => {
-              const isWorking = isTimeSlotInWorkingHours(idx);
+              const isWorking = isHourWorking(idx);
               return (
                 <View key={h} style={styles.gridHourRow}>
                   {isWorking && <View style={styles.workingTimeSlot} />}

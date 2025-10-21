@@ -12,28 +12,31 @@ export type DayKey =
   | "Zaterdag"
   | "Zondag";
 
+export type TimeRange = { start: string; end: string };
 export type DayConfig = {
   enabled: boolean;
-  startTime: string;
-  endTime: string;
-  breakDuration: number;
-  autoLunchBreak: boolean;
-  breakStartTime?: string;
-  breakEndTime?: string;
+  ranges: TimeRange[];
+  pauses: TimeRange[];
 };
 
 export type WorkingHours = Record<DayKey, DayConfig>;
 
 const STORAGE_KEY = "instructor_working_hours" as const;
 
+const defaultDay = (enabled: boolean): DayConfig => ({
+  enabled,
+  ranges: enabled ? [{ start: "09:00", end: "17:00" }] : [],
+  pauses: [],
+});
+
 export const defaultWorkingHours: WorkingHours = {
-  Maandag: { enabled: true, startTime: "09:00", endTime: "17:00", breakDuration: 30, autoLunchBreak: true },
-  Dinsdag: { enabled: true, startTime: "09:00", endTime: "17:00", breakDuration: 30, autoLunchBreak: true },
-  Woensdag: { enabled: true, startTime: "09:00", endTime: "17:00", breakDuration: 30, autoLunchBreak: true },
-  Donderdag: { enabled: true, startTime: "09:00", endTime: "17:00", breakDuration: 30, autoLunchBreak: true },
-  Vrijdag: { enabled: true, startTime: "09:00", endTime: "17:00", breakDuration: 30, autoLunchBreak: true },
-  Zaterdag: { enabled: false, startTime: "10:00", endTime: "16:00", breakDuration: 30, autoLunchBreak: false },
-  Zondag: { enabled: false, startTime: "10:00", endTime: "16:00", breakDuration: 30, autoLunchBreak: false },
+  Maandag: defaultDay(true),
+  Dinsdag: defaultDay(true),
+  Woensdag: defaultDay(true),
+  Donderdag: defaultDay(true),
+  Vrijdag: defaultDay(true),
+  Zaterdag: defaultDay(false),
+  Zondag: defaultDay(false),
 };
 
 async function storageGetString(key: string): Promise<string | null> {
@@ -64,6 +67,49 @@ async function storageSetString(key: string, value: string): Promise<void> {
   }
 }
 
+function migrateAny(input: unknown): WorkingHours | null {
+  try {
+    const parsed = input as Record<string, any>;
+    if (!parsed) return null;
+
+    const out: WorkingHours = { ...defaultWorkingHours } as WorkingHours;
+    (Object.keys(defaultWorkingHours) as DayKey[]).forEach((k) => {
+      const src = parsed[k] as any;
+      if (!src || typeof src !== "object") return;
+
+      // New schema already
+      if (Array.isArray(src.ranges) && Array.isArray(src.pauses)) {
+        out[k] = {
+          enabled: Boolean(src.enabled),
+          ranges: src.ranges.map((r: any) => ({ start: String(r.start ?? "09:00"), end: String(r.end ?? "17:00") })),
+          pauses: src.pauses.map((r: any) => ({ start: String(r.start ?? "12:00"), end: String(r.end ?? "12:30") })),
+        };
+        return;
+      }
+
+      // Old schema -> migrate
+      const startTime = typeof src.startTime === "string" ? src.startTime : defaultWorkingHours[k].ranges[0]?.start ?? "09:00";
+      const endTime = typeof src.endTime === "string" ? src.endTime : defaultWorkingHours[k].ranges[0]?.end ?? "17:00";
+      const autoLunchBreak = Boolean(src.autoLunchBreak);
+      const breakStart = typeof src.breakStartTime === "string" ? src.breakStartTime : undefined;
+      const breakEnd = typeof src.breakEndTime === "string" ? src.breakEndTime : undefined;
+
+      const pauses: TimeRange[] = autoLunchBreak && breakStart && breakEnd ? [{ start: breakStart, end: breakEnd }] : [];
+
+      out[k] = {
+        enabled: Boolean(src.enabled),
+        ranges: Boolean(src.enabled) ? [{ start: startTime, end: endTime }] : [],
+        pauses,
+      };
+    });
+
+    return out;
+  } catch (e) {
+    console.log("WorkingHoursStore: migrateAny error", e);
+    return null;
+  }
+}
+
 export const [WorkingHoursProvider, useWorkingHours] = createContextHook(() => {
   const [workingHours, setWorkingHours] = useState<WorkingHours>(defaultWorkingHours);
   const [loading, setLoading] = useState<boolean>(true);
@@ -74,18 +120,11 @@ export const [WorkingHoursProvider, useWorkingHours] = createContextHook(() => {
       const v = await storageGetString(STORAGE_KEY);
       if (v) {
         try {
-          const parsed = JSON.parse(v) as Record<string, unknown>;
-          const casted = Object.keys(defaultWorkingHours).reduce((acc, key) => {
-            const k = key as DayKey;
-            const src = (parsed as Record<string, unknown>)[k] as Partial<DayConfig> | undefined;
-            acc[k] = {
-              ...defaultWorkingHours[k],
-              ...(src ?? {}),
-            } as DayConfig;
-            return acc;
-          }, {} as WorkingHours);
-          setWorkingHours(casted);
-          console.log("WorkingHoursStore: Loaded from storage", casted);
+          const migrated = migrateAny(JSON.parse(v));
+          if (migrated) {
+            setWorkingHours(migrated);
+            console.log("WorkingHoursStore: Loaded from storage (migrated)", migrated);
+          }
         } catch (e) {
           console.log("WorkingHoursStore: Failed to parse working hours", e);
         }

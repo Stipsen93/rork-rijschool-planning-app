@@ -2,7 +2,7 @@ import React, { useCallback, useMemo, useState } from "react";
 import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Stack } from "expo-router";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
-import { Clock, ChevronRight, MoreVertical, Copy, RefreshCcw } from "lucide-react-native";
+import { Clock, ChevronRight, MoreVertical, Copy, RefreshCcw, Plus, Trash2 } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useWorkingHours, defaultWorkingHours, type DayKey, type DayConfig, type WorkingHours } from "@/components/settings/WorkingHoursStore";
@@ -21,7 +21,7 @@ export default function WorkingHoursScreen() {
   const [workingHours, setWorkingHours] = useState<WorkingHours>(storedHours);
   const [expandedDay, setExpandedDay] = useState<DayKey | null>(null);
   const [isSaving, setIsSaving] = useState<boolean>(false);
-  const [timePickerFor, setTimePickerFor] = useState<null | { day: DayKey; field: "startTime" | "endTime" | "breakStartTime" | "breakEndTime"; current: string }>(null);
+  const [timePickerFor, setTimePickerFor] = useState<null | { day: DayKey; group: "ranges" | "pauses"; index: number; part: "start" | "end"; current: string }>(null);
   const insets = useSafeAreaInsets();
 
   React.useEffect(() => {
@@ -51,12 +51,21 @@ export default function WorkingHoursScreen() {
     if (!anyEnabled) return "Selecteer minimaal één werkdag";
     for (const [day, conf] of Object.entries(workingHours) as [DayKey, DayConfig][]) {
       if (!conf.enabled) continue;
-      const [sh, sm] = conf.startTime.split(":").map((n) => parseInt(n, 10));
-      const [eh, em] = conf.endTime.split(":").map((n) => parseInt(n, 10));
-      const start = sh * 60 + sm;
-      const end = eh * 60 + em;
-      if (start >= end) return `Eindtijd moet na starttijd zijn voor ${day}`;
-      if (end - start < 60) return `Minimum 1 uur werktijd voor ${day}`;
+      if (conf.ranges.length === 0) return `Voeg minimaal één tijdsblok toe voor ${day}`;
+      for (const r of conf.ranges) {
+        const [sh, sm] = r.start.split(":").map((n) => parseInt(n, 10));
+        const [eh, em] = r.end.split(":").map((n) => parseInt(n, 10));
+        const start = sh * 60 + sm;
+        const end = eh * 60 + em;
+        if (start >= end) return `Eindtijd moet na starttijd zijn voor ${day}`;
+      }
+      for (const p of conf.pauses) {
+        const [sh, sm] = p.start.split(":").map((n) => parseInt(n, 10));
+        const [eh, em] = p.end.split(":").map((n) => parseInt(n, 10));
+        const start = sh * 60 + sm;
+        const end = eh * 60 + em;
+        if (start >= end) return `Eindtijd pauze moet na starttijd zijn voor ${day}`;
+      }
     }
     return null;
   }, [enabledDays.length, workingHours]);
@@ -84,18 +93,14 @@ export default function WorkingHoursScreen() {
   }, [validate, workingHours, updateWorkingHours]);
 
   const copyFirstEnabledToAll = useCallback(() => {
-    const firstEnabled = (Object.entries(workingHours) as [DayKey, DayConfig][])
+    const firstEnabled = (Object.entries(workingHours) as [DayKey, DayConfig][]) 
       .find(([, v]) => v.enabled)?.[1] ?? Object.values(workingHours)[0];
     const pairs = (Object.entries(workingHours) as [DayKey, DayConfig][]).map(([k, v]) => [
       k,
       {
         ...v,
-        startTime: firstEnabled.startTime,
-        endTime: firstEnabled.endTime,
-        breakDuration: firstEnabled.breakDuration,
-        autoLunchBreak: firstEnabled.autoLunchBreak,
-        breakStartTime: firstEnabled.breakStartTime,
-        breakEndTime: firstEnabled.breakEndTime,
+        ranges: firstEnabled.ranges.slice(),
+        pauses: firstEnabled.pauses.slice(),
       } as DayConfig,
     ] as [DayKey, DayConfig]);
     const next: WorkingHours = Object.fromEntries(pairs) as WorkingHours;
@@ -109,21 +114,68 @@ export default function WorkingHoursScreen() {
     setExpandedDay(null);
   }, []);
 
-  const openTimePicker = useCallback((day: DayKey, field: "startTime" | "endTime" | "breakStartTime" | "breakEndTime", current: string) => {
-    setTimePickerFor({ day, field, current });
+  const openTimePicker = useCallback((params: { day: DayKey; group: "ranges" | "pauses"; index: number; part: "start" | "end"; current: string }) => {
+    setTimePickerFor(params);
   }, []);
 
   const applyTime = useCallback((val: string) => {
     if (!timePickerFor) return;
     setWorkingHours((prev) => {
       const next = { ...prev };
-      const day = next[timePickerFor.day];
-      (day as any)[timePickerFor.field] = val;
+      const dayCfg = next[timePickerFor.day];
+      const list = dayCfg[timePickerFor.group];
+      const item = list[timePickerFor.index];
+      if (!item) return next;
+      const updated = { ...item, [timePickerFor.part]: val } as { start: string; end: string };
+      const newList = list.slice();
+      newList[timePickerFor.index] = updated;
+      (dayCfg as any)[timePickerFor.group] = newList;
       return next;
     });
     if (Platform.OS !== "web") { try { Haptics.selectionAsync(); } catch {} }
     setTimePickerFor(null);
   }, [timePickerFor]);
+
+  const addRange = useCallback((day: DayKey) => {
+    setWorkingHours((prev) => {
+      const next = { ...prev };
+      const list = next[day].ranges.slice();
+      const last = list[list.length - 1] ?? { start: "09:00", end: "17:00" };
+      list.push({ start: last.end, end: last.end });
+      next[day] = { ...next[day], ranges: list };
+      return next;
+    });
+  }, []);
+
+  const removeRange = useCallback((day: DayKey, index: number) => {
+    setWorkingHours((prev) => {
+      const next = { ...prev };
+      const list = next[day].ranges.slice();
+      list.splice(index, 1);
+      next[day] = { ...next[day], ranges: list };
+      return next;
+    });
+  }, []);
+
+  const addPause = useCallback((day: DayKey) => {
+    setWorkingHours((prev) => {
+      const next = { ...prev };
+      const list = next[day].pauses.slice();
+      list.push({ start: "12:00", end: "12:30" });
+      next[day] = { ...next[day], pauses: list };
+      return next;
+    });
+  }, []);
+
+  const removePause = useCallback((day: DayKey, index: number) => {
+    setWorkingHours((prev) => {
+      const next = { ...prev };
+      const list = next[day].pauses.slice();
+      list.splice(index, 1);
+      next[day] = { ...next[day], pauses: list };
+      return next;
+    });
+  }, []);
 
   if (loading) {
     return (
@@ -156,8 +208,6 @@ export default function WorkingHoursScreen() {
         />
 
         <ScrollView contentContainerStyle={styles.scroll}>
-          {renderWeeklyPreview(enabledDays)}
-
           {(Object.entries(workingHours) as [DayKey, DayConfig][]).map(([day, conf]) => (
             <View key={day} style={styles.card}>
               <TouchableOpacity
@@ -179,7 +229,7 @@ export default function WorkingHoursScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.dayTitle, { color: conf.enabled ? "#111827" : "#9ca3af" }]}>{day}</Text>
                   <Text style={[styles.daySubtitle, { color: conf.enabled ? "#0ea5e9" : "#9ca3af" }]}>
-                    {conf.enabled ? `${conf.startTime} - ${conf.endTime}` : "Niet actief"}
+                    {conf.enabled ? (conf.ranges[0] ? `${conf.ranges[0].start} - ${conf.ranges[0].end}` : "Geen tijdsblokken") : "Niet actief"}
                   </Text>
                 </View>
 
@@ -188,51 +238,44 @@ export default function WorkingHoursScreen() {
 
               {expandedDay === day && conf.enabled && (
                 <View style={styles.cardBody}>
-                  <View style={styles.row}>
-                    <TimeField
-                      label="Start tijd"
-                      value={conf.startTime}
-                      onPress={() => openTimePicker(day, "startTime", conf.startTime)}
-                    />
-                    <View style={{ width: 12 }} />
-                    <TimeField
-                      label="Eind tijd"
-                      value={conf.endTime}
-                      onPress={() => openTimePicker(day, "endTime", conf.endTime)}
-                    />
-                  </View>
+                  <Text style={styles.sectionTitle}>Tijdsblokken</Text>
+                  <View style={{ height: 8 }} />
+                  {conf.ranges.map((r, idx) => (
+                    <View key={`r-${idx}`} style={[styles.row, { alignItems: "center", marginBottom: 8 }]}> 
+                      <TimeField label="Start" value={r.start} onPress={() => openTimePicker({ day, group: "ranges", index: idx, part: "start", current: r.start })} />
+                      <View style={{ width: 12 }} />
+                      <TimeField label="Einde" value={r.end} onPress={() => openTimePicker({ day, group: "ranges", index: idx, part: "end", current: r.end })} />
+                      <TouchableOpacity accessibilityRole="button" onPress={() => removeRange(day, idx)} style={styles.iconBtn} testID={`remove-range-${day}-${idx}`}>
+                        <Trash2 color="#ef4444" size={18} />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                  <TouchableOpacity accessibilityRole="button" onPress={() => addRange(day)} style={styles.addBtn} testID={`add-range-${day}`}>
+                    <Plus color="#0ea5e9" size={16} />
+                    <Text style={styles.addBtnText}>Blok toevoegen</Text>
+                  </TouchableOpacity>
 
                   <View style={{ height: 16 }} />
 
-                  <Text style={styles.sectionTitle}>Pauze instellingen</Text>
+                  <Text style={styles.sectionTitle}>Pauzes</Text>
                   <View style={{ height: 8 }} />
-
-                  <TouchableOpacity
-                    testID={`toggle-break-${day}`}
-                    style={styles.toggleRow}
-                    onPress={() => setWorkingHours((prev) => ({ ...prev, [day]: { ...prev[day], autoLunchBreak: !prev[day].autoLunchBreak, breakStartTime: prev[day].breakStartTime ?? "12:00", breakEndTime: prev[day].breakEndTime ?? "13:00" } }))}
-                  >
-                    <Text style={styles.toggleTitle}>Pauze</Text>
-                    <View style={[styles.switchPill, { backgroundColor: conf.autoLunchBreak ? "#e0f2fe" : "#f3f4f6" }]}>
-                      <View style={[styles.switchDot, { backgroundColor: conf.autoLunchBreak ? "#0ea5e9" : "#9ca3af", alignSelf: conf.autoLunchBreak ? "flex-end" : "flex-start" }]} />
-                    </View>
-                  </TouchableOpacity>
-
-                  {conf.autoLunchBreak && (
-                    <View style={styles.row}>
-                      <TimeField
-                        label="Pauze start"
-                        value={conf.breakStartTime ?? "12:00"}
-                        onPress={() => openTimePicker(day, "breakStartTime", conf.breakStartTime ?? "12:00")}
-                      />
-                      <View style={{ width: 12 }} />
-                      <TimeField
-                        label="Pauze eind"
-                        value={conf.breakEndTime ?? "13:00"}
-                        onPress={() => openTimePicker(day, "breakEndTime", conf.breakEndTime ?? "13:00")}
-                      />
-                    </View>
+                  {conf.pauses.length === 0 && (
+                    <Text style={{ color: "#6b7280", marginBottom: 8 }}>Geen pauzes ingesteld</Text>
                   )}
+                  {conf.pauses.map((p, idx) => (
+                    <View key={`p-${idx}`} style={[styles.row, { alignItems: "center", marginBottom: 8 }]}> 
+                      <TimeField label="Start" value={p.start} onPress={() => openTimePicker({ day, group: "pauses", index: idx, part: "start", current: p.start })} />
+                      <View style={{ width: 12 }} />
+                      <TimeField label="Einde" value={p.end} onPress={() => openTimePicker({ day, group: "pauses", index: idx, part: "end", current: p.end })} />
+                      <TouchableOpacity accessibilityRole="button" onPress={() => removePause(day, idx)} style={styles.iconBtn} testID={`remove-pause-${day}-${idx}`}>
+                        <Trash2 color="#ef4444" size={18} />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                  <TouchableOpacity accessibilityRole="button" onPress={() => addPause(day)} style={styles.addBtn} testID={`add-pause-${day}`}>
+                    <Plus color="#0ea5e9" size={16} />
+                    <Text style={styles.addBtnText}>Pauze toevoegen</Text>
+                  </TouchableOpacity>
                 </View>
               )}
             </View>
@@ -301,25 +344,6 @@ function TimeField({ label, value, onPress }: { label: string; value: string; on
   );
 }
 
-function renderWeeklyPreview(enabledDays: [string, DayConfig][]) {
-  if (enabledDays.length === 0) return null;
-  return (
-    <View style={styles.preview}>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-        <Clock color="#0ea5e9" size={18} />
-        <Text style={styles.previewTitle}>Wekelijks Overzicht</Text>
-      </View>
-      <View style={styles.previewChips}>
-        {enabledDays.map(([day, v]) => (
-          <View key={day} style={styles.chip}>
-            <Text style={styles.chipText}>{`${day.slice(0, 2)} ${v.startTime}-${v.endTime}`}</Text>
-          </View>
-        ))}
-      </View>
-    </View>
-  );
-}
-
 function TimePickerModal({ visible, initial, onSelect, onClose }: { visible: boolean; initial: string; onSelect: (val: string) => void; onClose: () => void }) {
   const times = React.useMemo<string[]>(() => {
     const out: string[] = [];
@@ -360,18 +384,6 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#f3f4f6" },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   scroll: { padding: 16, paddingBottom: 24 },
-  preview: {
-    padding: 16,
-    borderRadius: 12,
-    backgroundColor: "#e0f2fe",
-    borderWidth: 1,
-    borderColor: "#bae6fd",
-    gap: 12,
-  },
-  previewTitle: { color: "#0ea5e9", fontWeight: "700" },
-  previewChips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  chip: { backgroundColor: "#0ea5e9", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 9999 },
-  chipText: { color: "#fff", fontWeight: "600", fontSize: 12 },
 
   card: {
     borderRadius: 12,
@@ -404,8 +416,6 @@ const styles = StyleSheet.create({
   timeValue: { fontSize: 16, fontWeight: "600" },
 
   sectionTitle: { fontSize: 14, fontWeight: "700" },
-  toggleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  toggleTitle: { fontSize: 16, fontWeight: "600" },
   switchPill: { width: 46, height: 28, borderRadius: 999, padding: 4, justifyContent: "center" },
   switchDot: { width: 20, height: 20, borderRadius: 999 },
 
@@ -434,4 +444,8 @@ const styles = StyleSheet.create({
   timeGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   timeOption: { paddingVertical: 10, paddingHorizontal: 12, borderRadius: 8, backgroundColor: "#f3f4f6" },
   timeOptionText: { fontWeight: "600" },
+
+  addBtn: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start", paddingVertical: 8, paddingHorizontal: 10, borderRadius: 8, backgroundColor: "#e0f2fe", marginTop: 4 },
+  addBtnText: { color: "#0ea5e9", fontWeight: "700" },
+  iconBtn: { padding: 8, marginLeft: 8 },
 });
