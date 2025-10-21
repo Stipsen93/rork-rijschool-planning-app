@@ -210,23 +210,23 @@ const styles = StyleSheet.create({
   },
   workOverlay: {
     position: "absolute",
-    left: 64,
+    left: 0,
     right: 0,
     borderRadius: 16,
     backgroundColor: "#ffffff",
   },
   timeLabels: { position: "absolute", top: 0, left: 0, right: 0 },
   labelRow: { height: 120, justifyContent: "center" },
-  gridArea: { paddingLeft: 64, paddingRight: 0 },
+  gridArea: { paddingLeft: 48, paddingRight: 0 },
   gridHourRow: { height: 120, flexDirection: "row", alignItems: "center" },
-  leftLabelCell: { width: 64, position: "absolute", left: 0, paddingLeft: 4 },
+  leftLabelCell: { width: 48, position: "absolute", left: 0, paddingLeft: 0 },
   leftLabelText: { color: "#d1d5db", fontWeight: "700" },
   rightRow: { flex: 1, height: "100%" },
   hourLine: { height: 1, backgroundColor: "#374151", opacity: 1 },
 
   lessonBlock: {
     position: "absolute",
-    left: 72,
+    left: 56,
     right: 12,
     borderRadius: 12,
     padding: 12,
@@ -241,6 +241,6 @@ const styles = StyleSheet.create({
   lessonMeta: { color: "#111827", opacity: 0.8, marginTop: 2, fontWeight: "600" },
   lessonLocation: { color: "#111827", opacity: 0.7, marginTop: 4 },
 
-  disabledBanner: { position: "absolute", top: 12, left: 72, backgroundColor: "#f3f4f6", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  disabledBanner: { position: "absolute", top: 12, left: 56, backgroundColor: "#f3f4f6", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
   disabledText: { color: "#6b7280", fontWeight: "600" },
 });
