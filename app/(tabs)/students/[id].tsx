@@ -348,6 +348,7 @@ export default function StudentProfileScreen() {
         looseHours={looseHours}
         setLooseHours={setLooseHours}
         onConfirm={onAddConfirm}
+        hourlyPrice={hourlyPrice}
       />
 
       <EditStudentPackageModal
@@ -600,6 +601,7 @@ function AddPackageModal({
   looseHours,
   setLooseHours,
   onConfirm,
+  hourlyPrice,
 }: {
   visible: boolean;
   onClose: () => void;
@@ -615,77 +617,159 @@ function AddPackageModal({
   looseHours: string;
   setLooseHours: (v: string) => void;
   onConfirm: () => void;
+  hourlyPrice: number;
 }) {
+  const [activeTab, setActiveTab] = useState<"packages" | "products" | "hours">("packages");
+
+  const onSelectPackage = useCallback((id: string) => {
+    setSelectedPackageId(id);
+  }, [setSelectedPackageId]);
+
+  useEffect(() => {
+    if (activeTab === "hours") {
+      setSelectedPackageId(null);
+    }
+  }, [activeTab, setSelectedPackageId]);
+
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <View style={styles.modalBackdrop}>
         <View style={styles.modalCard}>
-          <Text style={styles.modalTitle}>Pakket, Uren of Product Toevoegen</Text>
+          <Text style={styles.modalTitle}>Toevoegen</Text>
 
-          <Text style={styles.modalLabel}>Selecteer Pakket/Uren/Product</Text>
-          <View style={styles.dropdownBox}>
-            <View style={{ gap: 12 }}>
-              <Text style={styles.groupLabel}>Pakketten</Text>
-              {packagesGroup.length === 0 ? (
-                <Text style={styles.mutedText}>Geen pakketten gevonden. Voeg ze toe bij Instellingen → Pakketten/Uren.</Text>
-              ) : (
-                packagesGroup.map((p) => (
-                  <TouchableOpacity key={`pkg-${p.id}`} onPress={() => setSelectedPackageId(p.id)} style={[styles.optionRow, selectedPackageId === p.id && styles.optionRowActive]}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.optionTitle}>{p.name}</Text>
-                      <Text style={styles.optionSub}>{`${p.hours} uren`}</Text>
-                    </View>
-                    <Text style={styles.optionPrice}>€{p.price.toFixed(2)}</Text>
-                  </TouchableOpacity>
-                ))
-              )}
-
-              <View style={{ height: 1, backgroundColor: "#e5e7eb" }} />
-
-              <Text style={styles.groupLabel}>Producten</Text>
-              {productsGroup.length === 0 ? (
-                <Text style={styles.mutedText}>Geen producten gevonden. Voeg ze toe bij Instellingen → Pakketten/Uren.</Text>
-              ) : (
-                productsGroup.map((p) => (
-                  <TouchableOpacity key={`prd-${p.id}`} onPress={() => setSelectedPackageId(p.id)} style={[styles.optionRow, selectedPackageId === p.id && styles.optionRowActive]}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.optionTitle}>{p.name}</Text>
-                      <Text style={styles.optionSub}>Product</Text>
-                    </View>
-                    <Text style={styles.optionPrice}>€{p.price.toFixed(2)}</Text>
-                  </TouchableOpacity>
-                ))
-              )}
-            </View>
-          </View>
-
-          <Text style={styles.modalLabel}>Betalingstermijnen</Text>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-            {["1x", "2x", "3x", "4x", "custom"].map((t) => (
-              <TouchableOpacity key={t} onPress={() => setPaymentTerm(t)} style={[styles.chip, paymentTerm === t && { backgroundColor: "#0ea5e9" }]}>
-                <Text style={[styles.chipText, paymentTerm === t && { color: "#fff" }]}>{t === "custom" ? "Aangepast" : t}</Text>
+          <View style={{ flexDirection: "row", backgroundColor: "#e5e7eb", borderRadius: 10, padding: 4 }}>
+            {[
+              { key: "packages", label: "Pakketten" },
+              { key: "products", label: "Producten" },
+              { key: "hours", label: "Losse uren" },
+            ].map((t) => (
+              <TouchableOpacity
+                key={t.key}
+                onPress={() => setActiveTab(t.key as "packages" | "products" | "hours")}
+                style={[
+                  { flex: 1, paddingVertical: 10, alignItems: "center", borderRadius: 8 },
+                  activeTab === t.key && { backgroundColor: "#fff" },
+                ]}
+                testID={`add-tab-${t.key}`}
+              >
+                <Text style={{ fontWeight: "700", color: activeTab === t.key ? "#111827" : "#374151" }}>{t.label}</Text>
               </TouchableOpacity>
             ))}
           </View>
-          {paymentTerm === "custom" && (
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginTop: 8 }}>
-              <TouchableOpacity onPress={() => setCustomTerms(Math.max(2, customTerms - 1))} style={styles.numberBtn}><Text style={styles.numberBtnText}>-</Text></TouchableOpacity>
-              <Text style={styles.customTerms}>{customTerms} termijnen</Text>
-              <TouchableOpacity onPress={() => setCustomTerms(Math.min(12, customTerms + 1))} style={styles.numberBtn}><Text style={styles.numberBtnText}>+</Text></TouchableOpacity>
-            </View>
+
+          {activeTab === "packages" && (
+            <>
+              <Text style={styles.modalLabel}>Pakketten</Text>
+              <View style={styles.dropdownBox}>
+                <View style={{ gap: 12 }}>
+                  {packagesGroup.length === 0 ? (
+                    <Text style={styles.mutedText}>Geen pakketten gevonden. Voeg ze toe bij Instellingen → Pakketten/Uren.</Text>
+                  ) : (
+                    packagesGroup.map((p) => (
+                      <TouchableOpacity key={`pkg-${p.id}`} onPress={() => onSelectPackage(p.id)} style={[styles.optionRow, selectedPackageId === p.id && styles.optionRowActive]}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.optionTitle}>{p.name}</Text>
+                          <Text style={styles.optionSub}>{`${p.hours} uren`}</Text>
+                        </View>
+                        <Text style={styles.optionPrice}>€{p.price.toFixed(2)}</Text>
+                      </TouchableOpacity>
+                    ))
+                  )}
+                </View>
+              </View>
+
+              <Text style={styles.modalLabel}>Betalingstermijnen</Text>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                {["1x", "2x", "3x", "4x", "custom"].map((t) => (
+                  <TouchableOpacity key={t} onPress={() => setPaymentTerm(t)} style={[styles.chip, paymentTerm === t && { backgroundColor: "#0ea5e9" }]}>
+                    <Text style={[styles.chipText, paymentTerm === t && { color: "#fff" }]}>{t === "custom" ? "Aangepast" : t}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              {paymentTerm === "custom" && (
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginTop: 8 }}>
+                  <TouchableOpacity onPress={() => setCustomTerms(Math.max(2, customTerms - 1))} style={styles.numberBtn}><Text style={styles.numberBtnText}>-</Text></TouchableOpacity>
+                  <Text style={styles.customTerms}>{customTerms} termijnen</Text>
+                  <TouchableOpacity onPress={() => setCustomTerms(Math.min(12, customTerms + 1))} style={styles.numberBtn}><Text style={styles.numberBtnText}>+</Text></TouchableOpacity>
+                </View>
+              )}
+            </>
           )}
 
-          <View style={{ height: 1, backgroundColor: "#e5e7eb", marginVertical: 12 }} />
+          {activeTab === "products" && (
+            <>
+              <Text style={styles.modalLabel}>Producten</Text>
+              <View style={styles.dropdownBox}>
+                <View style={{ gap: 12 }}>
+                  {productsGroup.length === 0 ? (
+                    <Text style={styles.mutedText}>Geen producten gevonden. Voeg ze toe bij Instellingen → Pakketten/Uren.</Text>
+                  ) : (
+                    productsGroup.map((p) => (
+                      <TouchableOpacity key={`prd-${p.id}`} onPress={() => onSelectPackage(p.id)} style={[styles.optionRow, selectedPackageId === p.id && styles.optionRowActive]}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.optionTitle}>{p.name}</Text>
+                          <Text style={styles.optionSub}>Product</Text>
+                        </View>
+                        <Text style={styles.optionPrice}>€{p.price.toFixed(2)}</Text>
+                      </TouchableOpacity>
+                    ))
+                  )}
+                </View>
+              </View>
 
-          <Text style={styles.modalLabel}>Losse Uren Toevoegen</Text>
-          <TextInput
-            value={looseHours}
-            onChangeText={setLooseHours}
-            placeholder="Aantal uren"
-            keyboardType={Platform.OS === "web" ? "numeric" : "number-pad"}
-            style={styles.input}
-            testID="loose-hours-input"
-          />
+              <Text style={styles.modalLabel}>Betalingstermijnen</Text>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                {["1x", "2x", "3x", "4x", "custom"].map((t) => (
+                  <TouchableOpacity key={t} onPress={() => setPaymentTerm(t)} style={[styles.chip, paymentTerm === t && { backgroundColor: "#0ea5e9" }]}>
+                    <Text style={[styles.chipText, paymentTerm === t && { color: "#fff" }]}>{t === "custom" ? "Aangepast" : t}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              {paymentTerm === "custom" && (
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginTop: 8 }}>
+                  <TouchableOpacity onPress={() => setCustomTerms(Math.max(2, customTerms - 1))} style={styles.numberBtn}><Text style={styles.numberBtnText}>-</Text></TouchableOpacity>
+                  <Text style={styles.customTerms}>{customTerms} termijnen</Text>
+                  <TouchableOpacity onPress={() => setCustomTerms(Math.min(12, customTerms + 1))} style={styles.numberBtn}><Text style={styles.numberBtnText}>+</Text></TouchableOpacity>
+                </View>
+              )}
+            </>
+          )}
+
+          {activeTab === "hours" && (
+            <>
+              <Text style={styles.modalLabel}>Losse Uren</Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                <TextInput
+                  value={looseHours}
+                  onChangeText={setLooseHours}
+                  placeholder="Aantal uren"
+                  keyboardType={Platform.OS === "web" ? "numeric" : "number-pad"}
+                  style={[styles.input, { flex: 1 }]}
+                  testID="loose-hours-input"
+                />
+                <View style={{ paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10, backgroundColor: "#f3f4f6" }}>
+                  <Text style={{ fontWeight: "700" }}>Uurprijs</Text>
+                  <Text style={{ color: "#111827" }}>€{(hourlyPrice ?? 0).toFixed(2)}</Text>
+                </View>
+              </View>
+
+              <Text style={styles.modalLabel}>Betalingstermijnen</Text>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                {["1x", "2x", "3x", "4x", "custom"].map((t) => (
+                  <TouchableOpacity key={t} onPress={() => setPaymentTerm(t)} style={[styles.chip, paymentTerm === t && { backgroundColor: "#0ea5e9" }]}>
+                    <Text style={[styles.chipText, paymentTerm === t && { color: "#fff" }]}>{t === "custom" ? "Aangepast" : t}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              {paymentTerm === "custom" && (
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginTop: 8 }}>
+                  <TouchableOpacity onPress={() => setCustomTerms(Math.max(2, customTerms - 1))} style={styles.numberBtn}><Text style={styles.numberBtnText}>-</Text></TouchableOpacity>
+                  <Text style={styles.customTerms}>{customTerms} termijnen</Text>
+                  <TouchableOpacity onPress={() => setCustomTerms(Math.min(12, customTerms + 1))} style={styles.numberBtn}><Text style={styles.numberBtnText}>+</Text></TouchableOpacity>
+                </View>
+              )}
+            </>
+          )}
 
           <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
             <TouchableOpacity onPress={onClose} style={[styles.secondaryBtn, { flex: 1 }]} testID="cancel-add">
