@@ -560,7 +560,7 @@ export default function PackagesAndHoursScreen() {
             <Text style={styles.modalTitle}>Weet je het zeker?</Text>
             <Text style={styles.modalMsg}>
               {confirmState?.type === "hour"
-                ? "Uurprijs vrwijderen?"
+                ? "Uurprijs verwijderen?"
                 : `${confirmState?.type === "product" ? "Product" : "Pakket"} “${confirmState?.name ?? ""}” verwijderen?`}
             </Text>
             <View style={styles.modalActions}>
