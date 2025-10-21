@@ -85,29 +85,30 @@ export default function AgendaScreen() {
     <View style={{ flex: 1 }}>
       <ScrollView
         testID="agenda-screen"
-        contentContainerStyle={[styles.container, { paddingTop: 8 }]}
+        contentContainerStyle={[styles.container, { paddingTop: 0 }]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         showsVerticalScrollIndicator
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
-        stickyHeaderIndices={[0, 1]}
+        stickyHeaderIndices={[0]}
       >
-        <View style={styles.stickyHeader}>
-          <AgendaHeader
-            currentDate={currentDate}
-            onPreviousWeek={onPrevWeek}
-            onNextWeek={onNextWeek}
-            onMonthlyView={() => setShowMonthly(true)}
-          />
-        </View>
-
-        <View style={styles.stickyHeader}>
-          <DayStrip
-            currentWeekStart={currentDate}
-            selectedDate={selectedDate}
-            onDateSelected={onDateSelected}
-            lessonCounts={lessonCounts}
-          />
+        <View style={styles.stickyHeaderCombined}>
+          <View style={styles.stickyHeaderInner}>
+            <AgendaHeader
+              currentDate={currentDate}
+              onPreviousWeek={onPrevWeek}
+              onNextWeek={onNextWeek}
+              onMonthlyView={() => setShowMonthly(true)}
+            />
+          </View>
+          <View style={styles.stickyHeaderInnerBottom}>
+            <DayStrip
+              currentWeekStart={currentDate}
+              selectedDate={selectedDate}
+              onDateSelected={onDateSelected}
+              lessonCounts={lessonCounts}
+            />
+          </View>
         </View>
 
         <TimeGrid
@@ -214,6 +215,21 @@ const styles = StyleSheet.create({
   },
   stickyHeader: {
     backgroundColor: "#f8fafc",
+  },
+  stickyHeaderCombined: {
+    backgroundColor: "#f8fafc",
+    zIndex: 10,
+    elevation: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  stickyHeaderInner: {
+    paddingTop: 8,
+  },
+  stickyHeaderInnerBottom: {
+    paddingTop: 8,
   },
   sectionHeader: { marginTop: 8 },
   sectionTitle: { fontSize: 16, fontWeight: "700" },
