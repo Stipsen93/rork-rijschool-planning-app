@@ -8,36 +8,25 @@ import { PerformanceMetricsCard, PerformanceMetrics } from "@/components/overvie
 import { StudentActivityDashboard, StudentActivityData, StudentItem } from "@/components/overview/StudentActivityDashboard";
 import { Settings } from "lucide-react-native";
 import { useRouter } from "expo-router";
+import { useAgenda } from "@/components/agenda/AgendaStore";
 
-function buildMockLessons(): Record<string, Appointment[]> {
-  const today = new Date();
-  const day = 24 * 60 * 60 * 1000;
-  const d = (offset: number) => new Date(today.getTime() + offset * day);
-  return {
-    [d(0).toDateString()]: [
-      { studentName: "Emma van der Berg", lessonType: "Praktijkles", startTime: "10:00", endTime: "11:00", date: d(0) },
-    ],
-    [d(1).toDateString()]: [
-      { studentName: "Lucas Janssen", lessonType: "Theorieles", startTime: "09:00", endTime: "10:00", date: d(1) },
-      { studentName: "Sophie de Wit", lessonType: "Praktijkles", startTime: "13:00", endTime: "14:00", date: d(1) },
-    ],
-    [d(2).toDateString()]: [
-      { studentName: "Daan Bakker", lessonType: "Praktijkles", startTime: "15:00", endTime: "16:00", date: d(2) },
-    ],
-  };
-}
-
-function computeNextAppointment(lessons: Record<string, Appointment[]>): Appointment | null {
+function computeNextAppointment(lessonsByDate: Record<string, Array<{id: string, studentName?: string, lessonType?: string, startTime: string, endTime: string, date: Date}>>): Appointment | null {
   const now = new Date();
   let next: Appointment | null = null;
   let nextTime = Infinity;
-  Object.values(lessons).forEach((list) => {
+  Object.values(lessonsByDate).forEach((list) => {
     list.forEach((l) => {
       const [hh, mm] = l.startTime.split(":").map((n) => Number(n));
       const dt = new Date(l.date.getFullYear(), l.date.getMonth(), l.date.getDate(), hh || 0, mm || 0).getTime();
       if (dt > now.getTime() && dt < nextTime) {
         nextTime = dt;
-        next = l;
+        next = {
+          studentName: l.studentName || "Onbekende leerling",
+          lessonType: l.lessonType || "Les",
+          startTime: l.startTime,
+          endTime: l.endTime,
+          date: l.date,
+        };
       }
     });
   });
@@ -78,9 +67,9 @@ function buildStudentActivity(): StudentActivityData {
 export default function InstructorOverview() {
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const router = useRouter();
+  const { lessonsByDate } = useAgenda();
 
-  const lessons = useMemo(() => buildMockLessons(), []);
-  const nextAppointment = useMemo(() => computeNextAppointment(lessons), [lessons]);
+  const nextAppointment = useMemo(() => computeNextAppointment(lessonsByDate), [lessonsByDate]);
   const weeklyEarnings: { currentWeek: number; trend: number } = useMemo(() => ({ currentWeek: 1250.0, trend: 8.5 }), []);
   const metrics: PerformanceMetrics = useMemo(
     () => ({ completionRate: 96.5, studentSatisfaction: 4.8, averageLessonDuration: 52.5 }),
