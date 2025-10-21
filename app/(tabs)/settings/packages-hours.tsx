@@ -244,32 +244,12 @@ export default function PackagesAndHoursScreen() {
             <Text style={styles.muted}>Geen producten. Voeg je eerste product toe.</Text>
           ) : (
             products.map((p) => (
-              <View key={p.id} style={styles.row}>
-                <View style={{ flex: 1, gap: 6 }}>
-                  <TextInput
-                    testID={`product-name-${p.id}`}
-                    style={styles.input}
-                    placeholder="Naam product"
-                    value={p.name}
-                    onChangeText={(t) => updateProduct(p.id, { name: t })}
-                  />
-                  <View style={styles.inline}>
-                    <TextInput
-                      testID={`product-price-${p.id}`}
-                      style={[styles.input, styles.inputSmall]}
-                      placeholder="Prijs (€)"
-                      keyboardType="decimal-pad"
-                      value={String(p.price ?? 0)}
-                      onChangeText={(t) => updateProduct(p.id, { price: Number(t) || 0 })}
-                    />
-                    <TouchableOpacity
-                      testID={`product-vat-${p.id}`}
-                      onPress={() => updateProduct(p.id, { vatStatus: p.vatStatus === "incl" ? "excl" : "incl" })}
-                      style={styles.tag}
-                    >
-                      <Text style={styles.tagText}>{p.vatStatus === "incl" ? "Incl. BTW" : "Excl. BTW"}</Text>
-                    </TouchableOpacity>
-                  </View>
+              <View key={p.id} style={styles.listRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.itemTitle}>{p.name}</Text>
+                  <Text style={styles.itemSubtitle}>
+                    € {p.price.toFixed(2)} {p.vatStatus === "incl" ? "(incl. btw)" : "(excl. btw)"}
+                  </Text>
                 </View>
                 <TouchableOpacity accessibilityRole="button" onPress={() => deleteProduct(p.id)}>
                   <Trash2 color="#ef4444" />
@@ -370,64 +350,12 @@ export default function PackagesAndHoursScreen() {
             <Text style={styles.muted}>Geen pakketten. Maak je eerste pakket.</Text>
           ) : (
             packages.map((pk) => (
-              <View key={pk.id} style={styles.row}>
-                <View style={{ flex: 1, gap: 6 }}>
-                  <TextInput
-                    testID={`package-name-${pk.id}`}
-                    style={styles.input}
-                    placeholder="Naam pakket"
-                    value={pk.name}
-                    onChangeText={(t) => updatePackage(pk.id, { name: t })}
-                  />
-                  <View style={styles.inlineBetween}>
-                    <TextInput
-                      testID={`package-hours-${pk.id}`}
-                      style={[styles.input, styles.inputSmall]}
-                      placeholder="Uren"
-                      keyboardType="number-pad"
-                      value={String(pk.hours ?? 0)}
-                      onChangeText={(t) => updatePackage(pk.id, { hours: Number(t) || 0 })}
-                    />
-                    <TextInput
-                      testID={`package-price-${pk.id}`}
-                      style={[styles.input, styles.inputSmall]}
-                      placeholder="Prijs (€)"
-                      keyboardType="decimal-pad"
-                      value={String(pk.price ?? 0)}
-                      onChangeText={(t) => updatePackage(pk.id, { price: Number(t) || 0 })}
-                    />
-                    <TouchableOpacity
-                      testID={`package-vat-${pk.id}`}
-                      onPress={() => updatePackage(pk.id, { vatStatus: pk.vatStatus === "incl" ? "excl" : "incl" })}
-                      style={styles.tag}
-                    >
-                      <Text style={styles.tagText}>{pk.vatStatus === "incl" ? "Incl. BTW" : "Excl. BTW"}</Text>
-                    </TouchableOpacity>
-                  </View>
-                  {products.length > 0 && (
-                    <View style={{ gap: 8 }}>
-                      <Text style={styles.muted}>Inbegrepen producten</Text>
-                      {products.map((prod) => {
-                        const checked = pk.selectedProducts.includes(prod.id);
-                        return (
-                          <TouchableOpacity
-                            key={`${pk.id}-${prod.id}`}
-                            style={styles.checkboxRow}
-                            onPress={() => {
-                              const next = checked
-                                ? pk.selectedProducts.filter((id) => id !== prod.id)
-                                : [...pk.selectedProducts, prod.id];
-                              updatePackage(pk.id, { selectedProducts: next });
-                            }}
-                          >
-                            <View style={[styles.checkbox, checked && styles.checkboxChecked]} />
-                            <Text style={{ flex: 1 }}>{prod.name}</Text>
-                            <Text style={styles.muted}>€ {prod.price.toFixed(2)}</Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </View>
-                  )}
+              <View key={pk.id} style={styles.listRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.itemTitle}>{pk.name}</Text>
+                  <Text style={styles.itemSubtitle}>
+                    € {pk.price.toFixed(2)} • {pk.hours} uur {pk.vatStatus === "incl" ? "(incl. btw)" : "(excl. btw)"}
+                  </Text>
                 </View>
                 <TouchableOpacity accessibilityRole="button" onPress={() => deletePackage(pk.id)}>
                   <Trash2 color="#ef4444" />
@@ -486,6 +414,17 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   row: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
+  listRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#f3f4f6",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  itemTitle: { fontSize: 16, fontWeight: "600", color: "#0f172a" },
+  itemSubtitle: { fontSize: 12, color: "#6b7280", marginTop: 2 },
   inline: { flexDirection: "row", alignItems: "center", gap: 8 },
   inlineBetween: { flexDirection: "row", alignItems: "center", gap: 8, justifyContent: "space-between" },
   input: {
