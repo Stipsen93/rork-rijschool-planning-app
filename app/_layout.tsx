@@ -6,6 +6,7 @@ import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { trpc, trpcClient } from "@/lib/trpc";
 import { AgendaProvider } from "@/components/agenda/AgendaStore";
+import { WorkingHoursProvider } from "@/components/settings/WorkingHoursStore";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -31,9 +32,11 @@ export default function RootLayout() {
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
         <GestureHandlerRootView style={{ flex: 1 }}>
-          <AgendaProvider>
-            <RootLayoutNav />
-          </AgendaProvider>
+          <WorkingHoursProvider>
+            <AgendaProvider>
+              <RootLayoutNav />
+            </AgendaProvider>
+          </WorkingHoursProvider>
         </GestureHandlerRootView>
       </QueryClientProvider>
     </trpc.Provider>
