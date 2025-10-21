@@ -4,6 +4,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput,
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Pencil, Trash2, X } from "lucide-react-native";
+import { useAgenda } from "@/components/agenda/AgendaStore";
 
 type StatusType = "active" | "irregular" | "inactive" | string | undefined;
 
@@ -227,10 +228,7 @@ export default function StudentProfileScreen() {
           </View>
         </View>
 
-        <View style={styles.row}>
-          <StatCard title="Uren gereden" value="5u" color="#22c55e" />
-          <StatCard title="Uren betaald" value="10u" color="#111827" />
-        </View>
+        <StudentOverviewTable studentName={params.name ?? ""} products={settingsProducts} studentPackages={studentPackages} />
 
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Status informatie</Text>
@@ -391,6 +389,124 @@ function StatCard({ title, value, color }: { title: string; value: string; color
     <View style={[styles.statCard, { borderColor: color + "33" }]}>
       <Text style={[styles.statValue, { color }]}>{value}</Text>
       <Text style={styles.statTitle}>{title}</Text>
+    </View>
+  );
+}
+
+function minutesBetween(startHHMM: string, endHHMM: string): number {
+  const [sh, sm] = startHHMM.split(":").map((v) => parseInt(v, 10));
+  const [eh, em] = endHHMM.split(":").map((v) => parseInt(v, 10));
+  const s = (Number.isFinite(sh) ? sh : 0) * 60 + (Number.isFinite(sm) ? sm : 0);
+  const e = (Number.isFinite(eh) ? eh : 0) * 60 + (Number.isFinite(em) ? em : 0);
+  return Math.max(0, e - s);
+}
+
+function round1(n: number): string {
+  return (Math.round(n * 10) / 10).toFixed(1);
+}
+
+function Row({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) {
+  return (
+    <View style={styles.overviewRow}>
+      <Text style={styles.overviewLabel}>{label}</Text>
+      <Text style={[styles.overviewValue, valueColor ? { color: valueColor } : null]}>{value}</Text>
+    </View>
+  );
+}
+
+function StudentOverviewTable({ studentName, products, studentPackages }: { studentName: string; products: PackageItem[]; studentPackages: StudentPackage[]; }) {
+  const { lessonsByDate } = useAgenda();
+  const now = new Date();
+
+  const lessons = useMemo(() => {
+    const arr: { date: Date; startTime: string; endTime: string; studentName?: string; lessonType?: string }[] = [];
+    Object.values(lessonsByDate).forEach((day) => {
+      day.forEach((l) => arr.push({ date: l.date, startTime: l.startTime, endTime: l.endTime, studentName: l.studentName, lessonType: l.lessonType }));
+    });
+    return arr.filter((l) => (l.studentName ?? "") === studentName);
+  }, [lessonsByDate, studentName]);
+
+  const { plannedHours, drivenHours, productPlannedMap } = useMemo(() => {
+    let plannedMin = 0;
+    let drivenMin = 0;
+    const prodPlanned: Record<string, boolean> = {};
+    lessons.forEach((l) => {
+      const mins = minutesBetween(l.startTime, l.endTime);
+      const endDate = new Date(l.date);
+      const [eh, em] = l.endTime.split(":").map((v) => parseInt(v, 10));
+      endDate.setHours(Number.isFinite(eh) ? eh : 0, Number.isFinite(em) ? em : 0, 0, 0);
+      if (endDate.getTime() > now.getTime()) {
+        plannedMin += mins;
+      } else {
+        drivenMin += mins;
+      }
+      if (l.lessonType) {
+        prodPlanned[l.lessonType] = true;
+      }
+    });
+    return { plannedHours: plannedMin / 60, drivenHours: drivenMin / 60, productPlannedMap: prodPlanned };
+  }, [lessons, now]);
+
+  const totalAddedHours = useMemo(() => {
+    return studentPackages.reduce((sum, sp) => {
+      const baseItem = products.find((p) => p.id === sp.packageId);
+      const isProduct = baseItem?.isProduct === true;
+      if (isProduct) return sum;
+      const base = sp.customHours ?? (baseItem?.hours ?? 0);
+      return sum + (base || 0);
+    }, 0);
+  }, [products, studentPackages]);
+
+  const hoursPaid = useMemo(() => {
+    return studentPackages.reduce((sum, sp) => {
+      const baseItem = products.find((p) => p.id === sp.packageId);
+      const isProduct = baseItem?.isProduct === true;
+      if (isProduct) return sum;
+      const baseHours = sp.customHours ?? (baseItem?.hours ?? 0);
+      const total = baseHours || 0;
+      const terms = sp.installments.length;
+      if (terms === 0) return sum;
+      const paidCount = sp.installments.filter((i) => i.paid).length;
+      const fraction = total * (paidCount / terms);
+      return sum + fraction;
+    }, 0);
+  }, [products, studentPackages]);
+
+  const hoursOver = useMemo(() => {
+    const remaining = totalAddedHours - drivenHours - plannedHours;
+    return remaining < 0 ? 0 : remaining;
+  }, [totalAddedHours, drivenHours, plannedHours]);
+
+  const productRows = useMemo(() => {
+    return products.map((prod) => {
+      const direct = studentPackages.filter((sp) => sp.packageId === prod.id);
+      const included = studentPackages.filter((sp) => (sp.includedProductIds ?? []).includes(prod.id));
+      const count = direct.length + included.length;
+      const allPaid = [...direct, ...included].every((sp) => sp.installments.length === 0 ? sp.paymentStatus === "paid" : sp.installments.every((i) => i.paid));
+      const planned = Boolean(productPlannedMap[prod.name]);
+      return { name: prod.name, count, paid: allPaid && count > 0, planned };
+    });
+  }, [products, studentPackages, productPlannedMap]);
+
+  return (
+    <View style={styles.card}>
+      <Text style={styles.sectionTitle}>Overzicht</Text>
+      <View style={{ gap: 10 }}>
+        <Row label="Uren gereden" value={`${round1(drivenHours)} u`} valueColor="#22c55e" />
+        <Row label="Uren gepland" value={`${round1(plannedHours)} u`} valueColor="#2563eb" />
+        <Row label="Uren betaald" value={`${round1(hoursPaid)} u`} valueColor="#111827" />
+        <Row label="Uren over" value={`${round1(hoursOver)} u`} valueColor={hoursOver > 0 ? "#16a34a" : "#ef4444"} />
+        <View style={{ height: 8 }} />
+        {productRows.map((pr) => (
+          <View key={pr.name} style={styles.overviewRow}>
+            <Text style={styles.overviewLabel}>{pr.name}</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              {pr.planned ? <View style={styles.plannedBadge}><Text style={styles.plannedBadgeText}>Gepland</Text></View> : null}
+              <Text style={[styles.overviewValue, { color: pr.count > 0 ? (pr.paid ? "#16a34a" : "#ef4444") : "#6b7280" }]}>{`${pr.count} st`}</Text>
+            </View>
+          </View>
+        ))}
+      </View>
     </View>
   );
 }
@@ -808,6 +924,11 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 20, fontWeight: "800", marginTop: 6 },
   statTitle: { color: "#6b7280", marginTop: 2 },
   card: { padding: 16, borderRadius: 12, backgroundColor: "#fff", gap: 12, shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 1 },
+  overviewRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  overviewLabel: { color: "#6b7280", fontWeight: "600" },
+  overviewValue: { fontWeight: "800", color: "#111827" },
+  plannedBadge: { backgroundColor: "#e0e7ff", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
+  plannedBadgeText: { color: "#3730a3", fontWeight: "700" },
   sectionTitle: { fontSize: 16, fontWeight: "700" },
   statusRow: { flexDirection: "row", justifyContent: "space-between" },
   statusLabel: { color: "#6b7280" },
