@@ -219,6 +219,12 @@ export default function WorkingHoursScreen() {
         />
 
         <ScrollView contentContainerStyle={styles.scroll}>
+          <View style={styles.infoCard}>
+            <Text style={styles.infoTitle}>Werkuren instellen</Text>
+            <Text style={styles.infoText}>
+              Stel hier uw werkdagen en tijden in. Schakel dagen in/uit, voeg tijdsblokken toe en plan pauzes. Deze instellingen worden gebruikt voor het beschikbaarheidoverzicht in de agenda.
+            </Text>
+          </View>
           {(Object.entries(workingHours) as [DayKey, DayConfig][]).map(([day, conf]) => (
             <View key={day} style={styles.card}>
               <TouchableOpacity
@@ -359,12 +365,26 @@ function TimePickerModal({ visible, initial, onSelect, onClose }: { visible: boo
   const times = React.useMemo<string[]>(() => {
     const out: string[] = [];
     for (let h = 0; h < 24; h++) {
-      for (let m = 0; m < 60; m += 5) {
+      for (let m = 0; m < 60; m += 15) {
         out.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
       }
     }
     return out;
   }, []);
+
+  const scrollRef = React.useRef<ScrollView>(null);
+  const [selectedIndex, setSelectedIndex] = React.useState<number>(() => {
+    const idx = times.findIndex((t) => t === initial);
+    return idx >= 0 ? idx : 0;
+  });
+
+  React.useEffect(() => {
+    if (visible) {
+      setTimeout(() => {
+        scrollRef.current?.scrollTo({ y: selectedIndex * 56, animated: false });
+      }, 100);
+    }
+  }, [visible, selectedIndex]);
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose as any}>
@@ -376,14 +396,20 @@ function TimePickerModal({ visible, initial, onSelect, onClose }: { visible: boo
             <Text style={{ color: "#0ea5e9", fontWeight: "600" }}>Sluiten</Text>
           </TouchableOpacity>
         </View>
-        <ScrollView contentContainerStyle={{ padding: 12 }}>
-          <View style={styles.timeGrid}>
-            {times.map((t) => (
-              <TouchableOpacity key={t} style={styles.timeOption} onPress={() => onSelect(t)} accessibilityRole="button">
-                <Text style={styles.timeOptionText}>{t}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+        <ScrollView ref={scrollRef} contentContainerStyle={{ padding: 0 }}>
+          {times.map((t, idx) => (
+            <TouchableOpacity
+              key={t}
+              style={[styles.timeRollItem, selectedIndex === idx && styles.timeRollItemSelected]}
+              onPress={() => {
+                setSelectedIndex(idx);
+                onSelect(t);
+              }}
+              accessibilityRole="button"
+            >
+              <Text style={[styles.timeRollText, selectedIndex === idx && styles.timeRollTextSelected]}>{t}</Text>
+            </TouchableOpacity>
+          ))}
           <View style={{ height: 12 }} />
         </ScrollView>
       </View>
@@ -459,4 +485,43 @@ const styles = StyleSheet.create({
   addBtn: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start", paddingVertical: 8, paddingHorizontal: 10, borderRadius: 8, backgroundColor: "#e0f2fe", marginTop: 4 },
   addBtnText: { color: "#0ea5e9", fontWeight: "700" },
   iconBtn: { padding: 8, marginLeft: 8 },
+
+  infoCard: {
+    backgroundColor: "#dbeafe",
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 4,
+  },
+  infoTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1e3a8a",
+    marginBottom: 8,
+  },
+  infoText: {
+    fontSize: 14,
+    color: "#1e40af",
+    lineHeight: 20,
+  },
+
+  timeRollItem: {
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
+    backgroundColor: "#fff",
+  },
+  timeRollItemSelected: {
+    backgroundColor: "#e0f2fe",
+  },
+  timeRollText: {
+    fontSize: 18,
+    fontWeight: "500",
+    color: "#374151",
+    textAlign: "center",
+  },
+  timeRollTextSelected: {
+    color: "#0ea5e9",
+    fontWeight: "700",
+  },
 });

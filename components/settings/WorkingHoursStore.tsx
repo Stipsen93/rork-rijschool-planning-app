@@ -25,7 +25,7 @@ const STORAGE_KEY = "instructor_working_hours" as const;
 
 const defaultDay = (enabled: boolean): DayConfig => ({
   enabled,
-  ranges: enabled ? [{ start: "09:00", end: "17:00" }] : [],
+  ranges: enabled ? [{ start: "09:00", end: "18:00" }] : [],
   pauses: [],
 });
 
