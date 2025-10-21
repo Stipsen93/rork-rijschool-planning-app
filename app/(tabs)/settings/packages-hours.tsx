@@ -211,6 +211,7 @@ export default function PackagesAndHoursScreen() {
                 testID="new-product-name"
                 style={styles.input}
                 placeholder="Praktijkexamen B, Praktijkexamen B-H..."
+                placeholderTextColor="#9ca3af"
                 value={newProductName}
                 onChangeText={setNewProductName}
               />
@@ -220,6 +221,7 @@ export default function PackagesAndHoursScreen() {
                     testID="new-product-price"
                     style={[styles.input, styles.inputSmall]}
                     placeholder="Prijs (€)"
+                    placeholderTextColor="#9ca3af"
                     keyboardType="decimal-pad"
                     value={newProductPrice}
                     onChangeText={setNewProductPrice}
@@ -272,6 +274,7 @@ export default function PackagesAndHoursScreen() {
                 testID="new-package-name"
                 style={styles.input}
                 placeholder="20 uur pakket, 30 uur pakket..."
+                placeholderTextColor="#9ca3af"
                 value={newPackageName}
                 onChangeText={setNewPackageName}
               />
@@ -280,6 +283,7 @@ export default function PackagesAndHoursScreen() {
                   testID="new-package-hours"
                   style={[styles.input, styles.inputSmall]}
                   placeholder="Uren"
+                  placeholderTextColor="#9ca3af"
                   keyboardType="number-pad"
                   value={newPackageHours}
                   onChangeText={setNewPackageHours}
@@ -288,6 +292,7 @@ export default function PackagesAndHoursScreen() {
                   testID="new-package-price"
                   style={[styles.input, styles.inputSmall]}
                   placeholder="Prijs (€)"
+                  placeholderTextColor="#9ca3af"
                   keyboardType="decimal-pad"
                   value={newPackagePrice}
                   onChangeText={setNewPackagePrice}
