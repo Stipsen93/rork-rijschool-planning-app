@@ -89,12 +89,33 @@ function Inner({ date, onLessonPress }: TimeGridProps) {
           {enabled && (
             <>
               {!conf.autoLunchBreak && (
-                <View style={[styles.workOverlay, { top: startMin * PPM, height: minutesBetween(conf.startTime, conf.endTime) * PPM }]} />
+                <View
+                  testID="work-overlay"
+                  style={[
+                    styles.workOverlay,
+                    { top: startMin * PPM, height: minutesBetween(conf.startTime, conf.endTime) * PPM },
+                  ]}
+                />
               )}
               {conf.autoLunchBreak && (
                 <>
-                  <View style={[styles.workOverlay, { top: startMin * PPM, height: minutesBetween(conf.startTime, conf.breakStartTime ?? conf.startTime) * PPM }]} />
-                  <View style={[styles.workOverlay, { top: (toMinutes(conf.breakEndTime ?? conf.endTime) * PPM), height: Math.max(0, (toMinutes(conf.endTime) - toMinutes(conf.breakEndTime ?? conf.endTime)) * PPM) }]} />
+                  <View
+                    testID="work-overlay-morning"
+                    style={[
+                      styles.workOverlay,
+                      { top: startMin * PPM, height: minutesBetween(conf.startTime, conf.breakStartTime ?? conf.startTime) * PPM },
+                    ]}
+                  />
+                  <View
+                    testID="work-overlay-afternoon"
+                    style={[
+                      styles.workOverlay,
+                      {
+                        top: toMinutes(conf.breakEndTime ?? conf.endTime) * PPM,
+                        height: Math.max(0, (toMinutes(conf.endTime) - toMinutes(conf.breakEndTime ?? conf.endTime)) * PPM),
+                      },
+                    ]}
+                  />
                 </>
               )}
             </>
@@ -154,10 +175,11 @@ const styles = StyleSheet.create({
     right: 0,
     borderRadius: 16,
     backgroundColor: "#ffffff",
+    zIndex: 0,
   },
   timeLabels: { position: "absolute", top: 0, left: 0, right: 0 },
   labelRow: { height: 120, justifyContent: "center" },
-  gridArea: { paddingLeft: 0, paddingRight: 0 },
+  gridArea: { paddingLeft: 0, paddingRight: 0, zIndex: 1 },
   gridHourRow: { height: 120, alignItems: "flex-start", justifyContent: "flex-start", paddingHorizontal: 0 },
   hourLabel: { color: "#d1d5db", fontWeight: "700", marginTop: 4, paddingLeft: 12 },
   hourLine: { height: 1, backgroundColor: "#4b5563", opacity: 1, alignSelf: "stretch" },
