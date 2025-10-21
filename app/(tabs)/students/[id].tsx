@@ -488,14 +488,16 @@ function StudentOverviewTable({ studentName, products, studentPackages }: { stud
     });
   }, [products, studentPackages, productPlannedMap]);
 
+  const noAdded = useMemo(() => studentPackages.length === 0, [studentPackages.length]);
+
   return (
     <View style={styles.card}>
       <Text style={styles.sectionTitle}>Overzicht</Text>
       <View style={{ gap: 10 }}>
         <Row label="Uren gereden" value={`${round1(drivenHours)} u`} valueColor="#22c55e" />
-        <Row label="Uren gepland" value={`${round1(plannedHours)} u`} valueColor="#2563eb" />
-        <Row label="Uren betaald" value={`${round1(hoursPaid)} u`} valueColor="#111827" />
-        <Row label="Uren over" value={`${round1(hoursOver)} u`} valueColor={hoursOver > 0 ? "#16a34a" : "#ef4444"} />
+        <Row label="Uren gepland" value={`${round1(plannedHours)} u`} valueColor={noAdded ? "#22c55e" : "#2563eb"} />
+        <Row label="Uren betaald" value={`${round1(hoursPaid)} u`} valueColor={noAdded ? "#22c55e" : "#111827"} />
+        <Row label="Uren over" value={`${round1(hoursOver)} u`} valueColor={noAdded ? "#22c55e" : (hoursOver > 0 ? "#16a34a" : "#ef4444")} />
         <View style={{ height: 8 }} />
         {productRows.map((pr) => (
           <View key={pr.name} style={styles.overviewRow}>
