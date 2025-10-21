@@ -5,6 +5,7 @@ export default function StudentsStackLayout() {
   return (
     <Stack>
       <Stack.Screen name="index" options={{ title: "Leerlingen" }} />
+      <Stack.Screen name="[id]" options={{ title: "Leerlingen", headerBackTitle: "Terug" }} />
     </Stack>
   );
 }
