@@ -10,7 +10,7 @@ import { NotesSection } from "@/components/students/add/NotesSection";
 import { LearningPreferences, LearningPreferencesData } from "@/components/students/add/LearningPreferences";
 import { PackageAssignment, PackageAssignmentData } from "@/components/students/add/PackageAssignment";
 import { router } from "expo-router";
-import { useStudents, StudentItem } from "@/components/students/StudentsStore";
+import { useStudents, useStudentActivity } from "@/components/students/StudentsStore";
 
 export default function StudentsScreen() {
   const [refreshing, setRefreshing] = useState<boolean>(false);
@@ -20,14 +20,25 @@ export default function StudentsScreen() {
   const [addOpen, setAddOpen] = useState<boolean>(false);
   const insets = useSafeAreaInsets();
   const { students: allStudents, addStudent } = useStudents();
+  const { activeStudents, irregularStudents, nonActiveStudents } = useStudentActivity();
+
+  const getStudentStatus = useCallback((studentName: string): "active" | "irregular" | "inactive" => {
+    if (activeStudents.some(s => s.name === studentName)) return "active";
+    if (irregularStudents.some(s => s.name === studentName)) return "irregular";
+    if (nonActiveStudents.some(s => s.name === studentName)) return "inactive";
+    return "inactive";
+  }, [activeStudents, irregularStudents, nonActiveStudents]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    let arr = allStudents;
-    if (filter !== "all") arr = arr.filter(s => s.status === (filter as StudentItem["status"]));
+    let arr = allStudents.map(s => ({
+      ...s,
+      calculatedStatus: getStudentStatus(s.name)
+    }));
+    if (filter !== "all") arr = arr.filter(s => s.calculatedStatus === filter);
     if (q.length > 0) arr = arr.filter(s => s.name.toLowerCase().includes(q) || s.email.toLowerCase().includes(q));
     return arr;
-  }, [allStudents, query, filter]);
+  }, [allStudents, query, filter, getStudentStatus]);
 
   const onRefresh = useCallback(() => {
     console.log("Refreshing students...");
@@ -78,7 +89,7 @@ export default function StudentsScreen() {
                     <Text style={styles.name}>{s.name}</Text>
                     <Text style={styles.email}>{s.email}</Text>
                   </View>
-                  <View style={[styles.statusDot, { backgroundColor: s.status === "active" ? "#22c55e" : s.status === "irregular" ? "#f59e0b" : "#ef4444" }]} />
+                  <View style={[styles.statusDot, { backgroundColor: s.calculatedStatus === "active" ? "#22c55e" : s.calculatedStatus === "irregular" ? "#f59e0b" : "#ef4444" }]} />
                 </Pressable>
               ))}
             </View>
