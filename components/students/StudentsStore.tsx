@@ -38,7 +38,11 @@ export const [StudentsProvider, useStudents] = createContextHook(() => {
   const [customStudents, setCustomStudents] = useState<StudentItem[]>([]);
   const seedData = useMemo(() => seedStudents(), []);
   
-  const allStudents = useMemo(() => [...customStudents, ...seedData], [customStudents, seedData]);
+  const allStudents = useMemo(() => {
+    const customIds = new Set(customStudents.map(s => s.id));
+    const filteredSeed = seedData.filter(s => !customIds.has(s.id));
+    return [...customStudents, ...filteredSeed];
+  }, [customStudents, seedData]);
 
   const addStudent = useCallback((student: Omit<StudentItem, "id">) => {
     setCustomStudents((prev) => [{
@@ -48,8 +52,21 @@ export const [StudentsProvider, useStudents] = createContextHook(() => {
   }, []);
 
   const updateStudent = useCallback((id: string, updates: Partial<StudentItem>) => {
-    setCustomStudents((prev) => prev.map(s => s.id === id ? { ...s, ...updates } : s));
-  }, []);
+    const existsInCustom = customStudents.some(s => s.id === id);
+    const existsInSeed = seedData.some(s => s.id === id);
+    
+    if (existsInCustom) {
+      setCustomStudents((prev) => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+    } else if (existsInSeed) {
+      const seedStudent = seedData.find(s => s.id === id);
+      if (seedStudent) {
+        setCustomStudents((prev) => [
+          ...prev,
+          { ...seedStudent, ...updates }
+        ]);
+      }
+    }
+  }, [customStudents, seedData]);
 
   const value = useMemo(() => ({
     students: allStudents,

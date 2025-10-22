@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { CalendarDays, ChevronLeft, ChevronRight, X } from "lucide-react-native";
+import { useStudents } from "@/components/students/StudentsStore";
 
 type PersonalInfo = {
   firstName: string;
@@ -289,6 +290,7 @@ export default function PersonalInfoScreen() {
   const params = useLocalSearchParams();
   const studentId = params.id as string;
   const insets = useSafeAreaInsets();
+  const { updateStudent } = useStudents();
 
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [info, setInfo] = useState<PersonalInfo>({
@@ -325,12 +327,21 @@ export default function PersonalInfoScreen() {
     try {
       const key = `student_personal_info_${studentId}`;
       await AsyncStorage.setItem(key, JSON.stringify(info));
-      console.log("[PersonalInfo] Saved personal info");
+      console.log("[PersonalInfo] Saved personal info", info);
+      
+      updateStudent(studentId, {
+        firstName: info.firstName,
+        lastName: info.lastName,
+        email: info.email,
+        status: info.status,
+      });
+      console.log("[PersonalInfo] Updated StudentsStore");
+      
       setIsEditing(false);
     } catch (e) {
       console.log("[PersonalInfo] Failed to save personal info", e);
     }
-  }, [info, studentId]);
+  }, [info, studentId, updateStudent]);
 
   const calculateAge = useCallback((dob: string): string => {
     if (!dob) return "";
