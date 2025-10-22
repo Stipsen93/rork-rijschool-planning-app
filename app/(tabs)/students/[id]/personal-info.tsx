@@ -364,7 +364,7 @@ export default function PersonalInfoScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: "#f9fafb" }}>
-      <Stack.Screen options={{ title: "Persoonlijke gegevens", headerBackTitle: "Terug" }} />
+      <Stack.Screen options={{ title: "Persoonlijke informatie", headerBackTitle: "Terug" }} />
       <ScrollView contentContainerStyle={[styles.container, { paddingBottom: insets.bottom + 80 }]}>
         <View style={styles.card}>
           <Text style={styles.label}>Voornaam</Text>
