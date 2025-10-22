@@ -11,14 +11,16 @@ import { LocationSection } from "@/components/add-lesson/LocationSection";
 import { NotesSection } from "@/components/add-lesson/NotesSection";
 import { useAgenda } from "@/components/agenda/AgendaStore";
 import { useSettings } from "@/components/settings/SettingsStore";
+import { useStudents } from "@/components/students/StudentsStore";
 
 export type Option = { label: string; value: string };
 
 export default function AddLessonScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { addLesson, removeLessonById } = useAgenda();
+  const { addLesson, removeLessonById, lessonsByDate } = useAgenda();
   const { products, getDurationForType } = useSettings();
+  const { students: allStudents } = useStudents();
 
   const baseAppointmentTypes: Option[] = useMemo(() => [
     { label: "Rijles", value: "Rijles" },
@@ -53,14 +55,56 @@ export default function AddLessonScreen() {
 
   const isPauseOrLeave = category === "Pauze" || category === "Verlof";
 
-  const mockStudents: Student[] = useMemo(() => (
-    Array.from({ length: 18 }).map((_, i) => ({
-      id: String(i + 1),
-      name: `Leerling ${i + 1}`,
-      email: `student${i + 1}@mail.com`,
-      status: i % 3 === 0 ? "active" : i % 3 === 1 ? "irregular" : "inactive",
-    }))
-  ), []);
+  const mockStudents: Student[] = useMemo(() => {
+    const now = new Date();
+    const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const threeWeeksLater = new Date(now.getTime() + 21 * 24 * 60 * 60 * 1000);
+    const fourWeeksLater = new Date(now.getTime() + 28 * 24 * 60 * 60 * 1000);
+
+    const allLessons = Object.values(lessonsByDate).flat();
+
+    return allStudents.map(student => {
+      const studentLessons = allLessons.filter(
+        lesson => lesson.studentName?.toLowerCase() === student.name.toLowerCase()
+      );
+
+      const pastLessons = studentLessons.filter(
+        lesson => lesson.date >= oneMonthAgo && lesson.date < now
+      ).length;
+
+      const futureLessons = studentLessons.filter(
+        lesson => lesson.date >= now && lesson.date <= threeWeeksLater
+      ).length;
+
+      const futureToFourWeeks = studentLessons.filter(
+        lesson => lesson.date >= now && lesson.date <= fourWeeksLater
+      ).length;
+
+      const lastLesson = studentLessons
+        .filter(lesson => lesson.date < now)
+        .sort((a, b) => b.date.getTime() - a.date.getTime())[0];
+
+      const daysSinceLastLesson = lastLesson
+        ? Math.floor((now.getTime() - lastLesson.date.getTime()) / (24 * 60 * 60 * 1000))
+        : 999;
+
+      let status: "active" | "irregular" | "inactive" = "inactive";
+      if (pastLessons >= 3 && futureLessons >= 2) {
+        status = "active";
+      } else if (pastLessons <= 2 && futureLessons === 1) {
+        status = "irregular";
+      } else if (daysSinceLastLesson >= 30 && futureToFourWeeks === 0) {
+        status = "inactive";
+      }
+
+      return {
+        id: student.id,
+        name: student.name,
+        email: student.email,
+        status,
+      };
+    });
+  }, [allStudents, lessonsByDate]);
 
   const mockVehicles: Vehicle[] = useMemo(() => ([
     { id: "1", model: "Volkswagen Polo", licensePlate: "12-ABC-3", type: "Handschakeling", year: 2022 },
