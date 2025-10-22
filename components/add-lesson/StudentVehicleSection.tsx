@@ -1,6 +1,6 @@
 import React, { memo, useMemo, useState } from "react";
 import { FlatList, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import { Search, ChevronDown, ChevronRight } from "lucide-react-native";
+import { Search, ChevronDown, ChevronRight, X } from "lucide-react-native";
 
 function getStatusColor(status: "active" | "irregular" | "inactive"): string {
   switch (status) {
@@ -65,6 +65,9 @@ function StudentVehicleSectionComponent({ students, vehicles, selectedStudentId,
                   <Text style={styles.studentEmail} numberOfLines={1}>{selectedStudent.email}</Text>
                 </View>
                 <View style={[styles.statusDot, { backgroundColor: getStatusColor(selectedStudent.status) }]} />
+                <Pressable onPress={() => onStudentSelected("")} accessibilityRole="button" style={styles.deselectBtn} testID="deselect-student">
+                  <X size={18} color="#ef4444" />
+                </Pressable>
               </View>
               <View style={styles.rowBetween}>
                 <Pressable onPress={() => setShowStudentSearch(true)} accessibilityRole="button">
@@ -165,4 +168,5 @@ const styles = StyleSheet.create({
   menuItem: { paddingVertical: 12, paddingHorizontal: 12 },
   menuText: { color: "#111827" },
   statusDot: { width: 10, height: 10, borderRadius: 5 },
+  deselectBtn: { padding: 4 },
 });
