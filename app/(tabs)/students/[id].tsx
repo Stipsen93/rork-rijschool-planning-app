@@ -231,18 +231,6 @@ export default function StudentProfileScreen() {
         <StudentOverviewTable studentName={params.name ?? ""} baseItems={availablePackages} products={settingsProducts} studentPackages={studentPackages} />
 
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Status informatie</Text>
-          <View style={styles.statusRow}>
-            <Text style={styles.statusLabel}>Huidige status</Text>
-            <Text style={styles.statusValue}>{labelForStatus(params.status)}</Text>
-          </View>
-          <View style={styles.statusRow}>
-            <Text style={styles.statusLabel}>Laatste les</Text>
-            <Text style={styles.statusValue}>—</Text>
-          </View>
-        </View>
-
-        <View style={styles.card}>
           <Text style={styles.sectionTitle}>Pakketten/Uren</Text>
           {studentPackages.length === 0 ? (
             <View style={styles.emptyBox}>
