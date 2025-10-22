@@ -83,8 +83,23 @@ export default function StudentsScreen() {
       arr = arr.filter(s => s.name.toLowerCase().includes(q) || s.email.toLowerCase().includes(q));
     }
 
+    arr.sort((a, b) => {
+      const aInfo = personalInfoCache[a.id];
+      const bInfo = personalInfoCache[b.id];
+      
+      const aName = aInfo && aInfo.firstName && aInfo.lastName
+        ? `${aInfo.firstName} ${aInfo.lastName}`.trim().toLowerCase()
+        : a.name.toLowerCase();
+      
+      const bName = bInfo && bInfo.firstName && bInfo.lastName
+        ? `${bInfo.firstName} ${bInfo.lastName}`.trim().toLowerCase()
+        : b.name.toLowerCase();
+      
+      return aName.localeCompare(bName);
+    });
+
     return arr;
-  }, [allStudents, query, filters, getStudentStatus]);
+  }, [allStudents, query, filters, getStudentStatus, personalInfoCache]);
 
   const loadPersonalInfo = useCallback(async () => {
     const cache: Record<string, { firstName: string; lastName: string }> = {};
