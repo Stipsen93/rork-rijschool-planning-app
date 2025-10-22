@@ -76,8 +76,8 @@ function ScheduleSectionComponent({ selectedDate, selectedTime, lessonDurationHo
     <View style={styles.container} testID={testID ?? "schedule-section"}>
       <Text style={styles.title}>Schema</Text>
 
-      <View style={styles.tableRow}>
-        <View style={styles.cell}>
+      <View style={styles.fieldColumn}>
+        <View style={styles.fieldWrap}>
           <Text style={styles.header}>Datum</Text>
           <TouchableOpacity
             accessibilityRole="button"
@@ -111,7 +111,7 @@ function ScheduleSectionComponent({ selectedDate, selectedTime, lessonDurationHo
             </Modal>
           )}
         </View>
-        <View style={styles.cell}>
+        <View style={styles.fieldWrap}>
           <Text style={styles.header}>Tijd</Text>
           <TouchableOpacity
             accessibilityRole="button"
@@ -146,7 +146,7 @@ function ScheduleSectionComponent({ selectedDate, selectedTime, lessonDurationHo
             </Modal>
           )}
         </View>
-        <View style={styles.cell}>
+        <View style={styles.fieldWrap}>
           <Text style={styles.header}>Lengte</Text>
           <TouchableOpacity accessibilityRole="button" testID="duration-input" onPress={() => setShowDuration(true)} activeOpacity={0.8} style={styles.inputWrap}>
             <Timer size={16} color="#2563eb" />
@@ -354,6 +354,8 @@ const styles = StyleSheet.create({
   inputText: { flex: 1, color: "#111827" },
   tableRow: { flexDirection: "row", gap: 12 },
   cell: { flex: 1 },
+  fieldColumn: { gap: 12 },
+  fieldWrap: {},
   row: { flexDirection: "row", alignItems: "center" },
   pickerWrap: { marginTop: 8, borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 12, overflow: "hidden", backgroundColor: "#fff" },
   iosToolbar: { borderTopWidth: 1, borderTopColor: "#e5e7eb", padding: 8, alignItems: "flex-end", backgroundColor: "#f9fafb" },
