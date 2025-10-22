@@ -242,6 +242,7 @@ function endOfMonth(d: Date) {
 
 function CalendarPicker({ initialDate, onSelectDate, testID }: CalendarPickerProps) {
   const [cursor, setCursor] = useState<Date>(startOfMonth(initialDate));
+  const [showYearPicker, setShowYearPicker] = useState<boolean>(false);
   const today = new Date();
   const days: { date: Date; inMonth: boolean }[] = useMemo(() => {
     const start = startOfMonth(cursor);
@@ -266,13 +267,24 @@ function CalendarPicker({ initialDate, onSelectDate, testID }: CalendarPickerPro
     return arr;
   }, [cursor]);
 
+  const yearRange = useMemo(() => {
+    const currentYear = today.getFullYear();
+    const years = [];
+    for (let year = currentYear - 100; year <= currentYear + 50; year++) {
+      years.push(year);
+    }
+    return years;
+  }, [today]);
+
   return (
     <View testID={testID}>
       <View style={styles.calendarHeader}>
         <TouchableOpacity accessibilityRole="button" onPress={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))}>
           <ChevronLeft size={18} color="#111827" />
         </TouchableOpacity>
-        <Text style={styles.calendarHeaderTitle}>{monthNames[cursor.getMonth()]} {cursor.getFullYear()}</Text>
+        <TouchableOpacity accessibilityRole="button" onPress={() => setShowYearPicker(true)}>
+          <Text style={styles.calendarHeaderTitle}>{monthNames[cursor.getMonth()]} {cursor.getFullYear()}</Text>
+        </TouchableOpacity>
         <TouchableOpacity accessibilityRole="button" onPress={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))}>
           <ChevronRight size={18} color="#111827" />
         </TouchableOpacity>
@@ -300,6 +312,43 @@ function CalendarPicker({ initialDate, onSelectDate, testID }: CalendarPickerPro
           );
         })}
       </View>
+      {showYearPicker && (
+        <Modal visible animationType="fade" transparent>
+          <View style={styles.modalBackdrop}>
+            <View style={styles.yearPickerCard}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Kies jaar</Text>
+                <TouchableOpacity accessibilityRole="button" onPress={() => setShowYearPicker(false)}>
+                  <X size={20} color="#111827" />
+                </TouchableOpacity>
+              </View>
+              <FlatList
+                data={yearRange}
+                keyExtractor={(item) => `year-${item}`}
+                style={styles.yearList}
+                contentContainerStyle={styles.yearListContent}
+                initialScrollIndex={yearRange.indexOf(cursor.getFullYear())}
+                getItemLayout={(data, index) => ({ length: 48, offset: 48 * index, index })}
+                renderItem={({ item }) => {
+                  const isSelected = item === cursor.getFullYear();
+                  return (
+                    <Pressable
+                      onPress={() => {
+                        setCursor(new Date(item, cursor.getMonth(), 1));
+                        setShowYearPicker(false);
+                      }}
+                      style={[styles.yearItem, isSelected && styles.yearItemSelected]}
+                      testID={`year-${item}`}
+                    >
+                      <Text style={[styles.yearText, isSelected && styles.yearTextSelected]}>{item}</Text>
+                    </Pressable>
+                  );
+                }}
+              />
+            </View>
+          </View>
+        </Modal>
+      )}
     </View>
   );
 }
@@ -421,4 +470,11 @@ const styles = StyleSheet.create({
   fullDayButtonTextActive: { color: "#fff" },
   inputDisabled: { opacity: 0.5, backgroundColor: "#f3f4f6" },
   inputTextDisabled: { color: "#9ca3af" },
+  yearPickerCard: { width: "90%", maxWidth: 320, backgroundColor: "#fff", borderRadius: 16, padding: 12, borderWidth: 1, borderColor: "#e5e7eb", maxHeight: "70%" },
+  yearList: { flexGrow: 0, maxHeight: 400 },
+  yearListContent: { paddingVertical: 6 },
+  yearItem: { paddingVertical: 12, paddingHorizontal: 16, alignItems: "center" },
+  yearItemSelected: { backgroundColor: "#eff6ff" },
+  yearText: { fontSize: 18, color: "#111827" },
+  yearTextSelected: { color: "#2563eb", fontWeight: "700" },
 });

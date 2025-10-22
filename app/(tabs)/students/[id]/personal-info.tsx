@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Modal, Pressable } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Modal, Pressable, FlatList } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -38,6 +38,7 @@ interface CalendarPickerProps {
 
 function CalendarPicker({ initialDate, onSelectDate, testID, maximumDate }: CalendarPickerProps) {
   const [cursor, setCursor] = useState<Date>(startOfMonth(initialDate));
+  const [showYearPicker, setShowYearPicker] = useState<boolean>(false);
   const today = new Date();
   
   const days: { date: Date; inMonth: boolean }[] = useMemo(() => {
@@ -67,6 +68,15 @@ function CalendarPicker({ initialDate, onSelectDate, testID, maximumDate }: Cale
     return arr;
   }, [cursor]);
 
+  const yearRange = useMemo(() => {
+    const currentYear = today.getFullYear();
+    const years = [];
+    for (let year = currentYear - 100; year <= currentYear + 50; year++) {
+      years.push(year);
+    }
+    return years;
+  }, [today]);
+
   return (
     <View testID={testID}>
       <View style={calendarStyles.calendarHeader}>
@@ -76,9 +86,11 @@ function CalendarPicker({ initialDate, onSelectDate, testID, maximumDate }: Cale
         >
           <ChevronLeft size={18} color="#111827" />
         </TouchableOpacity>
-        <Text style={calendarStyles.calendarHeaderTitle}>
-          {monthNames[cursor.getMonth()]} {cursor.getFullYear()}
-        </Text>
+        <TouchableOpacity accessibilityRole="button" onPress={() => setShowYearPicker(true)}>
+          <Text style={calendarStyles.calendarHeaderTitle}>
+            {monthNames[cursor.getMonth()]} {cursor.getFullYear()}
+          </Text>
+        </TouchableOpacity>
         <TouchableOpacity 
           accessibilityRole="button" 
           onPress={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))}
@@ -114,6 +126,43 @@ function CalendarPicker({ initialDate, onSelectDate, testID, maximumDate }: Cale
           );
         })}
       </View>
+      {showYearPicker && (
+        <Modal visible animationType="fade" transparent>
+          <View style={calendarStyles.modalBackdrop}>
+            <View style={calendarStyles.yearPickerCard}>
+              <View style={calendarStyles.modalHeader}>
+                <Text style={calendarStyles.modalTitle}>Kies jaar</Text>
+                <TouchableOpacity accessibilityRole="button" onPress={() => setShowYearPicker(false)}>
+                  <X size={20} color="#111827" />
+                </TouchableOpacity>
+              </View>
+              <FlatList
+                data={yearRange}
+                keyExtractor={(item) => `year-${item}`}
+                style={calendarStyles.yearList}
+                contentContainerStyle={calendarStyles.yearListContent}
+                initialScrollIndex={yearRange.indexOf(cursor.getFullYear())}
+                getItemLayout={(data, index) => ({ length: 48, offset: 48 * index, index })}
+                renderItem={({ item }) => {
+                  const isSelected = item === cursor.getFullYear();
+                  return (
+                    <Pressable
+                      onPress={() => {
+                        setCursor(new Date(item, cursor.getMonth(), 1));
+                        setShowYearPicker(false);
+                      }}
+                      style={[calendarStyles.yearItem, isSelected && calendarStyles.yearItemSelected]}
+                      testID={`year-${item}`}
+                    >
+                      <Text style={[calendarStyles.yearText, isSelected && calendarStyles.yearTextSelected]}>{item}</Text>
+                    </Pressable>
+                  );
+                }}
+              />
+            </View>
+          </View>
+        </Modal>
+      )}
     </View>
   );
 }
@@ -180,6 +229,57 @@ const calendarStyles = StyleSheet.create({
     height: 4,
     borderRadius: 2,
     backgroundColor: "#2563eb",
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 16,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 4,
+    paddingHorizontal: 8,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  yearPickerCard: {
+    width: "90%",
+    maxWidth: 320,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    maxHeight: "70%",
+  },
+  yearList: {
+    flexGrow: 0,
+    maxHeight: 400,
+  },
+  yearListContent: {
+    paddingVertical: 6,
+  },
+  yearItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: "center",
+  },
+  yearItemSelected: {
+    backgroundColor: "#eff6ff",
+  },
+  yearText: {
+    fontSize: 18,
+    color: "#111827",
+  },
+  yearTextSelected: {
+    color: "#2563eb",
+    fontWeight: "700",
   },
 });
 
