@@ -1,5 +1,5 @@
 import React, { useMemo, useMemo as _useMemo, useState, useCallback, useEffect } from "react";
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { Stack, useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Platform, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -78,14 +78,27 @@ export default function StudentProfileScreen() {
     }
   }, [actualStatus]);
 
+  const loadPersonalInfo = useCallback(async () => {
+    if (!params.id) return;
+    try {
+      const personalInfoStr = await AsyncStorage.getItem(`student_personal_info_${params.id}`);
+      if (personalInfoStr) {
+        const parsed = JSON.parse(personalInfoStr);
+        setPersonalInfo(parsed);
+        console.log("[StudentProfile] Loaded personal info", parsed);
+      }
+    } catch (err) {
+      console.log("[StudentProfile] Failed to load personal info", err);
+    }
+  }, [params.id]);
+
   useEffect(() => {
     (async () => {
       try {
-        const [pkgStr, prodStr, hourlyStr, personalInfoStr] = await Promise.all([
+        const [pkgStr, prodStr, hourlyStr] = await Promise.all([
           AsyncStorage.getItem("instructor_packages"),
           AsyncStorage.getItem("instructor_products"),
           AsyncStorage.getItem("instructor_hourly_rates"),
-          AsyncStorage.getItem(`student_personal_info_${params.id}`),
         ]);
         const pkgs = (pkgStr ? JSON.parse(pkgStr) : []) as { id: string; name: string; hours: number; price: number; vatStatus: "incl" | "excl" }[];
         const prods = (prodStr ? JSON.parse(prodStr) : []) as { id: string; name: string; price: number; vatStatus: "incl" | "excl" }[];
@@ -100,15 +113,6 @@ export default function StudentProfileScreen() {
             setHourlyPrice(Number(parsed?.price ?? 0));
           } catch (err) {
             console.log("[StudentProfile] Failed to parse hourly rates", err);
-          }
-        }
-        if (personalInfoStr) {
-          try {
-            const parsed = JSON.parse(personalInfoStr);
-            setPersonalInfo(parsed);
-            console.log("[StudentProfile] Loaded personal info", parsed);
-          } catch (err) {
-            console.log("[StudentProfile] Failed to parse personal info", err);
           }
         }
         if (params.id) {
@@ -128,7 +132,14 @@ export default function StudentProfileScreen() {
         console.log("[StudentProfile] Failed to load settings packages/products", e);
       }
     })();
-  }, []);
+    loadPersonalInfo();
+  }, [loadPersonalInfo]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadPersonalInfo();
+    }, [loadPersonalInfo])
+  );
 
   const saveDebounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
