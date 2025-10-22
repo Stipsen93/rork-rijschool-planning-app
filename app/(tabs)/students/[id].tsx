@@ -234,7 +234,9 @@ export default function StudentProfileScreen() {
           <View style={{ flex: 1 }}>
             <Text style={styles.name}>{params.name ?? "Onbekende leerling"}</Text>
             <Text style={styles.email}>{params.email ?? "-"}</Text>
-            <Text style={[styles.badge, { backgroundColor: statusColor }]}>{labelForStatus(params.status)}</Text>
+            <View style={[styles.badge, { backgroundColor: statusColor }]}>
+              <Text style={styles.badgeText}>{labelForStatus(params.status)}</Text>
+            </View>
           </View>
         </TouchableOpacity>
 
@@ -1055,7 +1057,8 @@ const styles = StyleSheet.create({
   avatar: { width: 64, height: 64, borderRadius: 32, backgroundColor: "#e5e7eb" },
   name: { fontSize: 18, fontWeight: "700" },
   email: { color: "#6b7280", marginTop: 4 },
-  badge: { alignSelf: "flex-start", color: "#fff", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, overflow: "hidden", marginTop: 8, fontWeight: "700" },
+  badge: { alignSelf: "flex-start", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, overflow: "hidden", marginTop: 8 },
+  badgeText: { color: "#fff", fontWeight: "700", fontSize: 12 },
   row: { flexDirection: "row", gap: 12 },
   statCard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#fff", borderWidth: 1 },
   statValue: { fontSize: 20, fontWeight: "800", marginTop: 6 },
