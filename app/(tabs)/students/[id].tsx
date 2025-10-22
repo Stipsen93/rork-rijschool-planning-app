@@ -640,7 +640,7 @@ function StudentOverviewTable({ studentName, baseItems, products, studentPackage
           <View key={pr.name} style={styles.overviewRow}>
             <Text style={styles.overviewLabel}>{pr.name}</Text>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              {pr.planned ? <View style={styles.plannedBadge}><Text style={styles.plannedBadgeText}>Gepland</Text></View> : null}
+              {pr.planned && <View style={styles.plannedBadge}><Text style={styles.plannedBadgeText}>Gepland</Text></View>}
               <Text style={[styles.overviewValue, { color: pr.count > 0 ? (pr.paid ? "#16a34a" : "#ef4444") : "#6b7280" }]}>{`${pr.count} st`}</Text>
             </View>
           </View>
