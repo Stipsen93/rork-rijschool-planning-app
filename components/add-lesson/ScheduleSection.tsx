@@ -360,7 +360,7 @@ const styles = StyleSheet.create({
   fieldColumn: { gap: 12 },
   fieldWrap: {},
   row: { flexDirection: "row", alignItems: "center" },
-  pickerWrap: { marginTop: 8, borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 12, overflow: "hidden", backgroundColor: "#fff" },
+  pickerWrap: { marginTop: 8, borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 12, overflow: "hidden", backgroundColor: "#fff", maxHeight: 360 },
   iosToolbar: { borderTopWidth: 1, borderTopColor: "#e5e7eb", padding: 8, alignItems: "flex-end", backgroundColor: "#f9fafb" },
   toolbarBtn: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: "#2563eb", borderRadius: 8 },
   toolbarBtnText: { color: "#fff", fontWeight: "700" },
