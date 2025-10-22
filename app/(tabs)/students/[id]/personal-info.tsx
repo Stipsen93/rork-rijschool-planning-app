@@ -329,13 +329,15 @@ export default function PersonalInfoScreen() {
       await AsyncStorage.setItem(key, JSON.stringify(info));
       console.log("[PersonalInfo] Saved personal info", info);
       
+      const fullName = `${info.firstName} ${info.lastName}`.trim();
       updateStudent(studentId, {
+        name: fullName || undefined,
         firstName: info.firstName,
         lastName: info.lastName,
         email: info.email,
         status: info.status,
       });
-      console.log("[PersonalInfo] Updated StudentsStore");
+      console.log("[PersonalInfo] Updated StudentsStore with name:", fullName);
       
       setIsEditing(false);
     } catch (e) {

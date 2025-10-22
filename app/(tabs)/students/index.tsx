@@ -11,7 +11,7 @@ import { PersonalInformation, PersonalInfo } from "@/components/students/add/Per
 import { NotesSection } from "@/components/students/add/NotesSection";
 import { LearningPreferences, LearningPreferencesData } from "@/components/students/add/LearningPreferences";
 import { PackageAssignment, PackageAssignmentData } from "@/components/students/add/PackageAssignment";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { useStudents, useStudentActivity } from "@/components/students/StudentsStore";
 
 export default function StudentsScreen() {
@@ -86,28 +86,35 @@ export default function StudentsScreen() {
     return arr;
   }, [allStudents, query, filters, getStudentStatus]);
 
-  useEffect(() => {
-    const loadPersonalInfo = async () => {
-      const cache: Record<string, { firstName: string; lastName: string }> = {};
-      for (const student of allStudents) {
-        try {
-          const key = `student_personal_info_${student.id}`;
-          const stored = await AsyncStorage.getItem(key);
-          if (stored) {
-            const parsed = JSON.parse(stored);
-            cache[student.id] = {
-              firstName: parsed.firstName || "",
-              lastName: parsed.lastName || "",
-            };
-          }
-        } catch (e) {
-          console.log("[StudentsScreen] Failed to load personal info for student", student.id, e);
+  const loadPersonalInfo = useCallback(async () => {
+    const cache: Record<string, { firstName: string; lastName: string }> = {};
+    for (const student of allStudents) {
+      try {
+        const key = `student_personal_info_${student.id}`;
+        const stored = await AsyncStorage.getItem(key);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          cache[student.id] = {
+            firstName: parsed.firstName || "",
+            lastName: parsed.lastName || "",
+          };
         }
+      } catch (e) {
+        console.log("[StudentsScreen] Failed to load personal info for student", student.id, e);
       }
-      setPersonalInfoCache(cache);
-    };
-    loadPersonalInfo();
+    }
+    setPersonalInfoCache(cache);
   }, [allStudents]);
+
+  useEffect(() => {
+    loadPersonalInfo();
+  }, [loadPersonalInfo]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadPersonalInfo();
+    }, [loadPersonalInfo])
+  );
 
   const onRefresh = useCallback(() => {
     console.log("Refreshing students...");
@@ -204,15 +211,47 @@ export default function StudentsScreen() {
         <AddStudentModal
           visible={addOpen}
           onClose={() => setAddOpen(false)}
-          onCreated={(data) => {
+          onCreated={async (data) => {
             console.log("Student created", data);
-            addStudent({
+            const studentId = String(Date.now());
+            const newStudent = {
               name: data.fullName,
               email: data.email,
-              status: "active",
+              status: "active" as const,
               dateAdded: new Date(),
-            });
+              firstName: data.firstName,
+              lastName: data.lastName,
+            };
+            
+            const personalInfo = {
+              firstName: data.firstName || "",
+              lastName: data.lastName || "",
+              dateOfBirth: data.birthDate || "",
+              email: data.email,
+              address: "",
+              phoneNumber: data.phoneNumber,
+              parentName: data.emergencyContactName || "",
+              parentPhoneNumber: data.emergencyContactPhone || "",
+              status: "active" as const,
+            };
+            
+            try {
+              await AsyncStorage.setItem(`student_personal_info_${studentId}`, JSON.stringify(personalInfo));
+              console.log("[AddStudent] Saved personal info for new student", studentId);
+            } catch (e) {
+              console.log("[AddStudent] Failed to save personal info", e);
+            }
+            
+            addStudent(newStudent);
             setAddOpen(false);
+            
+            setPersonalInfoCache(prev => ({
+              ...prev,
+              [studentId]: {
+                firstName: data.firstName || "",
+                lastName: data.lastName || "",
+              },
+            }));
           }}
         />
       </View>
@@ -220,7 +259,7 @@ export default function StudentsScreen() {
   );
 }
 
-function AddStudentModal({ visible, onClose, onCreated }: { visible: boolean; onClose: () => void; onCreated: (data: { fullName: string; email: string; phoneNumber: string; notes?: string; learning?: LearningPreferencesData; package?: PackageAssignmentData["selectedPackage"] | null; birthDate?: string | null; emergencyContactName?: string; emergencyContactPhone?: string; }) => void; }) {
+function AddStudentModal({ visible, onClose, onCreated }: { visible: boolean; onClose: () => void; onCreated: (data: { fullName: string; email: string; phoneNumber: string; notes?: string; learning?: LearningPreferencesData; package?: PackageAssignmentData["selectedPackage"] | null; birthDate?: string | null; emergencyContactName?: string; emergencyContactPhone?: string; firstName: string; lastName: string; }) => void; }) {
   const [personal, setPersonal] = useState<PersonalInfo>({ fullName: "", email: "", phoneNumber: "", birthDate: null, emergencyContactName: "", emergencyContactPhone: "" });
   const [notes, setNotes] = useState<string>("");
   const [learning, setLearning] = useState<LearningPreferencesData>({ skillLevel: 3, lessonDuration: 60, preferredTimeSlots: [] });
@@ -247,10 +286,14 @@ function AddStudentModal({ visible, onClose, onCreated }: { visible: boolean; on
     return true;
   }, [personal]);
 
-  const onSave = useCallback(() => {
+  const onSave = useCallback(async () => {
     if (!validate()) return;
     setSaving(true);
-    setTimeout(() => {
+    setTimeout(async () => {
+      const nameParts = personal.fullName.trim().split(" ");
+      const firstName = nameParts[0] || "";
+      const lastName = nameParts.slice(1).join(" ") || "";
+      
       onCreated({
         fullName: personal.fullName.trim(),
         email: personal.email.trim(),
@@ -261,6 +304,8 @@ function AddStudentModal({ visible, onClose, onCreated }: { visible: boolean; on
         birthDate: personal.birthDate ?? null,
         emergencyContactName: personal.emergencyContactName,
         emergencyContactPhone: personal.emergencyContactPhone,
+        firstName,
+        lastName,
       });
       setSaving(false);
       reset();
