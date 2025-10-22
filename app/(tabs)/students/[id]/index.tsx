@@ -749,19 +749,20 @@ function EditStudentPackageModal({
   const pkg = typeof pkgIndex === "number" ? studentPackages[pkgIndex] : undefined;
   const base = pkg ? basePackages.find(p => p.id === pkg.packageId) : undefined;
 
-  const [name, setName] = useState<string>(pkg?.customName ?? base?.name ?? "");
-  const [price, setPrice] = useState<string>((pkg?.customPrice ?? base?.price ?? 0).toString());
-  const [hours, setHours] = useState<string>((pkg?.customHours ?? base?.hours ?? 0).toString());
-  const [includedIds, setIncludedIds] = useState<string[]>(pkg?.includedProductIds ?? []);
+  const [name, setName] = useState<string>("");
+  const [price, setPrice] = useState<string>("0");
+  const [hours, setHours] = useState<string>("0");
+  const [includedIds, setIncludedIds] = useState<string[]>([]);
   const [confirmOpen, setConfirmOpen] = useState<boolean>(false);
 
   useEffect(() => {
-    if (!pkg) return;
-    setName(pkg.customName ?? base?.name ?? "");
-    setPrice((pkg.customPrice ?? base?.price ?? 0).toString());
-    setHours((pkg.customHours ?? base?.hours ?? 0).toString());
-    setIncludedIds(pkg.includedProductIds ?? []);
-  }, [pkgIndex]);
+    if (pkg) {
+      setName(pkg.customName ?? base?.name ?? "");
+      setPrice((pkg.customPrice ?? base?.price ?? 0).toString());
+      setHours((pkg.customHours ?? base?.hours ?? 0).toString());
+      setIncludedIds(pkg.includedProductIds ?? []);
+    }
+  }, [pkgIndex, pkg, base]);
 
   const toggleIncluded = useCallback((id: string) => {
     setIncludedIds(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]));
@@ -827,7 +828,7 @@ function EditStudentPackageModal({
     }
   }, [pkgIndex, setStudentPackages, studentPackages]);
 
-  if (!pkg) return null;
+  if (!visible || !pkg) return null;
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
