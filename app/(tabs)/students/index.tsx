@@ -9,7 +9,6 @@ import { Users, Plus, X } from "lucide-react-native";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { PersonalInformation, PersonalInfo } from "@/components/students/add/PersonalInformation";
 import { NotesSection } from "@/components/students/add/NotesSection";
-import { LearningPreferences, LearningPreferencesData } from "@/components/students/add/LearningPreferences";
 import { PackageAssignment, PackageAssignmentData } from "@/components/students/add/PackageAssignment";
 import { router, useFocusEffect } from "expo-router";
 import { useStudents, useStudentActivity } from "@/components/students/StudentsStore";
@@ -247,14 +246,6 @@ export default function StudentsScreen() {
           onCreated={async (data) => {
             console.log("Student created", data);
             const studentId = String(Date.now());
-            const newStudent = {
-              name: data.fullName,
-              email: data.email,
-              status: "active" as const,
-              dateAdded: new Date(),
-              firstName: data.firstName,
-              lastName: data.lastName,
-            };
             
             const personalInfo = {
               firstName: data.firstName || "",
@@ -275,6 +266,16 @@ export default function StudentsScreen() {
               console.log("[AddStudent] Failed to save personal info", e);
             }
             
+            const newStudent = {
+              id: studentId,
+              name: data.fullName,
+              email: data.email,
+              status: "active" as const,
+              dateAdded: new Date(),
+              firstName: data.firstName,
+              lastName: data.lastName,
+            };
+            
             addStudent(newStudent);
             setAddOpen(false);
             
@@ -285,6 +286,8 @@ export default function StudentsScreen() {
                 lastName: data.lastName || "",
               },
             }));
+            
+            loadPersonalInfo();
           }}
         />
       </View>
@@ -292,21 +295,15 @@ export default function StudentsScreen() {
   );
 }
 
-function AddStudentModal({ visible, onClose, onCreated }: { visible: boolean; onClose: () => void; onCreated: (data: { fullName: string; email: string; phoneNumber: string; notes?: string; learning?: LearningPreferencesData; package?: PackageAssignmentData["selectedPackage"] | null; birthDate?: string | null; emergencyContactName?: string; emergencyContactPhone?: string; firstName: string; lastName: string; }) => void; }) {
+function AddStudentModal({ visible, onClose, onCreated }: { visible: boolean; onClose: () => void; onCreated: (data: { fullName: string; email: string; phoneNumber: string; notes?: string; package?: PackageAssignmentData["selectedPackage"] | null; birthDate?: string | null; emergencyContactName?: string; emergencyContactPhone?: string; firstName: string; lastName: string; }) => void; }) {
   const [personal, setPersonal] = useState<PersonalInfo>({ firstName: "", lastName: "", email: "", phoneNumber: "", birthDate: null, emergencyContactName: "", emergencyContactPhone: "" });
   const [notes, setNotes] = useState<string>("");
-  const [learning, setLearning] = useState<LearningPreferencesData>({ skillLevel: 3, lessonDuration: 60, preferredTimeSlots: [] });
-  const [packages, setPackages] = useState<PackageAssignmentData>({ packages: [
-    { id: "p1", name: "Startpakket", lessons: 5, price: 199 },
-    { id: "p2", name: "Standaard", lessons: 10, price: 379 },
-    { id: "p3", name: "Intensief", lessons: 20, price: 729 },
-  ], selectedPackage: null });
+  const [packages, setPackages] = useState<PackageAssignmentData>({ packages: [], selectedPackage: null });
   const [saving, setSaving] = useState<boolean>(false);
 
   const reset = useCallback(() => {
     setPersonal({ firstName: "", lastName: "", email: "", phoneNumber: "", birthDate: null, emergencyContactName: "", emergencyContactPhone: "" });
     setNotes("");
-    setLearning({ skillLevel: 3, lessonDuration: 60, preferredTimeSlots: [] });
     setPackages((p) => ({ ...p, selectedPackage: null }));
   }, []);
 
@@ -331,7 +328,6 @@ function AddStudentModal({ visible, onClose, onCreated }: { visible: boolean; on
         email: personal.email.trim(),
         phoneNumber: personal.phoneNumber.trim(),
         notes: notes.trim() || undefined,
-        learning,
         package: packages.selectedPackage ?? null,
         birthDate: personal.birthDate ?? null,
         emergencyContactName: personal.emergencyContactName,
@@ -342,7 +338,7 @@ function AddStudentModal({ visible, onClose, onCreated }: { visible: boolean; on
       setSaving(false);
       reset();
     }, 600);
-  }, [validate, onCreated, personal, notes, learning, packages, reset]);
+  }, [validate, onCreated, personal, notes, packages, reset]);
 
   return (
     <Modal visible={visible} animationType={Platform.OS === "web" ? "none" : "slide"} transparent onRequestClose={onClose}>
@@ -356,7 +352,6 @@ function AddStudentModal({ visible, onClose, onCreated }: { visible: boolean; on
           </View>
           <ScrollView style={{ maxHeight: "85%" }} contentContainerStyle={{ gap: 12, paddingBottom: 24 }}>
             <PersonalInformation value={personal} onChange={setPersonal} />
-            <LearningPreferences value={learning} onChange={setLearning} />
             <PackageAssignment value={packages} onChange={setPackages} />
             <NotesSection value={notes} onChange={setNotes} />
             <Pressable

@@ -1,12 +1,33 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import { Tag, Check, Clock } from "lucide-react-native";
+import { useSettings } from "@/components/settings/SettingsStore";
 
 export interface PackageItem { id: string; name: string; lessons: number; price: number; }
 export interface PackageAssignmentData { packages: PackageItem[]; selectedPackage?: PackageItem | null; }
 
 export function PackageAssignment({ value, onChange }: { value: PackageAssignmentData; onChange: (v: PackageAssignmentData) => void; }) {
+  const { packages: settingsPackages, products } = useSettings();
   const [local, setLocal] = useState<PackageAssignmentData>(value);
+  
+  useEffect(() => {
+    const combinedItems: PackageItem[] = [
+      ...settingsPackages.map(pkg => ({
+        id: pkg.id,
+        name: pkg.name,
+        lessons: pkg.hours,
+        price: pkg.price,
+      })),
+      ...products.map(prod => ({
+        id: prod.id,
+        name: prod.name,
+        lessons: 1,
+        price: prod.price,
+      })),
+    ];
+    setLocal(prev => ({ ...prev, packages: combinedItems }));
+  }, [settingsPackages, products]);
+  
   useEffect(() => setLocal(value), [value]);
   useEffect(() => onChange(local), [local, onChange]);
 

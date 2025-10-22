@@ -46,11 +46,12 @@ export const [StudentsProvider, useStudents] = createContextHook(() => {
     return [...filteredCustom, ...filteredSeed];
   }, [customStudents, seedData, deletedStudentIds]);
 
-  const addStudent = useCallback((student: Omit<StudentItem, "id">) => {
-    setCustomStudents((prev) => [{
+  const addStudent = useCallback((student: StudentItem | Omit<StudentItem, "id">) => {
+    const newStudent: StudentItem = "id" in student ? student : {
       id: String(Date.now()),
       ...student
-    }, ...prev]);
+    };
+    setCustomStudents((prev) => [newStudent, ...prev]);
   }, []);
 
   const updateStudent = useCallback((id: string, updates: Partial<StudentItem>) => {
