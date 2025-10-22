@@ -783,7 +783,7 @@ function EditStudentPackageModal({
                     <Text style={styles.optionTitle}>{p.name}</Text>
                     <Text style={styles.optionSub}>€{p.price.toFixed(2)}</Text>
                   </View>
-                  <Text style={styles.optionPrice}>{includedIds.includes(p.id) ? "✓" : ""}</Text>
+                  {includedIds.includes(p.id) && <Text style={styles.optionPrice}>✓</Text>}
                 </TouchableOpacity>
               ))}
             </View>
