@@ -1,5 +1,5 @@
-import React, { useCallback, useMemo, useState, useEffect } from "react";
-import { RefreshControl, ScrollView, StyleSheet, Text, View, Pressable, Modal, Platform, Alert } from "react-native";
+import React, { useCallback, useMemo, useState, useEffect, useRef } from "react";
+import { RefreshControl, ScrollView, StyleSheet, Text, View, Pressable, Modal, Platform, Alert, Animated } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StudentSearchBar, StudentFilters } from "@/components/students/StudentSearchBar";
@@ -12,6 +12,40 @@ import { NotesSection } from "@/components/students/add/NotesSection";
 
 import { router, useFocusEffect } from "expo-router";
 import { useStudents, useStudentActivity } from "@/components/students/StudentsStore";
+
+function AnimatedListItem({ children, index, delay = 0 }: { children: React.ReactNode; index: number; delay?: number }) {
+  const scaleAnim = useRef(new Animated.Value(0.7)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        delay,
+        useNativeDriver: true,
+        tension: 50,
+        friction: 7,
+      }),
+      Animated.timing(opacityAnim, {
+        toValue: 1,
+        delay,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [scaleAnim, opacityAnim, delay]);
+
+  return (
+    <Animated.View
+      style={{
+        transform: [{ scale: scaleAnim }],
+        opacity: opacityAnim,
+      }}
+    >
+      {children}
+    </Animated.View>
+  );
+}
 
 export default function StudentsScreen() {
   const [refreshing, setRefreshing] = useState<boolean>(false);
@@ -183,31 +217,32 @@ export default function StudentsScreen() {
             <LoadingSkeleton />
           ) : (
             <View style={{ gap: 12 }}>
-              {filtered.map((s) => {
+              {filtered.map((s, index) => {
                 const personalInfo = personalInfoCache[s.id];
                 const displayName = personalInfo && personalInfo.firstName && personalInfo.lastName
                   ? `${personalInfo.firstName} ${personalInfo.lastName}`.trim()
                   : s.name;
                 const dotColor = s.calculatedStatus === "active" ? "#22c55e" : s.calculatedStatus === "irregular" ? "#f59e0b" : "#ef4444";
                 return (
-                  <Pressable
-                    key={s.id}
-                    onPress={() => {
-                      console.log("Navigating to student profile", s);
-                      router.push({ pathname: "/(tabs)/students/[id]", params: { id: s.id, name: s.name, email: s.email, status: s.calculatedStatus } });
-                    }}
-                    style={({ pressed }) => [styles.card, { opacity: pressed ? 0.85 : 1 }]}
-                    testID={`student-${s.id}`}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Open profiel van ${displayName}`}
-                  >
-                    <View style={styles.avatar} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.name}>{displayName}</Text>
-                      <Text style={styles.email}>{s.email}</Text>
-                    </View>
-                    <View style={[styles.statusDot, { backgroundColor: dotColor }]} />
-                  </Pressable>
+                  <AnimatedListItem key={s.id} index={index} delay={index * 50}>
+                    <Pressable
+                      onPress={() => {
+                        console.log("Navigating to student profile", s);
+                        router.push({ pathname: "/(tabs)/students/[id]", params: { id: s.id, name: s.name, email: s.email, status: s.calculatedStatus } });
+                      }}
+                      style={({ pressed }) => [styles.card, { opacity: pressed ? 0.85 : 1 }]}
+                      testID={`student-${s.id}`}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Open profiel van ${displayName}`}
+                    >
+                      <View style={styles.avatar} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.name}>{displayName}</Text>
+                        <Text style={styles.email}>{s.email}</Text>
+                      </View>
+                      <View style={[styles.statusDot, { backgroundColor: dotColor }]} />
+                    </Pressable>
+                  </AnimatedListItem>
                 );
               })}
             </View>
