@@ -60,6 +60,13 @@ export default function StudentProfileScreen() {
   const [settingsProducts, setSettingsProducts] = useState<PackageItem[]>([]);
   const [studentPackages, setStudentPackages] = useState<StudentPackage[]>([]);
   const [hourlyPrice, setHourlyPrice] = useState<number>(0);
+  const [personalInfo, setPersonalInfo] = useState<{
+    firstName: string;
+    lastName: string;
+    email: string;
+    address: string;
+    phoneNumber: string;
+  } | null>(null);
 
   const [addVisible, setAddVisible] = useState<boolean>(false);
   const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
@@ -71,10 +78,11 @@ export default function StudentProfileScreen() {
   useEffect(() => {
     (async () => {
       try {
-        const [pkgStr, prodStr, hourlyStr] = await Promise.all([
+        const [pkgStr, prodStr, hourlyStr, personalInfoStr] = await Promise.all([
           AsyncStorage.getItem("instructor_packages"),
           AsyncStorage.getItem("instructor_products"),
           AsyncStorage.getItem("instructor_hourly_rates"),
+          AsyncStorage.getItem(`student_personal_info_${params.id}`),
         ]);
         const pkgs = (pkgStr ? JSON.parse(pkgStr) : []) as { id: string; name: string; hours: number; price: number; vatStatus: "incl" | "excl" }[];
         const prods = (prodStr ? JSON.parse(prodStr) : []) as { id: string; name: string; price: number; vatStatus: "incl" | "excl" }[];
@@ -89,6 +97,15 @@ export default function StudentProfileScreen() {
             setHourlyPrice(Number(parsed?.price ?? 0));
           } catch (err) {
             console.log("[StudentProfile] Failed to parse hourly rates", err);
+          }
+        }
+        if (personalInfoStr) {
+          try {
+            const parsed = JSON.parse(personalInfoStr);
+            setPersonalInfo(parsed);
+            console.log("[StudentProfile] Loaded personal info", parsed);
+          } catch (err) {
+            console.log("[StudentProfile] Failed to parse personal info", err);
           }
         }
         if (params.id) {
@@ -231,8 +248,16 @@ export default function StudentProfileScreen() {
         >
           <View style={styles.avatar} />
           <View style={{ flex: 1 }}>
-            <Text style={styles.name}>{params.name ?? "Onbekende leerling"}</Text>
-            <Text style={styles.email}>{params.email ?? "-"}</Text>
+            <Text style={styles.name}>
+              {personalInfo ? `${personalInfo.firstName} ${personalInfo.lastName}`.trim() || params.name || "Onbekende leerling" : params.name ?? "Onbekende leerling"}
+            </Text>
+            <Text style={styles.email}>{personalInfo?.email || params.email || "-"}</Text>
+            {personalInfo?.phoneNumber ? (
+              <Text style={styles.phoneNumber}>{personalInfo.phoneNumber}</Text>
+            ) : null}
+            {personalInfo?.address ? (
+              <Text style={styles.address}>{personalInfo.address}</Text>
+            ) : null}
             <View style={[styles.badge, { backgroundColor: statusColor }]}>
               <Text style={styles.badgeText}>{labelForStatus(params.status)}</Text>
             </View>
@@ -1054,6 +1079,8 @@ const styles = StyleSheet.create({
   avatar: { width: 64, height: 64, borderRadius: 32, backgroundColor: "#e5e7eb" },
   name: { fontSize: 18, fontWeight: "700" },
   email: { color: "#6b7280", marginTop: 4 },
+  phoneNumber: { color: "#6b7280", marginTop: 2, fontSize: 14 },
+  address: { color: "#6b7280", marginTop: 2, fontSize: 14 },
   badge: { alignSelf: "flex-start", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, overflow: "hidden", marginTop: 8 },
   badgeText: { color: "#fff", fontWeight: "700", fontSize: 12 },
   row: { flexDirection: "row", gap: 12 },
