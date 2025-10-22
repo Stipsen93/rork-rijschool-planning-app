@@ -2,6 +2,19 @@ import React, { memo, useMemo, useState } from "react";
 import { FlatList, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { Search, ChevronDown, ChevronRight } from "lucide-react-native";
 
+function getStatusColor(status: "active" | "irregular" | "inactive"): string {
+  switch (status) {
+    case "active":
+      return "#22c55e";
+    case "irregular":
+      return "#f59e0b";
+    case "inactive":
+      return "#ef4444";
+    default:
+      return "#ef4444";
+  }
+}
+
 export type Student = { id: string; name: string; email: string; status: "active" | "irregular" | "inactive" };
 export type Vehicle = { id: string; model: string; licensePlate: string; type: string; year: number };
 
@@ -51,7 +64,7 @@ function StudentVehicleSectionComponent({ students, vehicles, selectedStudentId,
                   <Text style={styles.studentName} numberOfLines={2}>{selectedStudent.name}</Text>
                   <Text style={styles.studentEmail} numberOfLines={1}>{selectedStudent.email}</Text>
                 </View>
-                <View style={[styles.statusDot, { backgroundColor: selectedStudent.status === "active" ? "#22c55e" : selectedStudent.status === "irregular" ? "#f59e0b" : "#ef4444" }]} />
+                <View style={[styles.statusDot, { backgroundColor: getStatusColor(selectedStudent.status) }]} />
               </View>
               <View style={styles.rowBetween}>
                 <Pressable onPress={() => setShowStudentSearch(true)} accessibilityRole="button">
@@ -88,7 +101,7 @@ function StudentVehicleSectionComponent({ students, vehicles, selectedStudentId,
                     <View style={{ flex: 1 }}>
                       <Text style={styles.studentItemName} numberOfLines={1}>{item.name}</Text>
                       <Text style={styles.studentItemEmail} numberOfLines={1}>{item.email}</Text>
-                      <View style={[styles.statusDot, { backgroundColor: item.status === "active" ? "#22c55e" : item.status === "irregular" ? "#f59e0b" : "#ef4444" }]} />
+                    <View style={[styles.statusDot, { backgroundColor: getStatusColor(item.status) }]} />
                     </View>
                     <ChevronRight size={18} color="#6b7280" />
                   </Pressable>
