@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Alert, FlatList, Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { CalendarDays, Camera, Check, Plus, Trash2, User, X } from "lucide-react-native";
 import { useProfile } from "@/components/settings/ProfileStore";
@@ -276,6 +276,8 @@ const calendarStyles = StyleSheet.create({
   },
 });
 
+const DRAFT_KEY = "instructor_profile_draft" as const;
+
 export default function ProfileScreen() {
   const router = useRouter();
   const { profile, updateProfile } = useProfile();
@@ -286,6 +288,7 @@ export default function ProfileScreen() {
   const [newSchool, setNewSchool] = useState<string>("");
 
   useEffect(() => {
+    console.log("[ProfileScreen] Mount - loading initial data");
     setLocalProfile(profile);
   }, [profile]);
 
@@ -303,8 +306,16 @@ export default function ProfileScreen() {
       await updateProfile(localProfile);
       console.log("Profile saved successfully");
       setIsEditing(false);
+      try {
+        // Clear draft after successful save
+        const { default: AsyncStorage } = await import("@react-native-async-storage/async-storage");
+        await AsyncStorage.removeItem(DRAFT_KEY);
+        console.log("[ProfileScreen] Cleared draft after save");
+      } catch (e) {
+        console.log("[ProfileScreen] Failed clearing draft", e);
+      }
       console.log("Navigating to settings...");
-      router.push("/settings");
+      router.replace("/(tabs)/settings");
     } catch (error) {
       console.error("Failed to save profile", error);
       Alert.alert("Fout", "Kon profiel niet opslaan");
@@ -367,6 +378,50 @@ export default function ProfileScreen() {
   const removeDrivingSchool = useCallback((school: string) => {
     onChange("drivingSchools", localProfile.drivingSchools.filter((s) => s !== school));
   }, [localProfile.drivingSchools, onChange]);
+
+  useFocusEffect(
+    useCallback(() => {
+      console.log("[ProfileScreen] Screen focused - checking for draft...");
+      let cancelled = false;
+      (async () => {
+        try {
+          const { default: AsyncStorage } = await import("@react-native-async-storage/async-storage");
+          const draftStr = await AsyncStorage.getItem(DRAFT_KEY);
+          if (!cancelled && draftStr) {
+            const draft = JSON.parse(draftStr) as typeof localProfile;
+            console.log("[ProfileScreen] Draft found, restoring and enabling edit mode");
+            setLocalProfile(draft);
+            setIsEditing(true);
+          } else {
+            console.log("[ProfileScreen] No draft found");
+          }
+        } catch (e) {
+          console.log("[ProfileScreen] Error reading draft", e);
+        }
+      })();
+
+      return () => {
+        console.log("[ProfileScreen] Screen unfocus - persisting draft if needed");
+        cancelled = true;
+        (async () => {
+          try {
+            const { default: AsyncStorage } = await import("@react-native-async-storage/async-storage");
+            const current = JSON.stringify(localProfile);
+            const saved = JSON.stringify(profile);
+            if (current !== saved) {
+              await AsyncStorage.setItem(DRAFT_KEY, current);
+              console.log("[ProfileScreen] Draft saved on blur");
+            } else {
+              await AsyncStorage.removeItem(DRAFT_KEY);
+              console.log("[ProfileScreen] Draft cleared on blur (no changes)");
+            }
+          } catch (e) {
+            console.log("[ProfileScreen] Error saving draft on blur", e);
+          }
+        })();
+      };
+    }, [localProfile, profile])
+  );
 
   return (
     <ErrorBoundary>
@@ -521,7 +576,10 @@ export default function ProfileScreen() {
           <View style={styles.footer}>
             {!isEditing ? (
               <TouchableOpacity
-                onPress={() => setIsEditing(true)}
+                onPress={() => {
+                  console.log("[ProfileScreen] Entering edit mode");
+                  setIsEditing(true);
+                }}
                 style={styles.saveCta}
                 testID="edit-btn"
               >
