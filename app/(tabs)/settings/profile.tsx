@@ -303,8 +303,8 @@ export default function ProfileScreen() {
       await updateProfile(localProfile);
       console.log("Profile saved successfully");
       setIsEditing(false);
-      console.log("Navigating back...");
-      router.back();
+      console.log("Navigating to settings...");
+      router.push("/settings");
     } catch (error) {
       console.error("Failed to save profile", error);
       Alert.alert("Fout", "Kon profiel niet opslaan");
