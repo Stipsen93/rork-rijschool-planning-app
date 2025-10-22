@@ -1,5 +1,5 @@
 import React, { useMemo, useMemo as _useMemo, useState, useCallback, useEffect } from "react";
-import { Stack, useLocalSearchParams } from "expo-router";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Platform, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -31,6 +31,7 @@ type StudentPackage = {
 };
 
 export default function StudentProfileScreen() {
+  const router = useRouter();
   const raw = useLocalSearchParams();
   const params = {
     id: (raw.id as string) ?? undefined,
@@ -219,14 +220,23 @@ export default function StudentProfileScreen() {
     <View style={{ flex: 1 }}>
       <Stack.Screen options={{ title: "Leerlingen", headerBackTitle: "Terug" }} />
       <ScrollView contentContainerStyle={[styles.container, { paddingTop: insets.top + 8 }]} testID="student-profile">
-        <View style={styles.headerCard}>
+        <TouchableOpacity
+          onPress={() => {
+            if (params.id) {
+              router.push(`/(tabs)/students/${params.id}/personal-info`);
+            }
+          }}
+          style={styles.headerCard}
+          activeOpacity={0.7}
+          testID="profile-card-btn"
+        >
           <View style={styles.avatar} />
           <View style={{ flex: 1 }}>
             <Text style={styles.name}>{params.name ?? "Onbekende leerling"}</Text>
             <Text style={styles.email}>{params.email ?? "-"}</Text>
             <Text style={[styles.badge, { backgroundColor: statusColor }]}>{labelForStatus(params.status)}</Text>
           </View>
-        </View>
+        </TouchableOpacity>
 
         <StudentOverviewTable studentName={params.name ?? ""} baseItems={availablePackages} products={settingsProducts} studentPackages={studentPackages} />
 
