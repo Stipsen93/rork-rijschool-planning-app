@@ -1,29 +1,35 @@
 import React, { memo } from "react";
 import { Platform, StyleSheet, Text, View, Image } from "react-native";
-import { Bell } from "lucide-react-native";
+import { Bell, User } from "lucide-react-native";
+import { useProfile } from "@/components/settings/ProfileStore";
 
 interface WeeklyEarnings {
   currentWeek: number;
-  trend: number; // percentage
+  trend: number;
 }
 
 interface Props {
-  instructorName: string;
-  profileImage: string;
   weeklyEarnings: WeeklyEarnings;
 }
 
-function OverviewHeaderComponent({ instructorName, profileImage, weeklyEarnings }: Props) {
+function OverviewHeaderComponent({ weeklyEarnings }: Props) {
+  const { profile, fullName } = useProfile();
   const isPositive = weeklyEarnings.trend > 0;
   return (
     <View style={styles.card} testID="overview-header">
       <View style={styles.row}>
         <View style={styles.avatarBorder}>
-          <Image source={{ uri: profileImage }} style={styles.avatar} resizeMode="cover" />
+          {profile.profileImageUrl ? (
+            <Image source={{ uri: profile.profileImageUrl }} style={styles.avatar} resizeMode="cover" />
+          ) : (
+            <View style={[styles.avatar, styles.avatarPlaceholder]}>
+              <User color="#2f95dc" size={28} />
+            </View>
+          )}
         </View>
         <View style={styles.flex1}>
           <Text style={styles.hello}>Welkom terug,</Text>
-          <Text style={styles.name}>{instructorName}</Text>
+          <Text style={styles.name}>{fullName}</Text>
         </View>
         <View style={styles.iconBadge}>
           <Bell size={18} color="#2f95dc" />
@@ -71,6 +77,7 @@ const styles = StyleSheet.create({
     borderColor: "rgba(47,149,220,0.2)",
   },
   avatar: { width: "100%", height: "100%" },
+  avatarPlaceholder: { backgroundColor: "#e5f3ff", alignItems: "center", justifyContent: "center" },
   flex1: { flex: 1 },
   hello: { color: "#6b7280" },
   name: { fontSize: 20, fontWeight: "800" },

@@ -1,0 +1,91 @@
+import { useEffect, useState, useCallback, useMemo } from "react";
+import createContextHook from "@nkzw/create-context-hook";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+export type InstructorProfile = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phoneNumber: string;
+  certificationNumber: string;
+  drivingSchoolName: string;
+  drivingSchools: string[];
+  birthDate: string | null;
+  title: string;
+  experienceYears: string;
+  taxId: string;
+  address: string;
+  iban: string;
+  specializations: string[];
+  profileImageUrl: string | null;
+};
+
+const PROFILE_KEY = "instructor_profile" as const;
+
+const defaultProfile: InstructorProfile = {
+  firstName: "",
+  lastName: "",
+  email: "",
+  phoneNumber: "",
+  certificationNumber: "",
+  drivingSchoolName: "",
+  drivingSchools: [],
+  birthDate: null,
+  title: "Gecertificeerd Rijinstructeur",
+  experienceYears: "",
+  taxId: "",
+  address: "",
+  iban: "",
+  specializations: [],
+  profileImageUrl: null,
+};
+
+export const [ProfileProvider, useProfile] = createContextHook(() => {
+  const [profile, setProfile] = useState<InstructorProfile>(defaultProfile);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    (async () => {
+      console.log("[ProfileStore] Loading instructor profile...");
+      try {
+        const stored = await AsyncStorage.getItem(PROFILE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored) as InstructorProfile;
+          setProfile(parsed);
+          console.log("[ProfileStore] Loaded profile", parsed);
+        }
+      } catch (e) {
+        console.error("[ProfileStore] Failed to load profile", e);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const updateProfile = useCallback(async (updates: Partial<InstructorProfile>) => {
+    console.log("[ProfileStore] Updating profile", updates);
+    setProfile((prev) => {
+      const updated = { ...prev, ...updates };
+      AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(updated)).catch((e) =>
+        console.error("[ProfileStore] Failed to save profile", e)
+      );
+      return updated;
+    });
+  }, []);
+
+  const fullName = useMemo(() => {
+    return `${profile.firstName} ${profile.lastName}`.trim() || "Instructeur";
+  }, [profile.firstName, profile.lastName]);
+
+  const value = useMemo(
+    () => ({
+      profile,
+      loading,
+      fullName,
+      updateProfile,
+    }),
+    [profile, loading, fullName, updateProfile]
+  );
+
+  return value;
+});

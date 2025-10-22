@@ -83,11 +83,7 @@ export default function InstructorOverview() {
             </Pressable>
           </View>
 
-          <OverviewHeader
-            instructorName="Instructeur Jan"
-            profileImage="https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&h=200&fit=crop&crop=face"
-            weeklyEarnings={weeklyEarnings}
-          />
+          <OverviewHeader weeklyEarnings={weeklyEarnings} />
 
           <NextAppointment appointment={nextAppointment} />
 

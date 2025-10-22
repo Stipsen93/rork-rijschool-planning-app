@@ -9,6 +9,7 @@ import { AgendaProvider } from "@/components/agenda/AgendaStore";
 import { WorkingHoursProvider } from "@/components/settings/WorkingHoursStore";
 import { SettingsProvider } from "@/components/settings/SettingsStore";
 import { StudentsProvider } from "@/components/students/StudentsStore";
+import { ProfileProvider } from "@/components/settings/ProfileStore";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -34,15 +35,17 @@ export default function RootLayout() {
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
         <GestureHandlerRootView style={{ flex: 1 }}>
-          <SettingsProvider>
-            <WorkingHoursProvider>
-              <AgendaProvider>
-                <StudentsProvider>
-                  <RootLayoutNav />
-                </StudentsProvider>
-              </AgendaProvider>
-            </WorkingHoursProvider>
-          </SettingsProvider>
+          <ProfileProvider>
+            <SettingsProvider>
+              <WorkingHoursProvider>
+                <AgendaProvider>
+                  <StudentsProvider>
+                    <RootLayoutNav />
+                  </StudentsProvider>
+                </AgendaProvider>
+              </WorkingHoursProvider>
+            </SettingsProvider>
+          </ProfileProvider>
         </GestureHandlerRootView>
       </QueryClientProvider>
     </trpc.Provider>
