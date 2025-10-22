@@ -118,12 +118,13 @@ function ScheduleSectionComponent({ selectedDate, selectedTime, lessonDurationHo
           <TouchableOpacity
             accessibilityRole="button"
             testID="time-input"
-            onPress={() => setShowTime(true)}
+            onPress={() => !isFullDay && setShowTime(true)}
             activeOpacity={0.8}
-            style={styles.inputWrap}
+            style={[styles.inputWrap, isFullDay && styles.inputDisabled]}
+            disabled={isFullDay}
           >
-            <Clock size={16} color="#2563eb" />
-            <Text style={styles.inputText}>{selectedTime}</Text>
+            <Clock size={16} color={isFullDay ? "#9ca3af" : "#2563eb"} />
+            <Text style={[styles.inputText, isFullDay && styles.inputTextDisabled]}>{selectedTime}</Text>
           </TouchableOpacity>
           {showTime && (
             <Modal visible animationType="fade" transparent>
@@ -149,9 +150,9 @@ function ScheduleSectionComponent({ selectedDate, selectedTime, lessonDurationHo
         </View>
         <View style={styles.fieldWrap}>
           <Text style={styles.header}>Lengte</Text>
-          <TouchableOpacity accessibilityRole="button" testID="duration-input" onPress={() => setShowDuration(true)} activeOpacity={0.8} style={styles.inputWrap}>
-            <Timer size={16} color="#2563eb" />
-            <Text style={styles.inputText}>{durationString}</Text>
+          <TouchableOpacity accessibilityRole="button" testID="duration-input" onPress={() => !isFullDay && setShowDuration(true)} activeOpacity={0.8} style={[styles.inputWrap, isFullDay && styles.inputDisabled]} disabled={isFullDay}>
+            <Timer size={16} color={isFullDay ? "#9ca3af" : "#2563eb"} />
+            <Text style={[styles.inputText, isFullDay && styles.inputTextDisabled]}>{durationString}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -418,4 +419,6 @@ const styles = StyleSheet.create({
   fullDayButtonActive: { backgroundColor: "#2563eb", borderColor: "#2563eb" },
   fullDayButtonText: { color: "#111827", fontWeight: "600" },
   fullDayButtonTextActive: { color: "#fff" },
+  inputDisabled: { opacity: 0.5, backgroundColor: "#f3f4f6" },
+  inputTextDisabled: { color: "#9ca3af" },
 });
