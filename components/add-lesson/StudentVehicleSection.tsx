@@ -33,8 +33,8 @@ function StudentVehicleSectionComponent({ students, vehicles, selectedStudentId,
     <View style={styles.container} testID={testID ?? "student-vehicle-section"}>
       <Text style={styles.title}>Leerling & Voertuig</Text>
 
-      <View style={styles.row}>
-        <View style={{ flex: 3 }}>
+      <View style={styles.column}>
+        <View>
           <Text style={styles.label}>Leerling</Text>
           {!showStudentSearch && !selectedStudent && (
             <Pressable onPress={() => setShowStudentSearch(true)} style={styles.searchLauncher} testID="launch-student-search">
@@ -98,9 +98,9 @@ function StudentVehicleSectionComponent({ students, vehicles, selectedStudentId,
           )}
         </View>
 
-        <View style={{ width: 12 }} />
+        <View style={{ height: 16 }} />
 
-        <View style={{ flex: 2 }}>
+        <View>
           <Text style={styles.label}>Voertuig</Text>
           <Pressable onPress={() => setVehicleOpen((s) => !s)} style={styles.vehicleSelect} accessibilityRole="button" testID="open-vehicle-dropdown">
             <Text style={styles.vehicleValue} numberOfLines={1}>{selectedVehicle ? `${selectedVehicle.model} (${selectedVehicle.licensePlate})` : "Voertuig"}</Text>
@@ -126,6 +126,7 @@ export const StudentVehicleSection = memo(StudentVehicleSectionComponent);
 const styles = StyleSheet.create({
   container: { gap: 12 },
   title: { fontSize: 16, fontWeight: "700" },
+  column: { gap: 0 },
   row: { flexDirection: "row", alignItems: "flex-start" },
   label: { fontSize: 12, color: "#6b7280", marginBottom: 6 },
   searchLauncher: { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 8, padding: 12, backgroundColor: "#fff" },
