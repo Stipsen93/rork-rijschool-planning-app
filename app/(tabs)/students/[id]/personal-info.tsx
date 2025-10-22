@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Modal, Pressable, FlatList } from "react-native";
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { CalendarDays, ChevronLeft, ChevronRight, X } from "lucide-react-native";
@@ -364,7 +364,6 @@ export default function PersonalInfoScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: "#f9fafb" }}>
-      <Stack.Screen options={{ title: "Persoonlijke informatie", headerBackTitle: "Terug" }} />
       <ScrollView contentContainerStyle={[styles.container, { paddingBottom: insets.bottom + 80 }]}>
         <View style={styles.card}>
           <Text style={styles.label}>Voornaam</Text>
