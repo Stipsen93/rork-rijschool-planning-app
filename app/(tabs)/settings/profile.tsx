@@ -303,13 +303,18 @@ export default function ProfileScreen() {
       return;
     }
     setSaving(true);
-    await updateProfile(localProfile);
-    setTimeout(() => {
-      setSaving(false);
+    try {
+      await updateProfile(localProfile);
+      console.log("Profile saved successfully");
       setChanged(false);
       Alert.alert("Succes", "Profiel wijzigingen opgeslagen");
       router.back();
-    }, 800);
+    } catch (error) {
+      console.error("Failed to save profile", error);
+      Alert.alert("Fout", "Kon profiel niet opslaan");
+    } finally {
+      setSaving(false);
+    }
   }, [localProfile, saving, router, updateProfile]);
 
   const pickImage = useCallback(() => {
@@ -442,7 +447,6 @@ export default function ProfileScreen() {
                 style={styles.inputFlex}
                 value={newSchool}
                 onChangeText={setNewSchool}
-                placeholder="Voeg rijschool toe"
                 onSubmitEditing={addDrivingSchool}
                 testID="field-school"
               />
@@ -468,7 +472,6 @@ export default function ProfileScreen() {
                 style={styles.inputFlex}
                 value={newSpecialization}
                 onChangeText={setNewSpecialization}
-                placeholder="Voeg specialisatie toe"
                 onSubmitEditing={addSpecialization}
                 testID="field-specialization"
               />
@@ -535,7 +538,6 @@ function Field({ label, value, onChangeText, keyboardType = "default", editable 
         keyboardType={keyboardType}
         editable={editable}
         multiline={multiline}
-        placeholder={label}
       />
     </View>
   );
