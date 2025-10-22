@@ -303,11 +303,12 @@ export default function ProfileScreen() {
       await updateProfile(localProfile);
       console.log("Profile saved successfully");
       setIsEditing(false);
+      router.back();
     } catch (error) {
       console.error("Failed to save profile", error);
       Alert.alert("Fout", "Kon profiel niet opslaan");
     }
-  }, [localProfile, updateProfile]);
+  }, [localProfile, updateProfile, router]);
 
   const pickImage = useCallback(() => {
     Alert.alert(
