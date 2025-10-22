@@ -308,7 +308,7 @@ export default function ProfileScreen() {
       console.log("Profile saved successfully");
       setChanged(false);
       Alert.alert("Succes", "Profiel wijzigingen opgeslagen");
-      router.back();
+      router.push("/(tabs)/settings");
     } catch (error) {
       console.error("Failed to save profile", error);
       Alert.alert("Fout", "Kon profiel niet opslaan");
