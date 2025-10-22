@@ -499,31 +499,7 @@ export default function PersonalInfoScreen() {
             testID="input-parentPhoneNumber"
           />
 
-          <Text style={styles.label}>Status leerling</Text>
-          <View style={styles.statusContainer}>
-            {[{ value: "active", label: "Actief" }, { value: "irregular", label: "Onregelmatig" }, { value: "inactive", label: "Inactief" }].map((option) => (
-              <TouchableOpacity
-                key={option.value}
-                onPress={() => isEditing && setInfo((prev) => ({ ...prev, status: option.value as "active" | "irregular" | "inactive" }))}
-                style={[
-                  styles.statusOption,
-                  info.status === option.value && styles.statusOptionSelected,
-                  !isEditing && styles.statusOptionDisabled,
-                ]}
-                disabled={!isEditing}
-                testID={`status-${option.value}`}
-              >
-                <Text
-                  style={[
-                    styles.statusOptionText,
-                    info.status === option.value && styles.statusOptionTextSelected,
-                  ]}
-                >
-                  {option.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+
         </View>
       </ScrollView>
 
