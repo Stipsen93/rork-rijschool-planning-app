@@ -641,7 +641,7 @@ const styles = StyleSheet.create({
   saveCtaText: { color: "#fff", fontWeight: "700", fontSize: 16 },
   footer: {
     position: "absolute",
-    bottom: 0,
+    bottom: 40,
     left: 0,
     right: 0,
     backgroundColor: "#fff",
