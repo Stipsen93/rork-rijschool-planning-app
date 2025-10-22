@@ -279,8 +279,7 @@ const calendarStyles = StyleSheet.create({
 export default function ProfileScreen() {
   const router = useRouter();
   const { profile, updateProfile } = useProfile();
-  const [saving, setSaving] = useState<boolean>(false);
-  const [changed, setChanged] = useState<boolean>(false);
+  const [isEditing, setIsEditing] = useState<boolean>(false);
   const [localProfile, setLocalProfile] = useState(profile);
   const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
   const [newSpecialization, setNewSpecialization] = useState<string>("");
@@ -292,30 +291,23 @@ export default function ProfileScreen() {
 
   const onChange = useCallback(<K extends keyof typeof localProfile>(key: K, value: typeof localProfile[K]) => {
     setLocalProfile((prev) => ({ ...prev, [key]: value }));
-    setChanged(true);
   }, []);
 
   const handleSave = useCallback(async () => {
-    if (saving) return;
     console.log("Saving profile...", localProfile);
     if (!localProfile.firstName || !localProfile.lastName || !localProfile.email.match(/^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/)) {
       Alert.alert("Ongeldige gegevens", "Vul een geldige voornaam, achternaam en e-mail in.");
       return;
     }
-    setSaving(true);
     try {
       await updateProfile(localProfile);
       console.log("Profile saved successfully");
-      setChanged(false);
-      Alert.alert("Succes", "Profiel wijzigingen opgeslagen");
-      router.push("/(tabs)/settings");
+      setIsEditing(false);
     } catch (error) {
       console.error("Failed to save profile", error);
       Alert.alert("Fout", "Kon profiel niet opslaan");
-    } finally {
-      setSaving(false);
     }
-  }, [localProfile, saving, router, updateProfile]);
+  }, [localProfile, updateProfile]);
 
   const pickImage = useCallback(() => {
     Alert.alert(
@@ -386,27 +378,33 @@ export default function ProfileScreen() {
                 <User color="#0ea5e9" size={48} />
               </View>
             )}
-            <TouchableOpacity onPress={pickImage} style={styles.cameraBtn} accessibilityRole="button" testID="pick-image">
-              <Camera color="#fff" size={16} />
-            </TouchableOpacity>
+            {isEditing && (
+              <TouchableOpacity onPress={pickImage} style={styles.cameraBtn} accessibilityRole="button" testID="pick-image">
+                <Camera color="#fff" size={16} />
+              </TouchableOpacity>
+            )}
             <Text style={styles.avatarTitle}>Profielfoto</Text>
             <Text style={styles.avatarHint}>Tik om je foto te wijzigen</Text>
           </View>
 
           <Section title="Persoonlijke Gegevens">
-            <Field label="Voornaam" value={localProfile.firstName} onChangeText={(t) => onChange("firstName", t)} testID="field-firstName" />
-            <Field label="Achternaam" value={localProfile.lastName} onChangeText={(t) => onChange("lastName", t)} testID="field-lastName" />
-            <Field label="Email" value={localProfile.email} keyboardType="email-address" onChangeText={(t) => onChange("email", t)} testID="field-email" />
-            <Field label="Telefoon" value={localProfile.phoneNumber} keyboardType="phone-pad" onChangeText={(t) => onChange("phoneNumber", t)} testID="field-phone" />
+            <Field label="Voornaam" value={localProfile.firstName} onChangeText={(t) => onChange("firstName", t)} editable={isEditing} testID="field-firstName" />
+            <Field label="Achternaam" value={localProfile.lastName} onChangeText={(t) => onChange("lastName", t)} editable={isEditing} testID="field-lastName" />
+            <Field label="Email" value={localProfile.email} keyboardType="email-address" onChangeText={(t) => onChange("email", t)} editable={isEditing} testID="field-email" />
+            <Field label="Telefoon" value={localProfile.phoneNumber} keyboardType="phone-pad" onChangeText={(t) => onChange("phoneNumber", t)} editable={isEditing} testID="field-phone" />
             
             <Text style={styles.fieldLabel}>Geboortedatum</Text>
             <TouchableOpacity
-              onPress={() => setShowDatePicker(true)}
-              style={styles.input}
+              onPress={() => {
+                if (!isEditing) return;
+                setShowDatePicker(true);
+              }}
+              style={[styles.input, !isEditing && styles.inputDisabled]}
+              disabled={!isEditing}
               testID="field-birth"
             >
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                <CalendarDays size={16} color="#2563eb" />
+                <CalendarDays size={16} color={isEditing ? "#2563eb" : "#9ca3af"} />
                 <Text style={styles.inputText}>{formatDateDisplay(localProfile.birthDate)}</Text>
               </View>
             </TouchableOpacity>
@@ -434,74 +432,112 @@ export default function ProfileScreen() {
               </Modal>
             )}
 
-            <Field label="Professionele titel" value={localProfile.title} onChangeText={(t) => onChange("title", t)} testID="field-title" />
+            <Field label="Professionele titel" value={localProfile.title} onChangeText={(t) => onChange("title", t)} editable={isEditing} testID="field-title" />
           </Section>
 
           <Section title="Professionele Informatie">
-            <Field label="WRM Pasnummer" value={localProfile.certificationNumber} onChangeText={(t) => onChange("certificationNumber", t)} testID="field-cert" />
-            <Field label="Naam Rijschool" value={localProfile.drivingSchoolName} onChangeText={(t) => onChange("drivingSchoolName", t)} testID="field-school-name" />
+            <Field label="WRM Pasnummer" value={localProfile.certificationNumber} onChangeText={(t) => onChange("certificationNumber", t)} editable={isEditing} testID="field-cert" />
+            <Field label="Naam Rijschool" value={localProfile.drivingSchoolName} onChangeText={(t) => onChange("drivingSchoolName", t)} editable={isEditing} testID="field-school-name" />
             
-            <Text style={styles.fieldLabel}>Rijschool affiliatie</Text>
-            <View style={styles.inputWithIcon}>
-              <TextInput
-                style={styles.inputFlex}
-                value={newSchool}
-                onChangeText={setNewSchool}
-                onSubmitEditing={addDrivingSchool}
-                testID="field-school"
-              />
-              <TouchableOpacity onPress={addDrivingSchool} style={styles.iconBtn} testID="add-school">
-                <Plus size={20} color="#0ea5e9" />
-              </TouchableOpacity>
-            </View>
+            {isEditing && (
+              <>
+                <Text style={styles.fieldLabel}>Rijschool affiliatie</Text>
+                <View style={styles.inputWithIcon}>
+                  <TextInput
+                    style={styles.inputFlex}
+                    value={newSchool}
+                    onChangeText={setNewSchool}
+                    onSubmitEditing={addDrivingSchool}
+                    testID="field-school"
+                  />
+                  <TouchableOpacity onPress={addDrivingSchool} style={styles.iconBtn} testID="add-school">
+                    <Plus size={20} color="#0ea5e9" />
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
             
-            {localProfile.drivingSchools.map((school) => (
-              <View key={school} style={styles.listItem}>
-                <Text style={styles.listItemText}>{school}</Text>
-                <TouchableOpacity onPress={() => removeDrivingSchool(school)} testID={`remove-school-${school}`}>
-                  <Trash2 size={18} color="#ef4444" />
-                </TouchableOpacity>
-              </View>
-            ))}
+            {localProfile.drivingSchools.length > 0 && (
+              <>
+                {!isEditing && <Text style={styles.fieldLabel}>Rijschool affiliatie</Text>}
+                {localProfile.drivingSchools.map((school) => (
+                  <View key={school} style={styles.listItem}>
+                    <Text style={styles.listItemText}>{school}</Text>
+                    {isEditing && (
+                      <TouchableOpacity onPress={() => removeDrivingSchool(school)} testID={`remove-school-${school}`}>
+                        <Trash2 size={18} color="#ef4444" />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                ))}
+              </>
+            )}
 
-            <Field label="Jaren ervaring" value={localProfile.experienceYears} keyboardType="number-pad" onChangeText={(t) => onChange("experienceYears", t)} testID="field-exp" />
+            <Field label="Jaren ervaring" value={localProfile.experienceYears} keyboardType="number-pad" onChangeText={(t) => onChange("experienceYears", t)} editable={isEditing} testID="field-exp" />
 
-            <Text style={styles.subTitle}>Specialisaties</Text>
-            <View style={styles.inputWithIcon}>
-              <TextInput
-                style={styles.inputFlex}
-                value={newSpecialization}
-                onChangeText={setNewSpecialization}
-                onSubmitEditing={addSpecialization}
-                testID="field-specialization"
-              />
-              <TouchableOpacity onPress={addSpecialization} style={styles.iconBtn} testID="add-specialization">
-                <Check size={20} color="#22c55e" />
-              </TouchableOpacity>
-            </View>
+            {isEditing && (
+              <>
+                <Text style={styles.subTitle}>Specialisaties</Text>
+                <View style={styles.inputWithIcon}>
+                  <TextInput
+                    style={styles.inputFlex}
+                    value={newSpecialization}
+                    onChangeText={setNewSpecialization}
+                    onSubmitEditing={addSpecialization}
+                    testID="field-specialization"
+                  />
+                  <TouchableOpacity onPress={addSpecialization} style={styles.iconBtn} testID="add-specialization">
+                    <Check size={20} color="#22c55e" />
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
 
-            {localProfile.specializations.map((spec) => (
-              <View key={spec} style={styles.listItem}>
-                <Text style={styles.listItemText}>{spec}</Text>
-                <TouchableOpacity onPress={() => removeSpecialization(spec)} testID={`remove-spec-${spec}`}>
-                  <Trash2 size={18} color="#ef4444" />
-                </TouchableOpacity>
-              </View>
-            ))}
+            {localProfile.specializations.length > 0 && (
+              <>
+                {!isEditing && <Text style={styles.subTitle}>Specialisaties</Text>}
+                {localProfile.specializations.map((spec) => (
+                  <View key={spec} style={styles.listItem}>
+                    <Text style={styles.listItemText}>{spec}</Text>
+                    {isEditing && (
+                      <TouchableOpacity onPress={() => removeSpecialization(spec)} testID={`remove-spec-${spec}`}>
+                        <Trash2 size={18} color="#ef4444" />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                ))}
+              </>
+            )}
           </Section>
 
           <Section title="Zakelijke Informatie">
-            <Field label="BTW nummer" value={localProfile.taxId} onChangeText={(t) => onChange("taxId", t)} testID="field-tax" />
-            <Field label="Zakelijk adres" value={localProfile.address} onChangeText={(t) => onChange("address", t)} multiline testID="field-address" />
-            <Field label="IBAN rekeningnummer" value={localProfile.iban} onChangeText={(t) => onChange("iban", t)} testID="field-iban" />
+            <Field label="BTW nummer" value={localProfile.taxId} onChangeText={(t) => onChange("taxId", t)} editable={isEditing} testID="field-tax" />
+            <Field label="Zakelijk adres" value={localProfile.address} onChangeText={(t) => onChange("address", t)} multiline editable={isEditing} testID="field-address" />
+            <Field label="IBAN rekeningnummer" value={localProfile.iban} onChangeText={(t) => onChange("iban", t)} editable={isEditing} testID="field-iban" />
           </Section>
 
-          <TouchableOpacity style={[styles.saveCta, (!changed || saving) && styles.saveCtaDisabled]} onPress={handleSave} disabled={!changed || saving} testID="save-profile-bottom">
-            <Text style={styles.saveCtaText}>{saving ? "Opslaan..." : "Wijzigingen opslaan"}</Text>
-          </TouchableOpacity>
-
-          <View style={{ height: 24 }} />
+          <View style={{ height: 100 }} />
         </ScrollView>
+
+        <View style={styles.footer}>
+          {!isEditing ? (
+            <TouchableOpacity
+              onPress={() => setIsEditing(true)}
+              style={styles.saveCta}
+              testID="edit-btn"
+            >
+              <Text style={styles.saveCtaText}>Bewerken</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              onPress={handleSave}
+              style={styles.saveCta}
+              testID="save-btn"
+            >
+              <Text style={styles.saveCtaText}>Opslaan</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </KeyboardAvoidingView>
     </ErrorBoundary>
   );
@@ -603,6 +639,17 @@ const styles = StyleSheet.create({
   },
   saveCtaDisabled: { backgroundColor: "#93c5fd" },
   saveCtaText: { color: "#fff", fontWeight: "700", fontSize: 16 },
+  footer: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "#fff",
+    borderTopWidth: 1,
+    borderTopColor: "#e5e7eb",
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
   inputWithIcon: {
     flexDirection: "row",
     alignItems: "center",
