@@ -1,8 +1,9 @@
 import React, { useCallback, useMemo, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, Text, View, Pressable, Modal, Platform, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { StudentSearchBar } from "@/components/students/StudentSearchBar";
+import { StudentSearchBar, StudentFilters } from "@/components/students/StudentSearchBar";
 import { LoadingSkeleton } from "@/components/students/LoadingSkeleton";
+import { FilterModal } from "@/components/students/FilterModal";
 import { Users, Plus, X } from "lucide-react-native";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { PersonalInformation, PersonalInfo } from "@/components/students/add/PersonalInformation";
@@ -16,7 +17,15 @@ export default function StudentsScreen() {
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [query, setQuery] = useState<string>("");
-  const [filter, setFilter] = useState<string>("all");
+  const [filters, setFilters] = useState<StudentFilters>({
+    activityStatus: [],
+    passed: null,
+    theoryPassed: null,
+    practicalExamBooked: null,
+    dateAddedFrom: null,
+    dateAddedTo: null,
+  });
+  const [filterModalOpen, setFilterModalOpen] = useState<boolean>(false);
   const [addOpen, setAddOpen] = useState<boolean>(false);
   const insets = useSafeAreaInsets();
   const { students: allStudents, addStudent } = useStudents();
@@ -29,16 +38,52 @@ export default function StudentsScreen() {
     return "inactive";
   }, [activeStudents, irregularStudents, nonActiveStudents]);
 
+  const hasActiveFilters = useMemo(() => {
+    return filters.activityStatus.length > 0 ||
+      filters.passed !== null ||
+      filters.theoryPassed !== null ||
+      filters.practicalExamBooked !== null ||
+      filters.dateAddedFrom !== null ||
+      filters.dateAddedTo !== null;
+  }, [filters]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     let arr = allStudents.map(s => ({
       ...s,
       calculatedStatus: getStudentStatus(s.name)
     }));
-    if (filter !== "all") arr = arr.filter(s => s.calculatedStatus === filter);
-    if (q.length > 0) arr = arr.filter(s => s.name.toLowerCase().includes(q) || s.email.toLowerCase().includes(q));
+
+    if (filters.activityStatus.length > 0) {
+      arr = arr.filter(s => filters.activityStatus.includes(s.calculatedStatus));
+    }
+
+    if (filters.passed !== null) {
+      arr = arr.filter(s => s.passed === filters.passed);
+    }
+
+    if (filters.theoryPassed !== null) {
+      arr = arr.filter(s => s.theoryPassed === filters.theoryPassed);
+    }
+
+    if (filters.practicalExamBooked !== null) {
+      arr = arr.filter(s => s.practicalExamBooked === filters.practicalExamBooked);
+    }
+
+    if (filters.dateAddedFrom !== null) {
+      arr = arr.filter(s => s.dateAdded && s.dateAdded >= filters.dateAddedFrom!);
+    }
+
+    if (filters.dateAddedTo !== null) {
+      arr = arr.filter(s => s.dateAdded && s.dateAdded <= filters.dateAddedTo!);
+    }
+
+    if (q.length > 0) {
+      arr = arr.filter(s => s.name.toLowerCase().includes(q) || s.email.toLowerCase().includes(q));
+    }
+
     return arr;
-  }, [allStudents, query, filter, getStudentStatus]);
+  }, [allStudents, query, filters, getStudentStatus]);
 
   const onRefresh = useCallback(() => {
     console.log("Refreshing students...");
@@ -61,12 +106,15 @@ export default function StudentsScreen() {
             <Text style={styles.text}>Beheer je leerlingen, zoek en filter.</Text>
           </View>
 
-          <StudentSearchBar value={query} onChange={setQuery} onFilterPress={() => {
-            const order = ["all", "active", "irregular", "inactive"];
-            const next = order[(order.indexOf(filter) + 1) % order.length];
-            console.log("Filter toggled to", next);
-            setFilter(next);
-          }} activeFilter={filter} />
+          <StudentSearchBar 
+            value={query} 
+            onChange={setQuery} 
+            onFilterPress={() => {
+              console.log("Opening filter modal");
+              setFilterModalOpen(true);
+            }} 
+            hasActiveFilters={hasActiveFilters} 
+          />
 
           {loading ? (
             <LoadingSkeleton />
@@ -112,6 +160,16 @@ export default function StudentsScreen() {
           <Text style={styles.fabText}>Leerling toevoegen</Text>
         </Pressable>
 
+        <FilterModal
+          visible={filterModalOpen}
+          onClose={() => setFilterModalOpen(false)}
+          filters={filters}
+          onApply={(newFilters) => {
+            console.log("Filters applied", newFilters);
+            setFilters(newFilters);
+          }}
+        />
+
         <AddStudentModal
           visible={addOpen}
           onClose={() => setAddOpen(false)}
@@ -121,6 +179,7 @@ export default function StudentsScreen() {
               name: data.fullName,
               email: data.email,
               status: "active",
+              dateAdded: new Date(),
             });
             setAddOpen(false);
           }}

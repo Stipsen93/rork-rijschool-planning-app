@@ -7,15 +7,29 @@ export interface StudentItem {
   name: string;
   email: string;
   status: "active" | "irregular" | "inactive";
+  passed?: boolean;
+  theoryPassed?: boolean;
+  practicalExamBooked?: boolean;
+  dateAdded?: Date;
 }
 
 function seedStudents(): StudentItem[] {
-  return Array.from({ length: 18 }).map((_, i) => ({
-    id: String(i + 1),
-    name: `Leerling ${i + 1}`,
-    email: `student${i + 1}@mail.com`,
-    status: i % 3 === 0 ? "active" : i % 3 === 1 ? "irregular" : "inactive",
-  }));
+  const now = new Date();
+  return Array.from({ length: 18 }).map((_, i) => {
+    const daysAgo = Math.floor(Math.random() * 180);
+    const dateAdded = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000);
+    
+    return {
+      id: String(i + 1),
+      name: `Leerling ${i + 1}`,
+      email: `student${i + 1}@mail.com`,
+      status: i % 3 === 0 ? "active" : i % 3 === 1 ? "irregular" : "inactive",
+      passed: i % 5 === 0,
+      theoryPassed: i % 2 === 0,
+      practicalExamBooked: i % 4 === 0,
+      dateAdded,
+    };
+  });
 }
 
 export const [StudentsProvider, useStudents] = createContextHook(() => {

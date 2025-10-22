@@ -1,16 +1,25 @@
-import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
+import React, { memo, useCallback, useEffect, useState } from "react";
 import { Platform, StyleSheet, TextInput, View, Pressable } from "react-native";
 import { Filter, Search, X } from "lucide-react-native";
+
+export interface StudentFilters {
+  activityStatus: ("active" | "irregular" | "inactive")[];
+  passed: boolean | null;
+  theoryPassed: boolean | null;
+  practicalExamBooked: boolean | null;
+  dateAddedFrom: Date | null;
+  dateAddedTo: Date | null;
+}
 
 interface Props {
   value: string;
   onChange: (text: string) => void;
   onFilterPress?: () => void;
-  activeFilter?: string;
+  hasActiveFilters?: boolean;
   testID?: string;
 }
 
-function StudentSearchBarComponent({ value, onChange, onFilterPress, activeFilter = "all", testID = "student-search-bar" }: Props) {
+function StudentSearchBarComponent({ value, onChange, onFilterPress, hasActiveFilters = false, testID = "student-search-bar" }: Props) {
   const [text, setText] = useState<string>(value);
 
   useEffect(() => {
@@ -21,8 +30,6 @@ function StudentSearchBarComponent({ value, onChange, onFilterPress, activeFilte
     setText(t);
     onChange(t);
   }, [onChange]);
-
-  const showDot = useMemo(() => activeFilter !== "all", [activeFilter]);
 
   return (
     <View style={styles.container} testID={testID}>
@@ -45,9 +52,9 @@ function StudentSearchBarComponent({ value, onChange, onFilterPress, activeFilte
         )}
       </View>
 
-      <Pressable accessibilityRole="button" onPress={onFilterPress} style={[styles.filterBtn, showDot && styles.filterActive]} testID="open-student-filters">
-        <Filter color={showDot ? "#2f95dc" : "#6b7280"} size={18} />
-        {showDot && <View style={styles.filterDot} />}
+      <Pressable accessibilityRole="button" onPress={onFilterPress} style={[styles.filterBtn, hasActiveFilters && styles.filterActive]} testID="open-student-filters">
+        <Filter color={hasActiveFilters ? "#2f95dc" : "#6b7280"} size={18} />
+        {hasActiveFilters && <View style={styles.filterDot} />}
       </Pressable>
     </View>
   );
