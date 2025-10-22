@@ -31,14 +31,13 @@ export default function StudentsScreen() {
   const insets = useSafeAreaInsets();
   const { students: allStudents, addStudent, updateStudent } = useStudents();
   const { activeStudents, irregularStudents, nonActiveStudents } = useStudentActivity();
-  const [personalInfoCache, setPersonalInfoCache] = useState<Record<string, { firstName: string; lastName: string; status: "active" | "irregular" | "inactive" }>>({});
+  const [personalInfoCache, setPersonalInfoCache] = useState<Record<string, { firstName: string; lastName: string }>>({});
 
   const getStudentStatus = useCallback((studentName: string): "active" | "irregular" | "inactive" => {
     if (activeStudents.some(s => s.name === studentName)) return "active";
     if (irregularStudents.some(s => s.name === studentName)) return "irregular";
-    if (nonActiveStudents.some(s => s.name === studentName)) return "inactive";
     return "inactive";
-  }, [activeStudents, irregularStudents, nonActiveStudents]);
+  }, [activeStudents, irregularStudents]);
 
   const hasActiveFilters = useMemo(() => {
     return filters.activityStatus.length > 0 ||
@@ -89,7 +88,7 @@ export default function StudentsScreen() {
 
   useEffect(() => {
     const loadPersonalInfo = async () => {
-      const cache: Record<string, { firstName: string; lastName: string; status: "active" | "irregular" | "inactive" }> = {};
+      const cache: Record<string, { firstName: string; lastName: string }> = {};
       for (const student of allStudents) {
         try {
           const key = `student_personal_info_${student.id}`;
@@ -99,7 +98,6 @@ export default function StudentsScreen() {
             cache[student.id] = {
               firstName: parsed.firstName || "",
               lastName: parsed.lastName || "",
-              status: parsed.status || student.status,
             };
           }
         } catch (e) {
@@ -151,13 +149,13 @@ export default function StudentsScreen() {
                 const displayName = personalInfo && personalInfo.firstName && personalInfo.lastName
                   ? `${personalInfo.firstName} ${personalInfo.lastName}`.trim()
                   : s.name;
-                const actualStatus = personalInfo?.status ?? s.calculatedStatus;
+                const dotColor = s.calculatedStatus === "active" ? "#22c55e" : s.calculatedStatus === "irregular" ? "#f59e0b" : "#ef4444";
                 return (
                   <Pressable
                     key={s.id}
                     onPress={() => {
                       console.log("Navigating to student profile", s);
-                      router.push({ pathname: "/(tabs)/students/[id]", params: { id: s.id, name: s.name, email: s.email, status: s.status } });
+                      router.push({ pathname: "/(tabs)/students/[id]", params: { id: s.id, name: s.name, email: s.email, status: s.calculatedStatus } });
                     }}
                     style={({ pressed }) => [styles.card, { opacity: pressed ? 0.85 : 1 }]}
                     testID={`student-${s.id}`}
@@ -169,7 +167,7 @@ export default function StudentsScreen() {
                       <Text style={styles.name}>{displayName}</Text>
                       <Text style={styles.email}>{s.email}</Text>
                     </View>
-                    <View style={[styles.statusDot, { backgroundColor: actualStatus === "active" ? "#22c55e" : actualStatus === "irregular" ? "#f59e0b" : "#ef4444" }]} />
+                    <View style={[styles.statusDot, { backgroundColor: dotColor }]} />
                   </Pressable>
                 );
               })}
