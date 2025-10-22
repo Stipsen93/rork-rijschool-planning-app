@@ -296,7 +296,8 @@ export default function StudentsScreen() {
 }
 
 function AddStudentModal({ visible, onClose, onCreated }: { visible: boolean; onClose: () => void; onCreated: (data: { fullName: string; email: string; phoneNumber: string; notes?: string; package?: PackageAssignmentData["selectedPackage"] | null; birthDate?: string | null; emergencyContactName?: string; emergencyContactPhone?: string; firstName: string; lastName: string; }) => void; }) {
-  const [personal, setPersonal] = useState<PersonalInfo>({ firstName: "", lastName: "", email: "", phoneNumber: "", birthDate: null, emergencyContactName: "", emergencyContactPhone: "" });
+  const initialPersonal: PersonalInfo = { firstName: "", lastName: "", email: "", phoneNumber: "", birthDate: null, emergencyContactName: "", emergencyContactPhone: "" };
+  const [personal, setPersonal] = useState<PersonalInfo>(initialPersonal);
   const [notes, setNotes] = useState<string>("");
   const [packages, setPackages] = useState<PackageAssignmentData>({ packages: [], selectedPackage: null });
   const [saving, setSaving] = useState<boolean>(false);
@@ -304,8 +305,14 @@ function AddStudentModal({ visible, onClose, onCreated }: { visible: boolean; on
   const reset = useCallback(() => {
     setPersonal({ firstName: "", lastName: "", email: "", phoneNumber: "", birthDate: null, emergencyContactName: "", emergencyContactPhone: "" });
     setNotes("");
-    setPackages((p) => ({ ...p, selectedPackage: null }));
+    setPackages({ packages: [], selectedPackage: null });
   }, []);
+
+  useEffect(() => {
+    if (visible) {
+      reset();
+    }
+  }, [visible, reset]);
 
   const validate = useCallback(() => {
     if (personal.firstName.trim().length === 0) { Alert.alert("Fout", "Voornaam is verplicht"); return false; }
