@@ -3,10 +3,14 @@ import { Stack, useLocalSearchParams, useRouter, useFocusEffect } from "expo-rou
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Platform, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Pencil, Trash2, X } from "lucide-react-native";
+import { Pencil, Trash2, X, AlertTriangle } from "lucide-react-native";
 import { useAgenda, AgendaLesson } from "@/components/agenda/AgendaStore";
+import { useStudents } from "@/components/students/StudentsStore";
+import type { Router } from "expo-router";
 
 type StatusType = "active" | "irregular" | "inactive" | string | undefined;
+
+type ConfirmDeleteStep = 1 | 2 | 3 | 4;
 
 type PackageItem = {
   id: string;
@@ -62,6 +66,11 @@ export default function StudentProfileScreen() {
   const [customTerms, setCustomTerms] = useState<number>(2);
   const [looseHours, setLooseHours] = useState<string>("");
   const [editIdx, setEditIdx] = useState<number | null>(null);
+
+  const [archiveModalVisible, setArchiveModalVisible] = useState<boolean>(false);
+  const [deleteModalVisible, setDeleteModalVisible] = useState<boolean>(false);
+  const [deleteStep, setDeleteStep] = useState<ConfirmDeleteStep>(1);
+  const [deleteAllLessons, setDeleteAllLessons] = useState<boolean>(false);
 
   const actualStatus = personalInfo?.status ?? params.status ?? "active";
 
@@ -358,6 +367,16 @@ export default function StudentProfileScreen() {
 
         <RecentLessonsCard studentName={params.name ?? ""} />
 
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Beheer leerling</Text>
+          <TouchableOpacity onPress={() => setArchiveModalVisible(true)} style={styles.archiveBtn} testID="archive-student-btn">
+            <Text style={styles.archiveBtnText}>Leerling archiveren</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => { setDeleteStep(1); setDeleteModalVisible(true); }} style={styles.deleteBtn} testID="delete-student-btn">
+            <Text style={styles.deleteBtnText}>Leerling verwijderen</Text>
+          </TouchableOpacity>
+        </View>
+
         <View style={{ height: 80 }} />
       </ScrollView>
 
@@ -387,6 +406,28 @@ export default function StudentProfileScreen() {
         setStudentPackages={setStudentPackages}
         basePackages={availablePackages}
         productsGroup={settingsProducts}
+      />
+
+      <ArchiveStudentModal
+        visible={archiveModalVisible}
+        onClose={() => setArchiveModalVisible(false)}
+        studentId={params.id ?? ""}
+        studentName={personalInfo ? `${personalInfo.firstName} ${personalInfo.lastName}`.trim() : params.name ?? "Onbekende leerling"}
+        studentPackages={studentPackages}
+        router={router}
+      />
+
+      <DeleteStudentModal
+        visible={deleteModalVisible}
+        onClose={() => { setDeleteModalVisible(false); setDeleteStep(1); setDeleteAllLessons(false); }}
+        studentId={params.id ?? ""}
+        studentName={personalInfo ? `${personalInfo.firstName} ${personalInfo.lastName}`.trim() : params.name ?? "Onbekende leerling"}
+        studentPackages={studentPackages}
+        step={deleteStep}
+        setStep={setDeleteStep}
+        deleteAllLessons={deleteAllLessons}
+        setDeleteAllLessons={setDeleteAllLessons}
+        router={router}
       />
     </View>
   );
@@ -877,6 +918,358 @@ function EditStudentPackageModal({
   );
 }
 
+function ArchiveStudentModal({
+  visible,
+  onClose,
+  studentId,
+  studentName,
+  studentPackages,
+  router,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  studentId: string;
+  studentName: string;
+  studentPackages: StudentPackage[];
+  router: Router;
+}) {
+  const { updateStudent } = useStudents();
+  const [step, setStep] = useState<"confirm" | "terms">("confirm");
+
+  const unpaidTerms = useMemo(() => {
+    const terms: { pkgName: string; termNumber: number; amount: number; idx: number; termIdx: number }[] = [];
+    studentPackages.forEach((pkg, idx) => {
+      const info = pkg.customName ?? "Pakket";
+      pkg.installments.forEach((inst, termIdx) => {
+        if (!inst.paid) {
+          terms.push({
+            pkgName: info,
+            termNumber: inst.installmentNumber,
+            amount: inst.amount,
+            idx,
+            termIdx,
+          });
+        }
+      });
+    });
+    return terms;
+  }, [studentPackages]);
+
+  const [markedTerms, setMarkedTerms] = useState<Set<string>>(new Set());
+
+  const toggleTerm = useCallback((idx: number, termIdx: number) => {
+    const key = `${idx}-${termIdx}`;
+    setMarkedTerms(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(key)) {
+        newSet.delete(key);
+      } else {
+        newSet.add(key);
+      }
+      return newSet;
+    });
+  }, []);
+
+  const handleArchive = useCallback(async () => {
+    if (unpaidTerms.length > 0 && step === "confirm") {
+      setStep("terms");
+      return;
+    }
+
+    try {
+      await AsyncStorage.setItem(`student_archived_${studentId}`, "true");
+      updateStudent(studentId, { status: "inactive" });
+      console.log("[ArchiveStudent] Archived student", studentId);
+      onClose();
+      router.back();
+    } catch (err) {
+      console.log("[ArchiveStudent] Failed to archive", err);
+      Alert.alert("Fout", "Kon leerling niet archiveren");
+    }
+  }, [unpaidTerms.length, step, studentId, updateStudent, onClose, router]);
+
+  const handleClose = useCallback(() => {
+    setStep("confirm");
+    setMarkedTerms(new Set());
+    onClose();
+  }, [onClose]);
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
+      <View style={styles.modalBackdrop}>
+        <View style={styles.modalCard}>
+          {step === "confirm" && (
+            <>
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                <Text style={styles.modalTitle}>Leerling archiveren</Text>
+                <TouchableOpacity onPress={handleClose} style={{ padding: 8 }}>
+                  <X size={22} color="#111827" />
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.mutedText}>Weet je zeker dat je {studentName} wilt archiveren?</Text>
+              <Text style={[styles.mutedText, { marginTop: 8 }]}>Deze leerling wordt verborgen uit de lijst en kan later worden teruggezet via de filter &apos;Gearchiveerd&apos;.</Text>
+              <View style={{ flexDirection: "row", gap: 8, marginTop: 16 }}>
+                <TouchableOpacity onPress={handleClose} style={[styles.secondaryBtn, { flex: 1 }]} testID="cancel-archive">
+                  <Text style={styles.secondaryBtnText}>Annuleren</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleArchive} style={[styles.archiveBtn, { flex: 1 }]} testID="confirm-archive">
+                  <Text style={styles.archiveBtnText}>Archiveren</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+
+          {step === "terms" && (
+            <>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                <AlertTriangle size={24} color="#f59e0b" />
+                <Text style={[styles.modalTitle, { flex: 1 }]}>Openstaande termijnen</Text>
+                <TouchableOpacity onPress={handleClose} style={{ padding: 8 }}>
+                  <X size={22} color="#111827" />
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.mutedText}>Er zijn nog {unpaidTerms.length} openstaande termijn(en). Markeer ze als betaald voordat je archiveert:</Text>
+              <ScrollView style={{ maxHeight: 300, marginTop: 12 }} contentContainerStyle={{ gap: 8 }}>
+                {unpaidTerms.map((term) => {
+                  const key = `${term.idx}-${term.termIdx}`;
+                  const isMarked = markedTerms.has(key);
+                  return (
+                    <TouchableOpacity
+                      key={key}
+                      onPress={() => toggleTerm(term.idx, term.termIdx)}
+                      style={[styles.termBtn, isMarked && styles.termBtnPaid]}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.termBtnText, isMarked && styles.termBtnTextPaid]}>{term.pkgName} - Termijn {term.termNumber}</Text>
+                        <Text style={[styles.mutedText, isMarked && { color: "#fff" }, { fontSize: 12 }]}>€{term.amount.toFixed(2)}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+              <View style={{ flexDirection: "row", gap: 8, marginTop: 16 }}>
+                <TouchableOpacity onPress={handleClose} style={[styles.secondaryBtn, { flex: 1 }]} testID="cancel-archive-terms">
+                  <Text style={styles.secondaryBtnText}>Annuleren</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleArchive} style={[styles.archiveBtn, { flex: 1 }]} testID="confirm-archive-final">
+                  <Text style={styles.archiveBtnText}>Toch archiveren</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function DeleteStudentModal({
+  visible,
+  onClose,
+  studentId,
+  studentName,
+  studentPackages,
+  step,
+  setStep,
+  deleteAllLessons,
+  setDeleteAllLessons,
+  router,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  studentId: string;
+  studentName: string;
+  studentPackages: StudentPackage[];
+  step: ConfirmDeleteStep;
+  setStep: (step: ConfirmDeleteStep) => void;
+  deleteAllLessons: boolean;
+  setDeleteAllLessons: (value: boolean) => void;
+  router: Router;
+}) {
+  const { lessonsByDate, removeLessonById } = useAgenda();
+
+  const unpaidTerms = useMemo(() => {
+    const terms: { pkgName: string; termNumber: number; amount: number }[] = [];
+    studentPackages.forEach((pkg) => {
+      const info = pkg.customName ?? "Pakket";
+      pkg.installments.forEach((inst) => {
+        if (!inst.paid) {
+          terms.push({
+            pkgName: info,
+            termNumber: inst.installmentNumber,
+            amount: inst.amount,
+          });
+        }
+      });
+    });
+    return terms;
+  }, [studentPackages]);
+
+  const studentLessons = useMemo(() => {
+    const lessons: AgendaLesson[] = [];
+    Object.values(lessonsByDate).forEach((day) => {
+      day.forEach((l) => {
+        if (l.studentName?.toLowerCase() === studentName.toLowerCase()) {
+          lessons.push(l);
+        }
+      });
+    });
+    return lessons;
+  }, [lessonsByDate, studentName]);
+
+  const handleNext = useCallback(() => {
+    if (step < 4) {
+      setStep((step + 1) as ConfirmDeleteStep);
+    }
+  }, [step, setStep]);
+
+  const handleDelete = useCallback(async () => {
+    try {
+      if (deleteAllLessons) {
+        studentLessons.forEach((lesson) => {
+          removeLessonById(lesson.id);
+        });
+        console.log("[DeleteStudent] Deleted all lessons", studentLessons.length);
+      }
+
+      await AsyncStorage.removeItem(`student_personal_info_${studentId}`);
+      await AsyncStorage.removeItem(`student_packages_${studentId}`);
+      await AsyncStorage.removeItem(`lesson_payments_${studentName}`);
+      await AsyncStorage.removeItem(`student_archived_${studentId}`);
+
+      console.log("[DeleteStudent] Deleted student", studentId);
+      onClose();
+      router.back();
+    } catch (err) {
+      console.log("[DeleteStudent] Failed to delete", err);
+      Alert.alert("Fout", "Kon leerling niet verwijderen");
+    }
+  }, [deleteAllLessons, studentLessons, removeLessonById, studentId, studentName, onClose, router]);
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <View style={styles.modalBackdrop}>
+        <View style={styles.modalCard}>
+          {step === 1 && (
+            <>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                <AlertTriangle size={24} color="#ef4444" />
+                <Text style={[styles.modalTitle, { flex: 1, color: "#ef4444" }]}>Leerling verwijderen</Text>
+                <TouchableOpacity onPress={onClose} style={{ padding: 8 }}>
+                  <X size={22} color="#111827" />
+                </TouchableOpacity>
+              </View>
+              <Text style={[styles.mutedText, { fontSize: 16, color: "#111827", marginTop: 8 }]}>Weet je het zeker?</Text>
+              <Text style={[styles.mutedText, { marginTop: 8 }]}>Deze actie kan niet ongedaan worden gemaakt. Alle gegevens van {studentName} worden permanent verwijderd.</Text>
+              <View style={{ flexDirection: "row", gap: 8, marginTop: 16 }}>
+                <TouchableOpacity onPress={onClose} style={[styles.secondaryBtn, { flex: 1 }]} testID="cancel-delete-step1">
+                  <Text style={styles.secondaryBtnText}>Annuleren</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleNext} style={[styles.deleteBtn, { flex: 1, marginTop: 0 }]} testID="delete-next-step1">
+                  <Text style={styles.deleteBtnText}>Verder 1/4</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+
+          {step === 2 && (
+            <>
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                <Text style={styles.modalTitle}>Openstaande termijnen</Text>
+                <TouchableOpacity onPress={onClose} style={{ padding: 8 }}>
+                  <X size={22} color="#111827" />
+                </TouchableOpacity>
+              </View>
+              {unpaidTerms.length === 0 ? (
+                <Text style={styles.mutedText}>Geen openstaande termijnen gevonden.</Text>
+              ) : (
+                <>
+                  <Text style={styles.mutedText}>De volgende termijnen staan nog open:</Text>
+                  <ScrollView style={{ maxHeight: 300, marginTop: 12 }} contentContainerStyle={{ gap: 8 }}>
+                    {unpaidTerms.map((term, idx) => (
+                      <View key={idx} style={[styles.termBtn, { opacity: 0.6 }]}>
+                        <Text style={styles.termBtnText}>{term.pkgName} - Termijn {term.termNumber}</Text>
+                        <Text style={[styles.mutedText, { fontSize: 12 }]}>€{term.amount.toFixed(2)}</Text>
+                      </View>
+                    ))}
+                  </ScrollView>
+                </>
+              )}
+              <View style={{ flexDirection: "row", gap: 8, marginTop: 16 }}>
+                <TouchableOpacity onPress={onClose} style={[styles.secondaryBtn, { flex: 1 }]} testID="cancel-delete-step2">
+                  <Text style={styles.secondaryBtnText}>Annuleren</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleNext} style={[styles.deleteBtn, { flex: 1, marginTop: 0 }]} testID="delete-next-step2">
+                  <Text style={styles.deleteBtnText}>Verder 2/4</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+
+          {step === 3 && (
+            <>
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                <Text style={styles.modalTitle}>Afspraken in agenda</Text>
+                <TouchableOpacity onPress={onClose} style={{ padding: 8 }}>
+                  <X size={22} color="#111827" />
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.mutedText}>Er {studentLessons.length === 1 ? "is" : "zijn"} {studentLessons.length} afsp{studentLessons.length === 1 ? "raak" : "raken"} van {studentName} in de agenda.</Text>
+              <Text style={[styles.mutedText, { marginTop: 8 }]}>Wat wil je doen met deze afspraken?</Text>
+              <View style={{ gap: 12, marginTop: 16 }}>
+                <TouchableOpacity
+                  onPress={() => { setDeleteAllLessons(false); handleNext(); }}
+                  style={[styles.primaryBtn]}
+                  testID="keep-lessons"
+                >
+                  <Text style={styles.primaryBtnText}>Afspraken laten staan</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => { setDeleteAllLessons(true); handleNext(); }}
+                  style={[styles.deleteBtn, { marginTop: 0 }]}
+                  testID="delete-lessons"
+                >
+                  <Text style={styles.deleteBtnText}>Alle afspraken verwijderen</Text>
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity onPress={onClose} style={[styles.secondaryBtn, { marginTop: 12 }]} testID="cancel-delete-step3">
+                <Text style={styles.secondaryBtnText}>Annuleren</Text>
+              </TouchableOpacity>
+            </>
+          )}
+
+          {step === 4 && (
+            <>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                <AlertTriangle size={24} color="#ef4444" />
+                <Text style={[styles.modalTitle, { flex: 1, color: "#ef4444" }]}>Laatste bevestiging</Text>
+                <TouchableOpacity onPress={onClose} style={{ padding: 8 }}>
+                  <X size={22} color="#111827" />
+                </TouchableOpacity>
+              </View>
+              <Text style={[styles.mutedText, { fontSize: 16, color: "#111827", marginTop: 8 }]}>U staat op het punt {studentName} te verwijderen</Text>
+              <Text style={[styles.mutedText, { marginTop: 8 }]}>Weet je het zeker? Deze actie kan niet ongedaan worden gemaakt.</Text>
+              {deleteAllLessons && (
+                <View style={{ backgroundColor: "#fef2f2", padding: 12, borderRadius: 8, marginTop: 12, borderWidth: 1, borderColor: "#fca5a5" }}>
+                  <Text style={{ color: "#991b1b", fontWeight: "600" }}>Let op: Alle {studentLessons.length} afspraken worden ook verwijderd</Text>
+                </View>
+              )}
+              <View style={{ flexDirection: "row", gap: 8, marginTop: 16 }}>
+                <TouchableOpacity onPress={onClose} style={[styles.secondaryBtn, { flex: 1 }]} testID="cancel-delete-step4">
+                  <Text style={styles.secondaryBtnText}>Annuleren</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleDelete} style={[styles.deleteBtn, { flex: 1, marginTop: 0 }]} testID="confirm-delete-final">
+                  <Text style={styles.deleteBtnText}>Definitief verwijderen</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 function AddPackageModal({
   visible,
   onClose,
@@ -1156,4 +1549,8 @@ const styles = StyleSheet.create({
   input: { borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10 },
   destructiveBtn: { backgroundColor: "#ef4444", paddingVertical: 12, borderRadius: 12, marginTop: 8 },
   destructiveBtnText: { color: "#fff", fontWeight: "700", textAlign: "center" },
+  archiveBtn: { backgroundColor: "#2f95dc", paddingVertical: 14, borderRadius: 12, alignItems: "center" },
+  archiveBtnText: { color: "#fff", fontWeight: "700", fontSize: 16 },
+  deleteBtn: { backgroundColor: "#ef4444", paddingVertical: 14, borderRadius: 12, alignItems: "center", marginTop: 12 },
+  deleteBtnText: { color: "#fff", fontWeight: "700", fontSize: 16 },
 });

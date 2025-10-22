@@ -20,12 +20,14 @@ export default function StudentsScreen() {
   const [query, setQuery] = useState<string>("");
   const [filters, setFilters] = useState<StudentFilters>({
     activityStatus: [],
+    showArchived: false,
     passed: null,
     theoryPassed: null,
     practicalExamBooked: null,
     dateAddedFrom: null,
     dateAddedTo: null,
   });
+  const [archivedStudents, setArchivedStudents] = useState<Set<string>>(new Set());
   const [filterModalOpen, setFilterModalOpen] = useState<boolean>(false);
   const [addOpen, setAddOpen] = useState<boolean>(false);
   const insets = useSafeAreaInsets();
@@ -41,6 +43,7 @@ export default function StudentsScreen() {
 
   const hasActiveFilters = useMemo(() => {
     return filters.activityStatus.length > 0 ||
+      filters.showArchived ||
       filters.passed !== null ||
       filters.theoryPassed !== null ||
       filters.practicalExamBooked !== null ||
@@ -79,6 +82,12 @@ export default function StudentsScreen() {
       arr = arr.filter(s => s.dateAdded && s.dateAdded <= filters.dateAddedTo!);
     }
 
+    if (filters.showArchived) {
+      arr = arr.filter(s => archivedStudents.has(s.id));
+    } else {
+      arr = arr.filter(s => !archivedStudents.has(s.id));
+    }
+
     if (q.length > 0) {
       arr = arr.filter(s => s.name.toLowerCase().includes(q) || s.email.toLowerCase().includes(q));
     }
@@ -99,10 +108,12 @@ export default function StudentsScreen() {
     });
 
     return arr;
-  }, [allStudents, query, filters, getStudentStatus, personalInfoCache]);
+  }, [allStudents, query, filters, getStudentStatus, personalInfoCache, archivedStudents]);
 
   const loadPersonalInfo = useCallback(async () => {
     const cache: Record<string, { firstName: string; lastName: string }> = {};
+    const archived = new Set<string>();
+    
     for (const student of allStudents) {
       try {
         const key = `student_personal_info_${student.id}`;
@@ -114,11 +125,18 @@ export default function StudentsScreen() {
             lastName: parsed.lastName || "",
           };
         }
+        
+        const archivedKey = `student_archived_${student.id}`;
+        const archivedStr = await AsyncStorage.getItem(archivedKey);
+        if (archivedStr === "true") {
+          archived.add(student.id);
+        }
       } catch (e) {
         console.log("[StudentsScreen] Failed to load personal info for student", student.id, e);
       }
     }
     setPersonalInfoCache(cache);
+    setArchivedStudents(archived);
   }, [allStudents]);
 
   useEffect(() => {

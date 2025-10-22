@@ -30,6 +30,7 @@ export function FilterModal({ visible, onClose, filters, onApply }: Props) {
   const handleReset = () => {
     const resetFilters: StudentFilters = {
       activityStatus: [],
+      showArchived: false,
       passed: null,
       theoryPassed: null,
       practicalExamBooked: null,
@@ -73,6 +74,18 @@ export function FilterModal({ visible, onClose, filters, onApply }: Props) {
                   selected={localFilters.activityStatus.includes("inactive")}
                   onPress={() => toggleActivityStatus("inactive")}
                   color="#ef4444"
+                />
+              </View>
+            </View>
+
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Gearchiveerd</Text>
+              <View style={styles.optionsGrid}>
+                <FilterOption
+                  label="Toon gearchiveerde leerlingen"
+                  selected={localFilters.showArchived}
+                  onPress={() => setLocalFilters(prev => ({ ...prev, showArchived: !prev.showArchived }))}
+                  color="#6b7280"
                 />
               </View>
             </View>

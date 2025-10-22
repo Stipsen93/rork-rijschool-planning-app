@@ -4,6 +4,7 @@ import { Filter, Search, X } from "lucide-react-native";
 
 export interface StudentFilters {
   activityStatus: ("active" | "irregular" | "inactive")[];
+  showArchived: boolean;
   passed: boolean | null;
   theoryPassed: boolean | null;
   practicalExamBooked: boolean | null;
