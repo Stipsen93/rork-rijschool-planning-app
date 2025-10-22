@@ -516,28 +516,26 @@ export default function ProfileScreen() {
             <Field label="IBAN rekeningnummer" value={localProfile.iban} onChangeText={(t) => onChange("iban", t)} editable={isEditing} testID="field-iban" />
           </Section>
 
-          <View style={{ height: 100 }} />
+          <View style={styles.footer}>
+            {!isEditing ? (
+              <TouchableOpacity
+                onPress={() => setIsEditing(true)}
+                style={styles.saveCta}
+                testID="edit-btn"
+              >
+                <Text style={styles.saveCtaText}>Bewerken</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                onPress={handleSave}
+                style={styles.saveCta}
+                testID="save-btn"
+              >
+                <Text style={styles.saveCtaText}>Opslaan</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </ScrollView>
-
-        <View style={styles.footer}>
-          {!isEditing ? (
-            <TouchableOpacity
-              onPress={() => setIsEditing(true)}
-              style={styles.saveCta}
-              testID="edit-btn"
-            >
-              <Text style={styles.saveCtaText}>Bewerken</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              onPress={handleSave}
-              style={styles.saveCta}
-              testID="save-btn"
-            >
-              <Text style={styles.saveCtaText}>Opslaan</Text>
-            </TouchableOpacity>
-          )}
-        </View>
       </KeyboardAvoidingView>
     </ErrorBoundary>
   );
@@ -640,15 +638,9 @@ const styles = StyleSheet.create({
   saveCtaDisabled: { backgroundColor: "#93c5fd" },
   saveCtaText: { color: "#fff", fontWeight: "700", fontSize: 16 },
   footer: {
-    position: "absolute",
-    bottom: 80,
-    left: 0,
-    right: 0,
-    backgroundColor: "#fff",
-    borderTopWidth: 1,
-    borderTopColor: "#e5e7eb",
     paddingHorizontal: 16,
     paddingVertical: 16,
+    paddingBottom: 120,
   },
   inputWithIcon: {
     flexDirection: "row",
