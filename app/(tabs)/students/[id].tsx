@@ -823,9 +823,7 @@ function EditStudentPackageModal({
         <View style={styles.modalBackdrop}>
           <View style={styles.confirmCard}>
             <Text style={styles.modalTitle}>{pkg?.packageId?.startsWith("loose_hours_") ? "Losse uren verwijderen?" : (base?.isProduct ? "Product verwijderen?" : "Pakket verwijderen?")}</Text>
-            <Text style={styles.mutedText}>
-              Deze actie verwijdert dit item alleen voor deze leerling.
-            </Text>
+            <Text style={styles.mutedText}>Deze actie verwijdert dit item alleen voor deze leerling.</Text>
             <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
               <TouchableOpacity onPress={() => setConfirmOpen(false)} style={[styles.secondaryBtn, { flex: 1 }]} testID="cancel-delete-student-pkg">
                 <Text style={styles.secondaryBtnText}>Annuleren</Text>
