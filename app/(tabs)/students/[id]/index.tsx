@@ -933,7 +933,7 @@ function ArchiveStudentModal({
   studentPackages: StudentPackage[];
   router: Router;
 }) {
-  const { updateStudent } = useStudents();
+  const { updateStudent, deleteStudent } = useStudents();
   const [step, setStep] = useState<"confirm" | "terms">("confirm");
 
   const unpaidTerms = useMemo(() => {
@@ -1123,6 +1123,8 @@ function DeleteStudentModal({
     }
   }, [step, setStep]);
 
+  const { deleteStudent: removeStudent } = useStudents();
+
   const handleDelete = useCallback(async () => {
     try {
       if (deleteAllLessons) {
@@ -1137,6 +1139,7 @@ function DeleteStudentModal({
       await AsyncStorage.removeItem(`lesson_payments_${studentName}`);
       await AsyncStorage.removeItem(`student_archived_${studentId}`);
 
+      removeStudent(studentId);
       console.log("[DeleteStudent] Deleted student", studentId);
       onClose();
       router.back();
@@ -1144,7 +1147,7 @@ function DeleteStudentModal({
       console.log("[DeleteStudent] Failed to delete", err);
       Alert.alert("Fout", "Kon leerling niet verwijderen");
     }
-  }, [deleteAllLessons, studentLessons, removeLessonById, studentId, studentName, onClose, router]);
+  }, [deleteAllLessons, studentLessons, removeLessonById, studentId, studentName, onClose, router, removeStudent]);
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>

@@ -68,11 +68,16 @@ export const [StudentsProvider, useStudents] = createContextHook(() => {
     }
   }, [customStudents, seedData]);
 
+  const deleteStudent = useCallback((id: string) => {
+    setCustomStudents((prev) => prev.filter(s => s.id !== id));
+  }, []);
+
   const value = useMemo(() => ({
     students: allStudents,
     addStudent,
     updateStudent,
-  }), [allStudents, addStudent, updateStudent]);
+    deleteStudent,
+  }), [allStudents, addStudent, updateStudent, deleteStudent]);
 
   return value;
 });
