@@ -63,13 +63,12 @@ function ScheduleSectionComponent({ selectedDate, selectedTime, lessonDurationHo
   };
 
   const durationOptions = useMemo(() => {
-    const arr: { label: string; h: number; m: number }[] = [];
-    for (let minutes = 30; minutes <= 8 * 60; minutes += 30) {
+    const durations = [30, 50, 60, 75, 90, 100, 120, 150, 180, 210, 240, 270, 300, 330, 360, 390, 420, 450, 480, 510, 540, 570, 600];
+    return durations.map(minutes => {
       const h = Math.floor(minutes / 60);
       const m = minutes % 60;
-      arr.push({ label: `${pad(h)}:${pad(m)}`, h, m });
-    }
-    return arr;
+      return { label: `${pad(h)}:${pad(m)}`, h, m, minutes };
+    });
   }, []);
 
   return (
@@ -165,23 +164,27 @@ function ScheduleSectionComponent({ selectedDate, selectedTime, lessonDurationHo
                   <X size={20} color="#111827" />
                 </TouchableOpacity>
               </View>
-              <View style={styles.optionsWrap}>
-                {durationOptions.map((opt) => {
-                  const selected = opt.h === lessonDurationHours && opt.m === lessonDurationMinutes;
-                  return (
-                    <Pressable
-                      key={opt.label}
-                      onPress={() => {
-                        onDurationChanged(opt.h, opt.m);
-                        setShowDuration(false);
-                      }}
-                      style={[styles.optionItem, selected && styles.optionItemSelected]}
-                      testID={`duration-${opt.label}`}
-                    >
-                      <Text style={[styles.optionText, selected && styles.optionTextSelected]}>{opt.label}</Text>
-                    </Pressable>
-                  );
-                })}
+              <View style={styles.pickerWrap}>
+                <FlatList
+                  data={durationOptions}
+                  keyExtractor={(item) => item.label}
+                  contentContainerStyle={styles.durationListContent}
+                  renderItem={({ item }) => {
+                    const selected = item.h === lessonDurationHours && item.m === lessonDurationMinutes;
+                    return (
+                      <Pressable
+                        onPress={() => {
+                          onDurationChanged(item.h, item.m);
+                          setShowDuration(false);
+                        }}
+                        style={[styles.durationItem, selected && styles.durationItemSelected]}
+                        testID={`duration-${item.label}`}
+                      >
+                        <Text style={[styles.durationText, selected && styles.durationTextSelected]}>{item.label}</Text>
+                      </Pressable>
+                    );
+                  }}
+                />
               </View>
             </View>
           </View>
@@ -392,4 +395,9 @@ const styles = StyleSheet.create({
   timeText: { fontSize: 18, color: "#111827" },
   timeTextSelected: { color: "#2563eb", fontWeight: "700" },
   timeSeparator: { fontSize: 18, fontWeight: "700", marginHorizontal: 4 },
+  durationListContent: { paddingVertical: 6 },
+  durationItem: { paddingVertical: 12, paddingHorizontal: 12, alignItems: "center" },
+  durationItemSelected: { backgroundColor: "#eff6ff" },
+  durationText: { fontSize: 18, color: "#111827" },
+  durationTextSelected: { color: "#2563eb", fontWeight: "700" },
 });
