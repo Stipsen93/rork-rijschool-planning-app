@@ -14,6 +14,7 @@ type PersonalInfo = {
   phoneNumber: string;
   parentName: string;
   parentPhoneNumber: string;
+  status: "active" | "irregular" | "inactive";
 };
 
 const monthNames = [
@@ -299,6 +300,7 @@ export default function PersonalInfoScreen() {
     phoneNumber: "",
     parentName: "",
     parentPhoneNumber: "",
+    status: "active",
   });
 
   const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
@@ -483,6 +485,32 @@ export default function PersonalInfoScreen() {
             editable={isEditing}
             testID="input-parentPhoneNumber"
           />
+
+          <Text style={styles.label}>Status leerling</Text>
+          <View style={styles.statusContainer}>
+            {[{ value: "active", label: "Actief" }, { value: "irregular", label: "Onregelmatig" }, { value: "inactive", label: "Inactief" }].map((option) => (
+              <TouchableOpacity
+                key={option.value}
+                onPress={() => isEditing && setInfo((prev) => ({ ...prev, status: option.value as "active" | "irregular" | "inactive" }))}
+                style={[
+                  styles.statusOption,
+                  info.status === option.value && styles.statusOptionSelected,
+                  !isEditing && styles.statusOptionDisabled,
+                ]}
+                disabled={!isEditing}
+                testID={`status-${option.value}`}
+              >
+                <Text
+                  style={[
+                    styles.statusOptionText,
+                    info.status === option.value && styles.statusOptionTextSelected,
+                  ]}
+                >
+                  {option.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
       </ScrollView>
 
@@ -594,6 +622,34 @@ const styles = StyleSheet.create({
     color: "#111827",
     fontWeight: "700",
     fontSize: 16,
+  },
+  statusContainer: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  statusOption: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    alignItems: "center",
+    backgroundColor: "#fff",
+  },
+  statusOptionSelected: {
+    backgroundColor: "#eff6ff",
+    borderColor: "#2563eb",
+  },
+  statusOptionDisabled: {
+    backgroundColor: "#f3f4f6",
+  },
+  statusOptionText: {
+    fontWeight: "700",
+    color: "#6b7280",
+  },
+  statusOptionTextSelected: {
+    color: "#2563eb",
   },
   modalBackdrop: {
     flex: 1,

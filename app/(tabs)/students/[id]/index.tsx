@@ -42,19 +42,6 @@ export default function StudentProfileScreen() {
   };
   const insets = useSafeAreaInsets();
 
-  const statusColor = useMemo(() => {
-    switch (params.status) {
-      case "active":
-        return "#22c55e";
-      case "irregular":
-        return "#f59e0b";
-      case "inactive":
-        return "#ef4444";
-      default:
-        return "#9ca3af";
-    }
-  }, [params.status]);
-
   const [availablePackages, setAvailablePackages] = useState<PackageItem[]>([]);
   const [settingsPackages, setSettingsPackages] = useState<PackageItem[]>([]);
   const [settingsProducts, setSettingsProducts] = useState<PackageItem[]>([]);
@@ -66,6 +53,7 @@ export default function StudentProfileScreen() {
     email: string;
     address: string;
     phoneNumber: string;
+    status?: "active" | "irregular" | "inactive";
   } | null>(null);
 
   const [addVisible, setAddVisible] = useState<boolean>(false);
@@ -74,6 +62,21 @@ export default function StudentProfileScreen() {
   const [customTerms, setCustomTerms] = useState<number>(2);
   const [looseHours, setLooseHours] = useState<string>("");
   const [editIdx, setEditIdx] = useState<number | null>(null);
+
+  const actualStatus = personalInfo?.status ?? params.status ?? "active";
+
+  const statusColor = useMemo(() => {
+    switch (actualStatus) {
+      case "active":
+        return "#22c55e";
+      case "irregular":
+        return "#f59e0b";
+      case "inactive":
+        return "#ef4444";
+      default:
+        return "#9ca3af";
+    }
+  }, [actualStatus]);
 
   useEffect(() => {
     (async () => {
@@ -259,7 +262,7 @@ export default function StudentProfileScreen() {
               <Text style={styles.address}>{personalInfo.address}</Text>
             ) : null}
             <View style={[styles.badge, { backgroundColor: statusColor }]}>
-              <Text style={styles.badgeText}>{labelForStatus(params.status)}</Text>
+              <Text style={styles.badgeText}>{labelForStatus(actualStatus)}</Text>
             </View>
           </View>
         </TouchableOpacity>
