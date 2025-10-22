@@ -293,7 +293,7 @@ export default function StudentsScreen() {
 }
 
 function AddStudentModal({ visible, onClose, onCreated }: { visible: boolean; onClose: () => void; onCreated: (data: { fullName: string; email: string; phoneNumber: string; notes?: string; learning?: LearningPreferencesData; package?: PackageAssignmentData["selectedPackage"] | null; birthDate?: string | null; emergencyContactName?: string; emergencyContactPhone?: string; firstName: string; lastName: string; }) => void; }) {
-  const [personal, setPersonal] = useState<PersonalInfo>({ fullName: "", email: "", phoneNumber: "", birthDate: null, emergencyContactName: "", emergencyContactPhone: "" });
+  const [personal, setPersonal] = useState<PersonalInfo>({ firstName: "", lastName: "", email: "", phoneNumber: "", birthDate: null, emergencyContactName: "", emergencyContactPhone: "" });
   const [notes, setNotes] = useState<string>("");
   const [learning, setLearning] = useState<LearningPreferencesData>({ skillLevel: 3, lessonDuration: 60, preferredTimeSlots: [] });
   const [packages, setPackages] = useState<PackageAssignmentData>({ packages: [
@@ -304,14 +304,15 @@ function AddStudentModal({ visible, onClose, onCreated }: { visible: boolean; on
   const [saving, setSaving] = useState<boolean>(false);
 
   const reset = useCallback(() => {
-    setPersonal({ fullName: "", email: "", phoneNumber: "", birthDate: null, emergencyContactName: "", emergencyContactPhone: "" });
+    setPersonal({ firstName: "", lastName: "", email: "", phoneNumber: "", birthDate: null, emergencyContactName: "", emergencyContactPhone: "" });
     setNotes("");
     setLearning({ skillLevel: 3, lessonDuration: 60, preferredTimeSlots: [] });
     setPackages((p) => ({ ...p, selectedPackage: null }));
   }, []);
 
   const validate = useCallback(() => {
-    if (personal.fullName.trim().length === 0) { Alert.alert("Fout", "Volledige naam is verplicht"); return false; }
+    if (personal.firstName.trim().length === 0) { Alert.alert("Fout", "Voornaam is verplicht"); return false; }
+    if (personal.lastName.trim().length === 0) { Alert.alert("Fout", "Achternaam is verplicht"); return false; }
     const er = /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/;
     if (!er.test(personal.email.trim())) { Alert.alert("Fout", "Voer een geldig e-mailadres in"); return false; }
     const pr = /^[0-9+\-\s()]{10,}$/;
@@ -323,12 +324,10 @@ function AddStudentModal({ visible, onClose, onCreated }: { visible: boolean; on
     if (!validate()) return;
     setSaving(true);
     setTimeout(async () => {
-      const nameParts = personal.fullName.trim().split(" ");
-      const firstName = nameParts[0] || "";
-      const lastName = nameParts.slice(1).join(" ") || "";
+      const fullName = `${personal.firstName.trim()} ${personal.lastName.trim()}`.trim();
       
       onCreated({
-        fullName: personal.fullName.trim(),
+        fullName,
         email: personal.email.trim(),
         phoneNumber: personal.phoneNumber.trim(),
         notes: notes.trim() || undefined,
@@ -337,8 +336,8 @@ function AddStudentModal({ visible, onClose, onCreated }: { visible: boolean; on
         birthDate: personal.birthDate ?? null,
         emergencyContactName: personal.emergencyContactName,
         emergencyContactPhone: personal.emergencyContactPhone,
-        firstName,
-        lastName,
+        firstName: personal.firstName.trim(),
+        lastName: personal.lastName.trim(),
       });
       setSaving(false);
       reset();

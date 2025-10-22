@@ -3,7 +3,8 @@ import { View, Text, TextInput, StyleSheet, Pressable, Platform } from "react-na
 import { Calendar, User, Phone, Mail } from "lucide-react-native";
 
 export interface PersonalInfo {
-  fullName: string;
+  firstName: string;
+  lastName: string;
   email: string;
   phoneNumber: string;
   birthDate?: string | null;
@@ -29,11 +30,23 @@ export function PersonalInformation({ value, onChange }: { value: PersonalInfo; 
       <View style={styles.fieldBox}>
         <User color="#2f95dc" />
         <TextInput
-          testID="pi-fullname"
+          testID="pi-firstname"
           style={styles.input}
-          placeholder="Volledige naam"
-          value={local.fullName}
-          onChangeText={(t) => setLocal((p) => ({ ...p, fullName: t }))}
+          placeholder="Voornaam"
+          value={local.firstName}
+          onChangeText={(t) => setLocal((p) => ({ ...p, firstName: t }))}
+          autoCapitalize="words"
+        />
+      </View>
+
+      <View style={styles.fieldBox}>
+        <User color="#2f95dc" />
+        <TextInput
+          testID="pi-lastname"
+          style={styles.input}
+          placeholder="Achternaam"
+          value={local.lastName}
+          onChangeText={(t) => setLocal((p) => ({ ...p, lastName: t }))}
           autoCapitalize="words"
         />
       </View>
@@ -76,19 +89,19 @@ export function PersonalInformation({ value, onChange }: { value: PersonalInfo; 
         <Text style={styles.dateText}>{dateLabel}</Text>
       </Pressable>
 
-      <Text style={styles.subTitle}>Noodcontact</Text>
+      <Text style={styles.subTitle}>Ouder/contactpersoon</Text>
 
       <TextInput
         testID="pi-em-name"
         style={styles.inputOnly}
-        placeholder="Naam noodcontact"
+        placeholder="Naam ouder/contactpersoon"
         value={local.emergencyContactName ?? ""}
         onChangeText={(t) => setLocal((p) => ({ ...p, emergencyContactName: t }))}
       />
       <TextInput
         testID="pi-em-phone"
         style={styles.inputOnly}
-        placeholder="Telefoonnummer noodcontact"
+        placeholder="Telefoonnummer ouder/contactpersoon"
         keyboardType={Platform.select({ ios: "number-pad", android: "number-pad", default: "default" })}
         value={local.emergencyContactPhone ?? ""}
         onChangeText={(t) => setLocal((p) => ({ ...p, emergencyContactPhone: t }))}
