@@ -36,13 +36,15 @@ function seedStudents(): StudentItem[] {
 
 export const [StudentsProvider, useStudents] = createContextHook(() => {
   const [customStudents, setCustomStudents] = useState<StudentItem[]>([]);
+  const [deletedStudentIds, setDeletedStudentIds] = useState<Set<string>>(new Set());
   const seedData = useMemo(() => seedStudents(), []);
   
   const allStudents = useMemo(() => {
     const customIds = new Set(customStudents.map(s => s.id));
-    const filteredSeed = seedData.filter(s => !customIds.has(s.id));
-    return [...customStudents, ...filteredSeed];
-  }, [customStudents, seedData]);
+    const filteredSeed = seedData.filter(s => !customIds.has(s.id) && !deletedStudentIds.has(s.id));
+    const filteredCustom = customStudents.filter(s => !deletedStudentIds.has(s.id));
+    return [...filteredCustom, ...filteredSeed];
+  }, [customStudents, seedData, deletedStudentIds]);
 
   const addStudent = useCallback((student: Omit<StudentItem, "id">) => {
     setCustomStudents((prev) => [{
@@ -69,6 +71,11 @@ export const [StudentsProvider, useStudents] = createContextHook(() => {
   }, [customStudents, seedData]);
 
   const deleteStudent = useCallback((id: string) => {
+    setDeletedStudentIds((prev) => {
+      const newSet = new Set(prev);
+      newSet.add(id);
+      return newSet;
+    });
     setCustomStudents((prev) => prev.filter(s => s.id !== id));
   }, []);
 
