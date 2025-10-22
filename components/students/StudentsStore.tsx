@@ -5,6 +5,8 @@ import { useAgenda } from "../agenda/AgendaStore";
 export interface StudentItem {
   id: string;
   name: string;
+  firstName?: string;
+  lastName?: string;
   email: string;
   status: "active" | "irregular" | "inactive";
   passed?: boolean;

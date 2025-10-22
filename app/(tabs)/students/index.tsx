@@ -1,5 +1,6 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState, useEffect } from "react";
 import { RefreshControl, ScrollView, StyleSheet, Text, View, Pressable, Modal, Platform, Alert } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StudentSearchBar, StudentFilters } from "@/components/students/StudentSearchBar";
 import { LoadingSkeleton } from "@/components/students/LoadingSkeleton";
@@ -28,8 +29,9 @@ export default function StudentsScreen() {
   const [filterModalOpen, setFilterModalOpen] = useState<boolean>(false);
   const [addOpen, setAddOpen] = useState<boolean>(false);
   const insets = useSafeAreaInsets();
-  const { students: allStudents, addStudent } = useStudents();
+  const { students: allStudents, addStudent, updateStudent } = useStudents();
   const { activeStudents, irregularStudents, nonActiveStudents } = useStudentActivity();
+  const [personalInfoCache, setPersonalInfoCache] = useState<Record<string, { firstName: string; lastName: string; status: "active" | "irregular" | "inactive" }>>({});
 
   const getStudentStatus = useCallback((studentName: string): "active" | "irregular" | "inactive" => {
     if (activeStudents.some(s => s.name === studentName)) return "active";
@@ -85,6 +87,30 @@ export default function StudentsScreen() {
     return arr;
   }, [allStudents, query, filters, getStudentStatus]);
 
+  useEffect(() => {
+    const loadPersonalInfo = async () => {
+      const cache: Record<string, { firstName: string; lastName: string; status: "active" | "irregular" | "inactive" }> = {};
+      for (const student of allStudents) {
+        try {
+          const key = `student_personal_info_${student.id}`;
+          const stored = await AsyncStorage.getItem(key);
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            cache[student.id] = {
+              firstName: parsed.firstName || "",
+              lastName: parsed.lastName || "",
+              status: parsed.status || student.status,
+            };
+          }
+        } catch (e) {
+          console.log("[StudentsScreen] Failed to load personal info for student", student.id, e);
+        }
+      }
+      setPersonalInfoCache(cache);
+    };
+    loadPersonalInfo();
+  }, [allStudents]);
+
   const onRefresh = useCallback(() => {
     console.log("Refreshing students...");
     setRefreshing(true);
@@ -120,26 +146,33 @@ export default function StudentsScreen() {
             <LoadingSkeleton />
           ) : (
             <View style={{ gap: 12 }}>
-              {filtered.map((s) => (
-                <Pressable
-                  key={s.id}
-                  onPress={() => {
-                    console.log("Navigating to student profile", s);
-                    router.push({ pathname: "/(tabs)/students/[id]", params: { id: s.id, name: s.name, email: s.email, status: s.status } });
-                  }}
-                  style={({ pressed }) => [styles.card, { opacity: pressed ? 0.85 : 1 }]}
-                  testID={`student-${s.id}`}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Open profiel van ${s.name}`}
-                >
-                  <View style={styles.avatar} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.name}>{s.name}</Text>
-                    <Text style={styles.email}>{s.email}</Text>
-                  </View>
-                  <View style={[styles.statusDot, { backgroundColor: s.calculatedStatus === "active" ? "#22c55e" : s.calculatedStatus === "irregular" ? "#f59e0b" : "#ef4444" }]} />
-                </Pressable>
-              ))}
+              {filtered.map((s) => {
+                const personalInfo = personalInfoCache[s.id];
+                const displayName = personalInfo && personalInfo.firstName && personalInfo.lastName
+                  ? `${personalInfo.firstName} ${personalInfo.lastName}`.trim()
+                  : s.name;
+                const actualStatus = personalInfo?.status ?? s.calculatedStatus;
+                return (
+                  <Pressable
+                    key={s.id}
+                    onPress={() => {
+                      console.log("Navigating to student profile", s);
+                      router.push({ pathname: "/(tabs)/students/[id]", params: { id: s.id, name: s.name, email: s.email, status: s.status } });
+                    }}
+                    style={({ pressed }) => [styles.card, { opacity: pressed ? 0.85 : 1 }]}
+                    testID={`student-${s.id}`}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Open profiel van ${displayName}`}
+                  >
+                    <View style={styles.avatar} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.name}>{displayName}</Text>
+                      <Text style={styles.email}>{s.email}</Text>
+                    </View>
+                    <View style={[styles.statusDot, { backgroundColor: actualStatus === "active" ? "#22c55e" : actualStatus === "irregular" ? "#f59e0b" : "#ef4444" }]} />
+                  </Pressable>
+                );
+              })}
             </View>
           )}
 
