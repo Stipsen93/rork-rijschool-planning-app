@@ -8,6 +8,7 @@ import { trpc, trpcClient } from "@/lib/trpc";
 import { AgendaProvider } from "@/components/agenda/AgendaStore";
 import { WorkingHoursProvider } from "@/components/settings/WorkingHoursStore";
 import { SettingsProvider } from "@/components/settings/SettingsStore";
+import { StudentsProvider } from "@/components/students/StudentsStore";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -36,7 +37,9 @@ export default function RootLayout() {
           <SettingsProvider>
             <WorkingHoursProvider>
               <AgendaProvider>
-                <RootLayoutNav />
+                <StudentsProvider>
+                  <RootLayoutNav />
+                </StudentsProvider>
               </AgendaProvider>
             </WorkingHoursProvider>
           </SettingsProvider>

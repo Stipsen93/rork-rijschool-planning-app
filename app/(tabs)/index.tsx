@@ -5,10 +5,11 @@ import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { NextAppointment, Appointment } from "@/components/overview/NextAppointment";
 import { OverviewHeader } from "@/components/overview/OverviewHeader";
 import { PerformanceMetricsCard, PerformanceMetrics } from "@/components/overview/PerformanceMetrics";
-import { StudentActivityDashboard, StudentActivityData, StudentItem } from "@/components/overview/StudentActivityDashboard";
+import { StudentActivityDashboard } from "@/components/overview/StudentActivityDashboard";
 import { Settings } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { useAgenda } from "@/components/agenda/AgendaStore";
+import { useStudentActivity } from "@/components/students/StudentsStore";
 
 function computeNextAppointment(lessonsByDate: Record<string, Array<{id: string, studentName?: string, lessonType?: string, startTime: string, endTime: string, date: Date}>>): Appointment | null {
   const now = new Date();
@@ -33,41 +34,13 @@ function computeNextAppointment(lessonsByDate: Record<string, Array<{id: string,
   return next;
 }
 
-function buildStudentActivity(): StudentActivityData {
-  const now = new Date();
-  const mk = (name: string, past: number, fut: number, days: number, img: string): StudentItem => ({
-    name,
-    pastLessons: past,
-    futureLessons: fut,
-    daysSinceLastLesson: days,
-    profileImage: img,
-  });
-  const list = [
-    mk("Emma van der Berg", 4, 3, 5, "https://images.unsplash.com/photo-1494790108755-2616b2e8c7c3?w=150&h=150&fit=crop&crop=face"),
-    mk("Lucas Janssen", 5, 2, 3, "https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=150&h=150&fit=crop&crop=face"),
-    mk("Sophie de Wit", 8, 4, 2, "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&h=150&fit=crop&crop=face"),
-    mk("Daan Bakker", 2, 1, 12, "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop&crop=face"),
-    mk("Mila Hendriks", 3, 2, 7, "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=150&h=150&fit=crop&crop=face"),
-    mk("Liam de Jong", 1, 0, 45, "https://images.unsplash.com/photo-1527980965255-d3b416303d12?w=150&h=150&fit=crop&crop=face"),
-    mk("Zoe Visser", 0, 0, 60, "https://images.unsplash.com/photo-1547425260-76bcadfb4f2c?w=150&h=150&fit=crop&crop=face"),
-  ];
 
-  const active: StudentItem[] = [];
-  const irregular: StudentItem[] = [];
-  const nonActive: StudentItem[] = [];
-  list.forEach((s) => {
-    if (s.pastLessons >= 3 && s.futureLessons >= 2) active.push(s);
-    else if (s.pastLessons <= 2 && s.futureLessons === 1) irregular.push(s);
-    else if (s.daysSinceLastLesson >= 30 && s.futureLessons === 0) nonActive.push(s);
-    else irregular.push(s);
-  });
-  return { activeStudents: active, irregularStudents: irregular, nonActiveStudents: nonActive };
-}
 
 export default function InstructorOverview() {
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const router = useRouter();
   const { lessonsByDate } = useAgenda();
+  const studentActivity = useStudentActivity();
 
   const nextAppointment = useMemo(() => computeNextAppointment(lessonsByDate), [lessonsByDate]);
   const weeklyEarnings: { currentWeek: number; trend: number } = useMemo(() => ({ currentWeek: 1250.0, trend: 8.5 }), []);
@@ -75,7 +48,6 @@ export default function InstructorOverview() {
     () => ({ completionRate: 96.5, studentSatisfaction: 4.8, averageLessonDuration: 52.5 }),
     [],
   );
-  const studentActivity = useMemo(() => buildStudentActivity(), []);
 
   const onRefresh = useCallback(() => {
     console.log("Refreshing overview data...");

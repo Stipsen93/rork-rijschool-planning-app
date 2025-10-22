@@ -4,7 +4,7 @@ import { Users, TrendingUp, TriangleAlert, MessageSquare, NotebookPen } from "lu
 import { useWorkingHours } from "../settings/WorkingHoursStore";
 import { useSettings } from "../settings/SettingsStore";
 
-export interface StudentItem {
+interface StudentItem {
   name: string;
   pastLessons: number;
   futureLessons: number;
@@ -12,7 +12,7 @@ export interface StudentItem {
   profileImage: string;
 }
 
-export interface StudentActivityData {
+interface StudentActivityData {
   activeStudents: StudentItem[];
   irregularStudents: StudentItem[];
   nonActiveStudents: StudentItem[];

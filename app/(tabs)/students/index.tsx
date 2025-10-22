@@ -10,33 +10,16 @@ import { NotesSection } from "@/components/students/add/NotesSection";
 import { LearningPreferences, LearningPreferencesData } from "@/components/students/add/LearningPreferences";
 import { PackageAssignment, PackageAssignmentData } from "@/components/students/add/PackageAssignment";
 import { router } from "expo-router";
-
-interface StudentItem {
-  id: string;
-  name: string;
-  email: string;
-  status: "active" | "irregular" | "inactive";
-}
+import { useStudents, StudentItem } from "@/components/students/StudentsStore";
 
 export default function StudentsScreen() {
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [query, setQuery] = useState<string>("");
   const [filter, setFilter] = useState<string>("all");
-  const [customStudents, setCustomStudents] = useState<StudentItem[]>([]);
   const [addOpen, setAddOpen] = useState<boolean>(false);
   const insets = useSafeAreaInsets();
-
-  const seed: StudentItem[] = useMemo(() => (
-    Array.from({ length: 18 }).map((_, i) => ({
-      id: String(i + 1),
-      name: `Leerling ${i + 1}`,
-      email: `student${i + 1}@mail.com`,
-      status: i % 3 === 0 ? "active" : i % 3 === 1 ? "irregular" : "inactive",
-    }))
-  ), []);
-
-  const allStudents = useMemo(() => [...customStudents, ...seed], [customStudents, seed]);
+  const { students: allStudents, addStudent } = useStudents();
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -123,12 +106,11 @@ export default function StudentsScreen() {
           onClose={() => setAddOpen(false)}
           onCreated={(data) => {
             console.log("Student created", data);
-            setCustomStudents((prev) => [{
-              id: String(Date.now()),
+            addStudent({
               name: data.fullName,
               email: data.email,
               status: "active",
-            }, ...prev]);
+            });
             setAddOpen(false);
           }}
         />

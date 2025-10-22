@@ -1,0 +1,129 @@
+import { useCallback, useMemo, useState } from "react";
+import createContextHook from "@nkzw/create-context-hook";
+import { useAgenda } from "../agenda/AgendaStore";
+
+export interface StudentItem {
+  id: string;
+  name: string;
+  email: string;
+  status: "active" | "irregular" | "inactive";
+}
+
+function seedStudents(): StudentItem[] {
+  return Array.from({ length: 18 }).map((_, i) => ({
+    id: String(i + 1),
+    name: `Leerling ${i + 1}`,
+    email: `student${i + 1}@mail.com`,
+    status: i % 3 === 0 ? "active" : i % 3 === 1 ? "irregular" : "inactive",
+  }));
+}
+
+export const [StudentsProvider, useStudents] = createContextHook(() => {
+  const [customStudents, setCustomStudents] = useState<StudentItem[]>([]);
+  const seedData = useMemo(() => seedStudents(), []);
+  
+  const allStudents = useMemo(() => [...customStudents, ...seedData], [customStudents, seedData]);
+
+  const addStudent = useCallback((student: Omit<StudentItem, "id">) => {
+    setCustomStudents((prev) => [{
+      id: String(Date.now()),
+      ...student
+    }, ...prev]);
+  }, []);
+
+  const updateStudent = useCallback((id: string, updates: Partial<StudentItem>) => {
+    setCustomStudents((prev) => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+  }, []);
+
+  const value = useMemo(() => ({
+    students: allStudents,
+    addStudent,
+    updateStudent,
+  }), [allStudents, addStudent, updateStudent]);
+
+  return value;
+});
+
+export function useStudentActivity() {
+  const { students } = useStudents();
+  const { lessonsByDate } = useAgenda();
+
+  return useMemo(() => {
+    const now = new Date();
+    const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const threeWeeksLater = new Date(now.getTime() + 21 * 24 * 60 * 60 * 1000);
+    const fourWeeksLater = new Date(now.getTime() + 28 * 24 * 60 * 60 * 1000);
+
+    const allLessons = Object.values(lessonsByDate).flat();
+
+    const studentActivity = students.map(student => {
+      const studentLessons = allLessons.filter(
+        lesson => lesson.studentName?.toLowerCase() === student.name.toLowerCase()
+      );
+
+      const pastLessons = studentLessons.filter(
+        lesson => lesson.date >= oneMonthAgo && lesson.date < now
+      ).length;
+
+      const futureLessons = studentLessons.filter(
+        lesson => lesson.date >= now && lesson.date <= threeWeeksLater
+      ).length;
+
+      const futureToFourWeeks = studentLessons.filter(
+        lesson => lesson.date >= now && lesson.date <= fourWeeksLater
+      ).length;
+
+      const lastLesson = studentLessons
+        .filter(lesson => lesson.date < now)
+        .sort((a, b) => b.date.getTime() - a.date.getTime())[0];
+
+      const daysSinceLastLesson = lastLesson
+        ? Math.floor((now.getTime() - lastLesson.date.getTime()) / (24 * 60 * 60 * 1000))
+        : 999;
+
+      return {
+        student,
+        pastLessons,
+        futureLessons,
+        futureToFourWeeks,
+        daysSinceLastLesson,
+      };
+    });
+
+    const activeStudents = studentActivity
+      .filter(s => s.pastLessons >= 3 && s.futureLessons >= 2)
+      .map(s => ({
+        name: s.student.name,
+        pastLessons: s.pastLessons,
+        futureLessons: s.futureLessons,
+        daysSinceLastLesson: s.daysSinceLastLesson,
+        profileImage: `https://i.pravatar.cc/150?u=${s.student.id}`,
+      }));
+
+    const irregularStudents = studentActivity
+      .filter(s => s.pastLessons <= 2 && s.futureLessons === 1)
+      .map(s => ({
+        name: s.student.name,
+        pastLessons: s.pastLessons,
+        futureLessons: s.futureLessons,
+        daysSinceLastLesson: s.daysSinceLastLesson,
+        profileImage: `https://i.pravatar.cc/150?u=${s.student.id}`,
+      }));
+
+    const nonActiveStudents = studentActivity
+      .filter(s => s.daysSinceLastLesson >= 30 && s.futureToFourWeeks === 0)
+      .map(s => ({
+        name: s.student.name,
+        pastLessons: s.pastLessons,
+        futureLessons: s.futureLessons,
+        daysSinceLastLesson: s.daysSinceLastLesson,
+        profileImage: `https://i.pravatar.cc/150?u=${s.student.id}`,
+      }));
+
+    return {
+      activeStudents,
+      irregularStudents,
+      nonActiveStudents,
+    };
+  }, [students, lessonsByDate]);
+}
