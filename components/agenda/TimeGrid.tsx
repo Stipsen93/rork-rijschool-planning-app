@@ -38,11 +38,15 @@ function minutesBetween(start: string, end: string): number {
 
 function colorForType(type?: string): string {
   switch (type) {
+    case "Pauze":
+      return "#3b82f6";
+    case "Verlof":
+      return "#ef4444";
     case "Theorieles":
       return "#8b5cf6";
     case "Praktijkexamen":
     case "Examen":
-      return "#ef4444";
+      return "#dc2626";
     case "Tussentijdse toets":
     case "Toets":
       return "#d97706";

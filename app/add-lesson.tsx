@@ -11,6 +11,7 @@ import { LocationSection } from "@/components/add-lesson/LocationSection";
 import { NotesSection } from "@/components/add-lesson/NotesSection";
 import { useAgenda } from "@/components/agenda/AgendaStore";
 import { useSettings } from "@/components/settings/SettingsStore";
+import { useWorkingHours } from "@/components/settings/WorkingHoursStore";
 import { useStudents } from "@/components/students/StudentsStore";
 
 export type Option = { label: string; value: string };
@@ -19,6 +20,7 @@ export default function AddLessonScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { addLesson, removeLessonById, lessonsByDate } = useAgenda();
+  const { workingHours } = useWorkingHours();
   const { products, getDurationForType } = useSettings();
   const { students: allStudents } = useStudents();
 
@@ -42,6 +44,7 @@ export default function AddLessonScreen() {
   const [time, setTime] = useState<string>("09:00");
   const [durationHours, setDurationHours] = useState<number>(1);
   const [durationMinutes, setDurationMinutes] = useState<number>(0);
+  const [isFullDay, setIsFullDay] = useState<boolean>(false);
 
   useEffect(() => {
     const minutes = getDurationForType(type);
@@ -148,10 +151,29 @@ export default function AddLessonScreen() {
       console.log("Saving lesson", { category, type, selectedStudentId, selectedVehicleId, date, time, durationHours, durationMinutes, location, notes });
       await new Promise((res) => setTimeout(res, 600));
 
-      if (!isPauseOrLeave) {
-        const [y, m, d] = date.split("-").map((v) => parseInt(v, 10));
-        const baseDate = new Date(Number.isFinite(y) ? y : new Date().getFullYear(), (Number.isFinite(m) ? m : 1) - 1, Number.isFinite(d) ? d : new Date().getDate());
-        const [sh, sm] = time.split(":" ).map((v) => parseInt(v, 10));
+      const [y, m, d] = date.split("-").map((v) => parseInt(v, 10));
+      const baseDate = new Date(Number.isFinite(y) ? y : new Date().getFullYear(), (Number.isFinite(m) ? m : 1) - 1, Number.isFinite(d) ? d : new Date().getDate());
+      
+      let startTime = time;
+      let endTime = time;
+      
+      if (isPauseOrLeave && isFullDay && category === "Verlof") {
+        const dayNames: ("Maandag" | "Dinsdag" | "Woensdag" | "Donderdag" | "Vrijdag" | "Zaterdag" | "Zondag")[] = [
+          "Zondag", "Maandag", "Dinsdag", "Woensdag", "Donderdag", "Vrijdag", "Zaterdag"
+        ];
+        const dayName = dayNames[baseDate.getDay()];
+        const dayConfig = workingHours[dayName];
+        
+        if (dayConfig && dayConfig.enabled && dayConfig.ranges.length > 0) {
+          startTime = dayConfig.ranges[0].start;
+          const lastRange = dayConfig.ranges[dayConfig.ranges.length - 1];
+          endTime = lastRange.end;
+        } else {
+          startTime = "09:00";
+          endTime = "18:00";
+        }
+      } else {
+        const [sh, sm] = time.split(":").map((v) => parseInt(v, 10));
         const startH = Number.isFinite(sh) ? sh : 0;
         const startM = Number.isFinite(sm) ? sm : 0;
         const startTotal = startH * 60 + startM;
@@ -159,17 +181,31 @@ export default function AddLessonScreen() {
         const endH = Math.floor(endTotal / 60) % 24;
         const endM = endTotal % 60;
         const pad = (n: number) => String(n).padStart(2, "0");
-        const endTime = `${pad(endH)}:${pad(endM)}`;
+        endTime = `${pad(endH)}:${pad(endM)}`;
+      }
 
-        const studentName = mockStudents.find((s) => s.id === selectedStudentId)?.name ?? "Leerling";
+      if (editingId) {
+        removeLessonById(editingId);
+      }
 
-        if (editingId) {
-          removeLessonById(editingId);
-        }
+      if (isPauseOrLeave) {
         addLesson({
           id: editingId ?? undefined,
           date: baseDate,
-          startTime: time,
+          startTime,
+          endTime,
+          studentName: category,
+          lessonType: category,
+          location: "",
+          notes: notes ?? "",
+          status: "Gepland",
+        });
+      } else {
+        const studentName = mockStudents.find((s) => s.id === selectedStudentId)?.name ?? "Leerling";
+        addLesson({
+          id: editingId ?? undefined,
+          date: baseDate,
+          startTime,
           endTime,
           studentName,
           lessonType: type,
@@ -187,7 +223,7 @@ export default function AddLessonScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [addLesson, removeLessonById, editingId, category, type, selectedStudentId, selectedVehicleId, date, time, durationHours, durationMinutes, location, notes, isPauseOrLeave, router, mockStudents]);
+  }, [addLesson, removeLessonById, editingId, category, type, selectedStudentId, selectedVehicleId, date, time, durationHours, durationMinutes, location, notes, isPauseOrLeave, isFullDay, workingHours, router, mockStudents]);
 
   return (
     <ErrorBoundary>
@@ -235,8 +271,11 @@ export default function AddLessonScreen() {
               onTimeChanged={setTime}
               onDurationChanged={(h, m) => { setDurationHours(h); setDurationMinutes(m); }}
               onLocationChanged={setLocation}
-              isFullDay={isPauseOrLeave}
+              isFullDay={isFullDay}
               showLocationField={false}
+              isPauseOrLeave={isPauseOrLeave}
+              isVerlof={category === "Verlof"}
+              onFullDayToggle={setIsFullDay}
             />
           </View>
 

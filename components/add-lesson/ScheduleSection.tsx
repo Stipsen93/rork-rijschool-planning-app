@@ -14,10 +14,13 @@ export interface ScheduleSectionProps {
   onLocationChanged: (v: string) => void;
   isFullDay?: boolean;
   showLocationField?: boolean;
+  isPauseOrLeave?: boolean;
+  isVerlof?: boolean;
+  onFullDayToggle?: (v: boolean) => void;
   testID?: string;
 }
 
-function ScheduleSectionComponent({ selectedDate, selectedTime, lessonDurationHours, lessonDurationMinutes, location, onDateChanged, onTimeChanged, onDurationChanged, onLocationChanged, isFullDay = false, showLocationField = true, testID }: ScheduleSectionProps) {
+function ScheduleSectionComponent({ selectedDate, selectedTime, lessonDurationHours, lessonDurationMinutes, location, onDateChanged, onTimeChanged, onDurationChanged, onLocationChanged, isFullDay = false, showLocationField = true, isPauseOrLeave = false, isVerlof = false, onFullDayToggle, testID }: ScheduleSectionProps) {
   const durationString = useMemo(() => {
     const h = Math.max(0, Number(lessonDurationHours || 0));
     const m = Math.max(0, Math.min(59, Number(lessonDurationMinutes || 0)));
@@ -115,13 +118,12 @@ function ScheduleSectionComponent({ selectedDate, selectedTime, lessonDurationHo
           <TouchableOpacity
             accessibilityRole="button"
             testID="time-input"
-            onPress={() => !isFullDay && setShowTime(true)}
+            onPress={() => setShowTime(true)}
             activeOpacity={0.8}
-            style={[styles.inputWrap, isFullDay && { opacity: 0.6 }]}
-            disabled={isFullDay}
+            style={styles.inputWrap}
           >
             <Clock size={16} color="#2563eb" />
-            <Text style={styles.inputText}>{isFullDay ? "09:00" : selectedTime}</Text>
+            <Text style={styles.inputText}>{selectedTime}</Text>
           </TouchableOpacity>
           {showTime && (
             <Modal visible animationType="fade" transparent>
@@ -153,6 +155,18 @@ function ScheduleSectionComponent({ selectedDate, selectedTime, lessonDurationHo
           </TouchableOpacity>
         </View>
       </View>
+
+      {isVerlof && onFullDayToggle && (
+        <TouchableOpacity
+          accessibilityRole="button"
+          testID="full-day-button"
+          onPress={() => onFullDayToggle(!isFullDay)}
+          activeOpacity={0.8}
+          style={[styles.fullDayButton, isFullDay && styles.fullDayButtonActive]}
+        >
+          <Text style={[styles.fullDayButtonText, isFullDay && styles.fullDayButtonTextActive]}>Hele dag</Text>
+        </TouchableOpacity>
+      )}
 
       {showDuration && (
         <Modal visible animationType="fade" transparent>
@@ -400,4 +414,8 @@ const styles = StyleSheet.create({
   durationItemSelected: { backgroundColor: "#eff6ff" },
   durationText: { fontSize: 18, color: "#111827" },
   durationTextSelected: { color: "#2563eb", fontWeight: "700" },
+  fullDayButton: { marginTop: 12, paddingVertical: 12, borderRadius: 8, borderWidth: 1, borderColor: "#e5e7eb", alignItems: "center", backgroundColor: "#fff" },
+  fullDayButtonActive: { backgroundColor: "#2563eb", borderColor: "#2563eb" },
+  fullDayButtonText: { color: "#111827", fontWeight: "600" },
+  fullDayButtonTextActive: { color: "#fff" },
 });
