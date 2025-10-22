@@ -62,14 +62,13 @@ export const [ProfileProvider, useProfile] = createContextHook(() => {
     })();
   }, []);
 
-  const updateProfile = useCallback(async (updates: Partial<InstructorProfile>) => {
-    console.log("[ProfileStore] Updating profile", updates);
-    const updated = { ...profile, ...updates };
-    console.log("[ProfileStore] Saving to AsyncStorage...", updated);
-    await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(updated));
+  const updateProfile = useCallback(async (newProfile: InstructorProfile) => {
+    console.log("[ProfileStore] Updating profile", newProfile);
+    console.log("[ProfileStore] Saving to AsyncStorage...", newProfile);
+    await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(newProfile));
     console.log("[ProfileStore] Successfully saved to AsyncStorage");
-    setProfile(updated);
-  }, [profile]);
+    setProfile(newProfile);
+  }, []);
 
   const fullName = useMemo(() => {
     return `${profile.firstName} ${profile.lastName}`.trim() || "Instructeur";
