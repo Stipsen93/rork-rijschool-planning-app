@@ -36,23 +36,7 @@ function byStartTimeAsc(a: AgendaLesson, b: AgendaLesson): number {
 }
 
 function seedLessons(): Record<string, AgendaLesson[]> {
-  const today = new Date();
-  const day = 24 * 60 * 60 * 1000;
-  const d = (offset: number) => new Date(today.getTime() + offset * day);
-  return {
-    [keyFor(d(0))]: [
-      { id: uid(), studentName: "Emma", lessonType: "Praktijkles", startTime: "10:00", endTime: "11:00", date: d(0) },
-      { id: uid(), studentName: "Lucas", lessonType: "Theorieles", startTime: "10:30", endTime: "11:30", date: d(0) },
-      { id: uid(), studentName: "Sarah", lessonType: "Praktijkles", startTime: "10:00", endTime: "11:00", date: d(0) },
-      { id: uid(), studentName: "Mike", lessonType: "Toets", startTime: "13:00", endTime: "14:00", date: d(0) },
-    ],
-    [keyFor(d(1))]: [
-      { id: uid(), studentName: "Sophie", lessonType: "Praktijkles", startTime: "09:00", endTime: "10:00", date: d(1) },
-    ],
-    [keyFor(d(3))]: [
-      { id: uid(), studentName: "Daan", lessonType: "Toets", startTime: "15:00", endTime: "16:00", date: d(3) },
-    ],
-  };
+  return {};
 }
 
 export const [AgendaProvider, useAgenda] = createContextHook(() => {
