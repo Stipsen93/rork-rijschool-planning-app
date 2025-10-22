@@ -9,7 +9,7 @@ import { Users, Plus, X } from "lucide-react-native";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { PersonalInformation, PersonalInfo } from "@/components/students/add/PersonalInformation";
 import { NotesSection } from "@/components/students/add/NotesSection";
-import { PackageAssignment, PackageAssignmentData } from "@/components/students/add/PackageAssignment";
+
 import { router, useFocusEffect } from "expo-router";
 import { useStudents, useStudentActivity } from "@/components/students/StudentsStore";
 
@@ -295,17 +295,15 @@ export default function StudentsScreen() {
   );
 }
 
-function AddStudentModal({ visible, onClose, onCreated }: { visible: boolean; onClose: () => void; onCreated: (data: { fullName: string; email: string; phoneNumber: string; notes?: string; package?: PackageAssignmentData["selectedPackage"] | null; birthDate?: string | null; emergencyContactName?: string; emergencyContactPhone?: string; firstName: string; lastName: string; }) => void; }) {
+function AddStudentModal({ visible, onClose, onCreated }: { visible: boolean; onClose: () => void; onCreated: (data: { fullName: string; email: string; phoneNumber: string; notes?: string; birthDate?: string | null; emergencyContactName?: string; emergencyContactPhone?: string; firstName: string; lastName: string; }) => void; }) {
   const initialPersonal: PersonalInfo = { firstName: "", lastName: "", email: "", phoneNumber: "", birthDate: null, emergencyContactName: "", emergencyContactPhone: "" };
   const [personal, setPersonal] = useState<PersonalInfo>(initialPersonal);
   const [notes, setNotes] = useState<string>("");
-  const [packages, setPackages] = useState<PackageAssignmentData>({ packages: [], selectedPackage: null });
   const [saving, setSaving] = useState<boolean>(false);
 
   const reset = useCallback(() => {
     setPersonal({ firstName: "", lastName: "", email: "", phoneNumber: "", birthDate: null, emergencyContactName: "", emergencyContactPhone: "" });
     setNotes("");
-    setPackages({ packages: [], selectedPackage: null });
   }, []);
 
   useEffect(() => {
@@ -335,7 +333,6 @@ function AddStudentModal({ visible, onClose, onCreated }: { visible: boolean; on
         email: personal.email.trim(),
         phoneNumber: personal.phoneNumber.trim(),
         notes: notes.trim() || undefined,
-        package: packages.selectedPackage ?? null,
         birthDate: personal.birthDate ?? null,
         emergencyContactName: personal.emergencyContactName,
         emergencyContactPhone: personal.emergencyContactPhone,
@@ -345,7 +342,7 @@ function AddStudentModal({ visible, onClose, onCreated }: { visible: boolean; on
       setSaving(false);
       reset();
     }, 600);
-  }, [validate, onCreated, personal, notes, packages, reset]);
+  }, [validate, onCreated, personal, notes, reset]);
 
   return (
     <Modal visible={visible} animationType={Platform.OS === "web" ? "none" : "slide"} transparent onRequestClose={onClose}>
@@ -359,7 +356,6 @@ function AddStudentModal({ visible, onClose, onCreated }: { visible: boolean; on
           </View>
           <ScrollView style={{ maxHeight: "85%" }} contentContainerStyle={{ gap: 12, paddingBottom: 24 }}>
             <PersonalInformation value={personal} onChange={setPersonal} />
-            <PackageAssignment value={packages} onChange={setPackages} />
             <NotesSection value={notes} onChange={setNotes} />
             <Pressable
               testID="save-student"
