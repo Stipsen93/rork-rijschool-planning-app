@@ -53,7 +53,6 @@ function minutesBetween(startHHMM: string, endHHMM: string): number {
 }
 
 function LessonDetailSheetComponent({ lesson, onClose, onEdit, onCancel }: LessonDetailSheetProps) {
-  const history = lesson.lessonHistory ?? [];
   const insets = useSafeAreaInsets();
   const { lessonsByDate } = useAgenda();
   const studentName = lesson.studentName ?? "";
@@ -91,6 +90,30 @@ function LessonDetailSheetComponent({ lesson, onClose, onEdit, onCancel }: Lesso
       }
     })();
   }, [lesson.studentName]);
+
+  const recentLessons = useMemo(() => {
+    const now = new Date();
+    const lessons: any[] = [];
+    Object.values(lessonsByDate).forEach((day) => {
+      day.forEach((l) => {
+        if ((l.studentName ?? "") === studentName && l.id !== lesson.id) {
+          const endDate = new Date(l.date);
+          const [eh, em] = l.endTime.split(":").map((v) => parseInt(v, 10));
+          endDate.setHours(Number.isFinite(eh) ? eh : 0, Number.isFinite(em) ? em : 0, 0, 0);
+          if (endDate.getTime() <= now.getTime()) {
+            lessons.push({
+              date: l.date,
+              startTime: l.startTime,
+              endTime: l.endTime,
+              lessonType: l.lessonType,
+              notes: l.notes,
+            });
+          }
+        }
+      });
+    });
+    return lessons.sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 3);
+  }, [lessonsByDate, studentName, lesson.id]);
 
   const studentStats = useMemo(() => {
     const now = new Date();
@@ -303,15 +326,15 @@ function LessonDetailSheetComponent({ lesson, onClose, onEdit, onCancel }: Lesso
 
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Recente lessen</Text>
-            {history.length === 0 ? (
-              <Text style={styles.emptyState}>Geen eerdere lessen gevonden</Text>
+            {recentLessons.length === 0 ? (
+              <Text style={styles.emptyState}>Geen recente lessen</Text>
             ) : (
-              history.slice(0, 3).map((h, idx) => (
+              recentLessons.map((h, idx) => (
                 <View key={idx} style={styles.historyItem}>
                   <View style={styles.historyIcon}><HistoryIcon size={16} color="#2f95dc" /></View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.historyDate}>{formatDate(h.date)}</Text>
-                    <Text style={styles.historyNotes} numberOfLines={2}>{h.notes ?? "Geen notities"}</Text>
+                    <Text style={styles.historyDate}>{formatDate(h.date)} • {h.startTime} - {h.endTime}</Text>
+                    <Text style={styles.historyNotes} numberOfLines={2}>{h.lessonType ?? "Rijles"}{h.notes ? ` • ${h.notes}` : ""}</Text>
                   </View>
                 </View>
               ))

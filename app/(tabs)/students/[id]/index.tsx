@@ -546,7 +546,7 @@ function RecentLessonsCard({ studentName }: { studentName: string }) {
     <View style={styles.card}>
       <Text style={styles.sectionTitle}>Recente lessen</Text>
       {pastLessons.length === 0 ? (
-        <Text style={styles.emptyText}>Nog geen afgesloten lessen</Text>
+        <Text style={styles.emptyText}>Geen recente lessen</Text>
       ) : (
         pastLessons.map((lesson) => {
           const isPaid = lessonPayments[lesson.id] === true;
