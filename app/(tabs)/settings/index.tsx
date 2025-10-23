@@ -143,7 +143,9 @@ export default function SettingsScreen() {
         <ChevronRight color="#9ca3af" />
       </TouchableOpacity>
 
-      <View style={{ height: 32 }} />
+      <View style={styles.versionContainer}>
+        <Text style={styles.versionText}>Versie 1.0</Text>
+      </View>
     </ScrollView>
   );
 }
@@ -209,5 +211,17 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
+  },
+  versionContainer: {
+    marginTop: 24,
+    paddingVertical: 16,
+    alignItems: "center",
+    borderTopWidth: 1,
+    borderTopColor: "#e5e7eb",
+  },
+  versionText: {
+    fontSize: 12,
+    color: "#9ca3af",
+    fontWeight: "500",
   },
 });
