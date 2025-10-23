@@ -582,26 +582,39 @@ function StudentOverviewTable({ studentName, baseItems, products, studentPackage
     return arr.filter((l) => (l.studentName ?? "") === studentName);
   }, [lessonsByDate, studentName]);
 
-  const { plannedHours, drivenHours, productPlannedMap } = useMemo(() => {
+  const { plannedHours, drivenHours, productPlannedMap, productDrivenMap } = useMemo(() => {
     let plannedMin = 0;
     let drivenMin = 0;
     const prodPlanned: Record<string, boolean> = {};
+    const prodDriven: Record<string, boolean> = {};
+    const productNames = new Set(products.map(p => p.name));
+    
     lessons.forEach((l) => {
       const mins = minutesBetween(l.startTime, l.endTime);
       const endDate = new Date(l.date);
       const [eh, em] = l.endTime.split(":").map((v) => parseInt(v, 10));
       endDate.setHours(Number.isFinite(eh) ? eh : 0, Number.isFinite(em) ? em : 0, 0, 0);
+      
+      const isProduct = l.lessonType && productNames.has(l.lessonType);
+      
       if (endDate.getTime() > now.getTime()) {
-        plannedMin += mins;
+        if (!isProduct) {
+          plannedMin += mins;
+        }
+        if (l.lessonType) {
+          prodPlanned[l.lessonType] = true;
+        }
       } else {
-        drivenMin += mins;
-      }
-      if (l.lessonType) {
-        prodPlanned[l.lessonType] = true;
+        if (!isProduct) {
+          drivenMin += mins;
+        }
+        if (l.lessonType) {
+          prodDriven[l.lessonType] = true;
+        }
       }
     });
-    return { plannedHours: plannedMin / 60, drivenHours: drivenMin / 60, productPlannedMap: prodPlanned };
-  }, [lessons, now]);
+    return { plannedHours: plannedMin / 60, drivenHours: drivenMin / 60, productPlannedMap: prodPlanned, productDrivenMap: prodDriven };
+  }, [lessons, now, products]);
 
   const totalAddedHours = useMemo(() => {
     return studentPackages.reduce((sum, sp) => {
@@ -660,9 +673,10 @@ function StudentOverviewTable({ studentName, baseItems, products, studentPackage
       const count = direct.length + included.length;
       const allPaid = [...direct, ...included].every((sp) => sp.installments.length === 0 ? sp.paymentStatus === "paid" : sp.installments.every((i) => i.paid));
       const planned = Boolean(productPlannedMap[prod.name]);
-      return { name: prod.name, count, paid: allPaid && count > 0, planned };
+      const driven = Boolean(productDrivenMap[prod.name]);
+      return { name: prod.name, count, paid: allPaid && count > 0, planned, driven };
     });
-  }, [products, studentPackages, productPlannedMap]);
+  }, [products, studentPackages, productPlannedMap, productDrivenMap]);
 
   const noneAdded = useMemo(() => {
     const hasHours = totalAddedHours > 0;
@@ -720,6 +734,7 @@ function StudentOverviewTable({ studentName, baseItems, products, studentPackage
             <Text style={styles.overviewLabel}>{pr.name}</Text>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
               {pr.planned && <View style={styles.plannedBadge}><Text style={styles.plannedBadgeText}>Gepland</Text></View>}
+              {pr.driven && <View style={styles.drivenBadge}><Text style={styles.drivenBadgeText}>Gereden</Text></View>}
               <Text style={[styles.overviewValue, { color: pr.count > 0 ? (pr.paid ? "#16a34a" : "#ef4444") : "#6b7280" }]}>{`${pr.count} st`}</Text>
             </View>
           </View>
@@ -1504,6 +1519,8 @@ const styles = StyleSheet.create({
   overviewValue: { fontWeight: "800", color: "#111827" },
   plannedBadge: { backgroundColor: "#e0e7ff", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
   plannedBadgeText: { color: "#3730a3", fontWeight: "700" },
+  drivenBadge: { backgroundColor: "#dcfce7", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
+  drivenBadgeText: { color: "#166534", fontWeight: "700" },
   sectionTitle: { fontSize: 16, fontWeight: "700" },
   statusRow: { flexDirection: "row", justifyContent: "space-between" },
   statusLabel: { color: "#6b7280" },
