@@ -674,7 +674,8 @@ function StudentOverviewTable({ studentName, baseItems, products, studentPackage
       const allPaid = [...direct, ...included].every((sp) => sp.installments.length === 0 ? sp.paymentStatus === "paid" : sp.installments.every((i) => i.paid));
       const planned = Boolean(productPlannedMap[prod.name]);
       const driven = Boolean(productDrivenMap[prod.name]);
-      return { name: prod.name, count, paid: allPaid && count > 0, planned, driven };
+      const isPaid = allPaid && count > 0;
+      return { name: prod.name, count, paid: isPaid, planned, driven };
     });
   }, [products, studentPackages, productPlannedMap, productDrivenMap]);
 
@@ -734,7 +735,8 @@ function StudentOverviewTable({ studentName, baseItems, products, studentPackage
             <Text style={styles.overviewLabel}>{pr.name}</Text>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
               {pr.planned && <View style={styles.plannedBadge}><Text style={styles.plannedBadgeText}>Gepland</Text></View>}
-              {pr.driven && <View style={styles.drivenBadge}><Text style={styles.drivenBadgeText}>Gereden</Text></View>}
+              {pr.driven && !pr.paid && <View style={styles.drivenUnpaidBadge}><Text style={styles.drivenUnpaidBadgeText}>Gereden</Text></View>}
+              {pr.driven && pr.paid && <View style={styles.drivenBadge}><Text style={styles.drivenBadgeText}>Gereden</Text></View>}
               <Text style={[styles.overviewValue, { color: pr.count > 0 ? (pr.paid ? "#16a34a" : "#ef4444") : "#6b7280" }]}>{`${pr.count} st`}</Text>
             </View>
           </View>
@@ -1521,6 +1523,8 @@ const styles = StyleSheet.create({
   plannedBadgeText: { color: "#3730a3", fontWeight: "700" },
   drivenBadge: { backgroundColor: "#dcfce7", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
   drivenBadgeText: { color: "#166534", fontWeight: "700" },
+  drivenUnpaidBadge: { backgroundColor: "#fee2e2", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
+  drivenUnpaidBadgeText: { color: "#991b1b", fontWeight: "700" },
   sectionTitle: { fontSize: 16, fontWeight: "700" },
   statusRow: { flexDirection: "row", justifyContent: "space-between" },
   statusLabel: { color: "#6b7280" },
