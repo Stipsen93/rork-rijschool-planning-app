@@ -1,18 +1,14 @@
-import React, { memo } from "react";
+import React, { memo, useMemo } from "react";
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { X, School, Clock, History as HistoryIcon, CheckCircle2 } from "lucide-react-native";
+import { X, Clock, History as HistoryIcon } from "lucide-react-native";
 import type { LessonCardLesson } from "./LessonCard";
+import { useAgenda } from "./AgendaStore";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export interface LessonDetailSheetProps {
   lesson: LessonCardLesson & {
     duration?: number;
-    studentProgress?: {
-      totalLessons?: number;
-      hoursCompleted?: number;
-      theoryScore?: number;
-      examReady?: boolean;
-    };
     lessonHistory?: { date: string | Date; notes?: string }[];
   };
   onClose: () => void;
@@ -44,10 +40,141 @@ function colorForType(type?: string): string {
   }
 }
 
+function round1(n: number): string {
+  return (Math.round(n * 10) / 10).toFixed(1);
+}
+
+function minutesBetween(startHHMM: string, endHHMM: string): number {
+  const [sh, sm] = startHHMM.split(":").map((v) => parseInt(v, 10));
+  const [eh, em] = endHHMM.split(":").map((v) => parseInt(v, 10));
+  const s = (Number.isFinite(sh) ? sh : 0) * 60 + (Number.isFinite(sm) ? sm : 0);
+  const e = (Number.isFinite(eh) ? eh : 0) * 60 + (Number.isFinite(em) ? em : 0);
+  return Math.max(0, e - s);
+}
+
 function LessonDetailSheetComponent({ lesson, onClose, onEdit, onCancel }: LessonDetailSheetProps) {
-  const progress = lesson.studentProgress ?? {};
   const history = lesson.lessonHistory ?? [];
   const insets = useSafeAreaInsets();
+  const { lessonsByDate } = useAgenda();
+  const studentName = lesson.studentName ?? "";
+
+  const [studentPackages, setStudentPackages] = React.useState<any[]>([]);
+  const [baseItems, setBaseItems] = React.useState<any[]>([]);
+  const [products, setProducts] = React.useState<any[]>([]);
+
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const studentId = lesson.studentName;
+        if (!studentId) return;
+
+        const [pkgStr, prodStr, studentPkgStr] = await Promise.all([
+          AsyncStorage.getItem("instructor_packages"),
+          AsyncStorage.getItem("instructor_products"),
+          AsyncStorage.getItem(`student_packages_${studentId}`),
+        ]);
+
+        const pkgs = (pkgStr ? JSON.parse(pkgStr) : []) as { id: string; name: string; hours: number; price: number; vatStatus: "incl" | "excl" }[];
+        const prods = (prodStr ? JSON.parse(prodStr) : []) as { id: string; name: string; price: number; vatStatus: "incl" | "excl" }[];
+        const mappedPkgs = pkgs.map((p) => ({ id: p.id, name: p.name, hours: p.hours, price: p.price, vatStatus: p.vatStatus, isProduct: false }));
+        const mappedProds = prods.map((p) => ({ id: p.id, name: p.name, hours: 0, price: p.price, vatStatus: p.vatStatus, isProduct: true }));
+
+        setBaseItems([...mappedPkgs, ...mappedProds]);
+        setProducts(mappedProds);
+
+        if (studentPkgStr) {
+          const parsed = JSON.parse(studentPkgStr);
+          setStudentPackages(parsed);
+        }
+      } catch (e) {
+        console.log("[LessonDetailSheet] Failed to load data", e);
+      }
+    })();
+  }, [lesson.studentName]);
+
+  const studentStats = useMemo(() => {
+    const now = new Date();
+    const lessons: { date: Date; startTime: string; endTime: string; studentName?: string; lessonType?: string }[] = [];
+    Object.values(lessonsByDate).forEach((day) => {
+      day.forEach((l) => lessons.push({ date: l.date, startTime: l.startTime, endTime: l.endTime, studentName: l.studentName, lessonType: l.lessonType }));
+    });
+    const studentLessons = lessons.filter((l) => (l.studentName ?? "") === studentName);
+
+    let plannedMin = 0;
+    let drivenMin = 0;
+    const productNames = new Set(products.map(p => p.name));
+
+    studentLessons.forEach((l) => {
+      const mins = minutesBetween(l.startTime, l.endTime);
+      const endDate = new Date(l.date);
+      const [eh, em] = l.endTime.split(":").map((v) => parseInt(v, 10));
+      endDate.setHours(Number.isFinite(eh) ? eh : 0, Number.isFinite(em) ? em : 0, 0, 0);
+
+      const isProduct = l.lessonType && productNames.has(l.lessonType);
+
+      if (endDate.getTime() > now.getTime()) {
+        if (!isProduct) {
+          plannedMin += mins;
+        }
+      } else {
+        if (!isProduct) {
+          drivenMin += mins;
+        }
+      }
+    });
+
+    const plannedHours = plannedMin / 60;
+    const drivenHours = drivenMin / 60;
+
+    const totalAddedHours = studentPackages.reduce((sum, sp) => {
+      const baseItem = baseItems.find((p) => p.id === sp.packageId);
+      const isProduct = baseItem?.isProduct === true;
+      if (isProduct) return sum;
+      const base = sp.customHours ?? (baseItem?.hours ?? 0);
+      return sum + (base || 0);
+    }, 0);
+
+    const hoursPaid = studentPackages.reduce((sum, sp) => {
+      const baseItem = baseItems.find((p) => p.id === sp.packageId);
+      const isProduct = baseItem?.isProduct === true;
+      if (isProduct) return sum;
+      const baseHours = sp.customHours ?? (baseItem?.hours ?? 0);
+      const total = baseHours || 0;
+      const terms = sp.installments?.length ?? 0;
+      if (terms === 0) return sum;
+      const paidCount = sp.installments.filter((i: any) => i.paid).length;
+      const fraction = total * (paidCount / terms);
+      return sum + fraction;
+    }, 0);
+
+    const hoursOver = Math.max(0, totalAddedHours - drivenHours - plannedHours);
+
+    const hoursPackages = studentPackages.filter((sp) => {
+      const baseItem = baseItems.find((p) => p.id === sp.packageId);
+      return baseItem?.isProduct !== true;
+    });
+    let aggregatePaymentStatus: "paid" | "partial" | "unpaid" = "unpaid";
+    if (hoursPackages.length === 0) {
+      aggregatePaymentStatus = "unpaid";
+    } else {
+      let anyPaid = false;
+      let allPaid = true;
+      for (const sp of hoursPackages) {
+        const terms = sp.installments?.length ?? 0;
+        const spAllPaid = terms > 0 ? sp.installments.every((i: any) => i.paid) : sp.paymentStatus === "paid";
+        const spAnyPaid = terms > 0 ? sp.installments.some((i: any) => i.paid) : sp.paymentStatus === "paid";
+        if (spAnyPaid) anyPaid = true;
+        if (!spAllPaid) allPaid = false;
+      }
+      if (allPaid) aggregatePaymentStatus = "paid";
+      else if (anyPaid) aggregatePaymentStatus = "partial";
+      else aggregatePaymentStatus = "unpaid";
+    }
+
+    const noneAdded = totalAddedHours === 0;
+
+    return { drivenHours, plannedHours, hoursPaid, hoursOver, aggregatePaymentStatus, noneAdded };
+  }, [lessonsByDate, studentName, studentPackages, baseItems, products]);
 
   return (
     <View style={styles.overlay} pointerEvents="box-none" testID="lesson-detail-overlay">
@@ -108,26 +235,68 @@ function LessonDetailSheetComponent({ lesson, onClose, onEdit, onCancel }: Lesso
             </View>
             <View style={styles.row}>
               <View style={styles.progressItem}>
-                <School size={20} color="#2f95dc" />
-                <Text style={styles.progressValue}>{(progress.totalLessons ?? 0).toString()}</Text>
-                <Text style={styles.progressLabel}>Totaal lessen</Text>
+                <Clock size={20} color={studentStats.drivenHours <= 0 ? "#6b7280" : (studentStats.drivenHours > studentStats.hoursPaid ? "#ef4444" : "#22c55e")} />
+                <Text style={[styles.progressValue, { color: studentStats.drivenHours <= 0 ? "#6b7280" : (studentStats.drivenHours > studentStats.hoursPaid ? "#ef4444" : "#22c55e") }]}>{`${round1(studentStats.drivenHours)} u`}</Text>
+                <Text style={styles.progressLabel}>Uren gereden</Text>
               </View>
               <View style={styles.progressItem}>
-                <Clock size={20} color="#8b5cf6" />
-                <Text style={styles.progressValue}>{`${progress.hoursCompleted ?? 0}h`}</Text>
-                <Text style={styles.progressLabel}>Uren gereden</Text>
+                <Clock size={20} color={(() => {
+                  const remainingPaid = Math.max(0, studentStats.hoursPaid - studentStats.drivenHours);
+                  return studentStats.plannedHours <= 0
+                    ? "#6b7280"
+                    : (studentStats.drivenHours > studentStats.hoursPaid
+                        ? "#ef4444"
+                        : (studentStats.noneAdded
+                            ? "#6b7280"
+                            : (remainingPaid >= studentStats.plannedHours
+                                ? "#16a34a"
+                                : (remainingPaid > 0 ? "#f59e0b" : "#2563eb"))));
+                })()} />
+                <Text style={[styles.progressValue, { color: (() => {
+                  const remainingPaid = Math.max(0, studentStats.hoursPaid - studentStats.drivenHours);
+                  return studentStats.plannedHours <= 0
+                    ? "#6b7280"
+                    : (studentStats.drivenHours > studentStats.hoursPaid
+                        ? "#ef4444"
+                        : (studentStats.noneAdded
+                            ? "#6b7280"
+                            : (remainingPaid >= studentStats.plannedHours
+                                ? "#16a34a"
+                                : (remainingPaid > 0 ? "#f59e0b" : "#2563eb"))));
+                })() }]}>{`${round1(studentStats.plannedHours)} u`}</Text>
+                <Text style={styles.progressLabel}>Uren gepland</Text>
               </View>
             </View>
             <View style={styles.row}>
               <View style={styles.progressItem}>
-                <Clock size={20} color="#8b5cf6" />
-                <Text style={styles.progressValue}>{`${progress.theoryScore ?? 0}%`}</Text>
-                <Text style={styles.progressLabel}>Theorie score</Text>
+                <Clock size={20} color={studentStats.hoursPaid > 0 ? "#16a34a" : "#6b7280"} />
+                <Text style={[styles.progressValue, { color: studentStats.hoursPaid > 0 ? "#16a34a" : "#6b7280" }]}>{`${round1(studentStats.hoursPaid)} u`}</Text>
+                <Text style={styles.progressLabel}>Uren betaald</Text>
               </View>
               <View style={styles.progressItem}>
-                <CheckCircle2 size={20} color={(progress.examReady ?? false) ? "#10b981" : "#6b7280"} />
-                <Text style={styles.progressValue}>{(progress.examReady ?? false) ? "Ja" : "Nee"}</Text>
-                <Text style={styles.progressLabel}>Examen klaar</Text>
+                <Clock size={20} color={
+                  studentStats.noneAdded
+                    ? "#6b7280"
+                    : studentStats.aggregatePaymentStatus === "unpaid" && studentStats.drivenHours === 0
+                    ? "#6b7280"
+                    : studentStats.aggregatePaymentStatus === "partial"
+                    ? "#f59e0b"
+                    : studentStats.aggregatePaymentStatus === "paid"
+                    ? "#16a34a"
+                    : (studentStats.hoursOver > 0 ? "#16a34a" : "#ef4444")
+                } />
+                <Text style={[styles.progressValue, { color: 
+                  studentStats.noneAdded
+                    ? "#6b7280"
+                    : studentStats.aggregatePaymentStatus === "unpaid" && studentStats.drivenHours === 0
+                    ? "#6b7280"
+                    : studentStats.aggregatePaymentStatus === "partial"
+                    ? "#f59e0b"
+                    : studentStats.aggregatePaymentStatus === "paid"
+                    ? "#16a34a"
+                    : (studentStats.hoursOver > 0 ? "#16a34a" : "#ef4444")
+                }]}>{`${round1(studentStats.hoursOver)} u`}</Text>
+                <Text style={styles.progressLabel}>Uren over</Text>
               </View>
             </View>
           </View>
