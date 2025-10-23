@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useCallback, useEffect } from "react";
 import { Stack, useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Platform, Alert } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Platform, Alert, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Pencil, Trash2, X, AlertTriangle } from "lucide-react-native";
@@ -1338,9 +1338,15 @@ function AddPackageModal({
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
-      <View style={styles.modalBackdrop}>
-        <View style={styles.modalCard}>
-          <Text style={styles.modalTitle}>Toevoegen</Text>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={{ flex: 1 }}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View style={styles.modalBackdrop}>
+            <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
+              <View style={styles.modalCard}>
+                <Text style={styles.modalTitle}>Toevoegen</Text>
 
           <View style={{ flexDirection: "row", backgroundColor: "#e5e7eb", borderRadius: 10, padding: 4 }}>
             {[
@@ -1484,8 +1490,11 @@ function AddPackageModal({
               <Text style={styles.primaryBtnText}>Toevoegen</Text>
             </TouchableOpacity>
           </View>
-        </View>
-      </View>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
