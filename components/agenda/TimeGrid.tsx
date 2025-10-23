@@ -157,7 +157,8 @@ function Inner({ date, onLessonPress }: TimeGridProps) {
   const scrollRef = useRef<ScrollView | null>(null);
 
   useEffect(() => {
-    const y = Math.max(0, (enabled ? earliestStartMin : 8 * 60) * PPM - 180);
+    const targetTime = 14 * 60;
+    const y = Math.max(0, targetTime * PPM - 180);
     const id = setTimeout(() => {
       try {
         scrollRef.current?.scrollTo({ y, animated: true });
@@ -166,7 +167,7 @@ function Inner({ date, onLessonPress }: TimeGridProps) {
       }
     }, 50);
     return () => clearTimeout(id);
-  }, [dayKey, enabled, earliestStartMin]);
+  }, [dayKey]);
 
   return (
     <View style={styles.wrapper} testID="time-grid">
