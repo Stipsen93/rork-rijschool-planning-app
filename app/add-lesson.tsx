@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Alert, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { Check, Loader2, X } from "lucide-react-native";
@@ -233,8 +233,9 @@ export default function AddLessonScreen() {
         </TouchableOpacity>
       ) }} />
 
-      <KeyboardAvoidingView behavior={Platform.select({ ios: "padding", default: undefined })} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={[styles.container, { paddingTop: 8 + insets.top, paddingBottom: 16 + insets.bottom }]} testID="add-lesson-screen" keyboardShouldPersistTaps="handled">
+      <KeyboardAvoidingView behavior={Platform.select({ ios: "padding", android: "height", default: undefined })} style={{ flex: 1 }}>
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <ScrollView contentContainerStyle={[styles.container, { paddingTop: 8 + insets.top, paddingBottom: 16 + insets.bottom }]} testID="add-lesson-screen" keyboardShouldPersistTaps="handled">
           <View style={styles.section}>
             <CategoryTypeSection
               selectedCategory={category}
@@ -289,8 +290,9 @@ export default function AddLessonScreen() {
             <NotesSection notes={notes} onNotesChanged={setNotes} />
           </View>
 
-          <View style={{ height: 16 }} />
-        </ScrollView>
+            <View style={{ height: 16 }} />
+          </ScrollView>
+        </TouchableWithoutFeedback>
 
         <View style={[styles.footer, { paddingBottom: 16 + insets.bottom }]}>
           <TouchableOpacity testID="save-lesson" onPress={!isLoading ? onSave : undefined} style={[styles.saveBtn, isLoading && { opacity: 0.7 }]} activeOpacity={0.9}>

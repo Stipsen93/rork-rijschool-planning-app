@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Modal, Pressable, FlatList } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Modal, Pressable, FlatList, Keyboard, KeyboardAvoidingView, Platform, TouchableWithoutFeedback } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -379,7 +379,9 @@ export default function PersonalInfoScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: "#f9fafb" }}>
-      <ScrollView contentContainerStyle={[styles.container, { paddingBottom: insets.bottom + 80 }]}>
+      <KeyboardAvoidingView behavior={Platform.select({ ios: "padding", android: "height", default: undefined })} style={{ flex: 1 }}>
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <ScrollView contentContainerStyle={[styles.container, { paddingBottom: insets.bottom + 80 }]} keyboardShouldPersistTaps="handled">
         <View style={styles.card}>
           <Text style={styles.label}>Voornaam</Text>
           <TextInput
@@ -500,8 +502,10 @@ export default function PersonalInfoScreen() {
           />
 
 
-        </View>
-      </ScrollView>
+          </View>
+          </ScrollView>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
         {!isEditing ? (

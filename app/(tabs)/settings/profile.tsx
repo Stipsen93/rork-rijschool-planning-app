@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Alert, FlatList, Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Alert, FlatList, Image, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { CalendarDays, Camera, Check, Plus, Trash2, User, X } from "lucide-react-native";
@@ -425,8 +425,9 @@ export default function ProfileScreen() {
 
   return (
     <ErrorBoundary>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-        <ScrollView contentContainerStyle={styles.container} testID="profile-screen">
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <ScrollView contentContainerStyle={styles.container} testID="profile-screen" keyboardShouldPersistTaps="handled">
           <View style={styles.avatarWrap}>
             {localProfile.profileImageUrl ? (
               <Image source={{ uri: localProfile.profileImageUrl }} style={styles.avatar} resizeMode="cover" />
@@ -595,7 +596,8 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             )}
           </View>
-        </ScrollView>
+          </ScrollView>
+        </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
     </ErrorBoundary>
   );

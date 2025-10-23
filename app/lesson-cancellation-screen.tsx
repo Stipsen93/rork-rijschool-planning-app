@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableWithoutFeedback, View } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CalendarDays, Clock, ArrowLeft } from "lucide-react-native";
@@ -73,12 +73,14 @@ export default function LessonCancellationScreen() {
         </View>
       ) }} />
 
-      <ScrollView
-        testID="lesson-cancellation-screen"
-        contentContainerStyle={[styles.container, { paddingBottom: insets.bottom + 120 }]}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator
-      >
+      <KeyboardAvoidingView behavior={Platform.select({ ios: "padding", android: "height", default: undefined })} style={{ flex: 1 }}>
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <ScrollView
+            testID="lesson-cancellation-screen"
+            contentContainerStyle={[styles.container, { paddingBottom: insets.bottom + 120 }]}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator
+          >
         <View style={styles.headerCard}>
           <Text style={styles.headerTitle}>{lesson?.studentName ?? "Onbekende student"}</Text>
           <View style={styles.headerRow}>
@@ -103,8 +105,10 @@ export default function LessonCancellationScreen() {
           onKeepInAgendaChanged={setKeepInAgenda}
         />
 
-        <NotesInput value={notes} onChangeText={setNotes} />
-      </ScrollView>
+            <NotesInput value={notes} onChangeText={setNotes} />
+          </ScrollView>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}>        
         <Text
