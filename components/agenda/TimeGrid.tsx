@@ -170,7 +170,10 @@ function Inner({ date, onLessonPress }: TimeGridProps) {
     React.useCallback(() => {
       const id = setTimeout(() => {
         try {
-          scrollRef.current?.scrollTo({ y: 0, animated: true });
+          const targetHour = 12;
+          const hourHeight = 80;
+          const scrollY = (targetHour - startHour) * hourHeight;
+          scrollRef.current?.scrollTo({ y: scrollY, animated: true });
         } catch (e) {
           console.log("TimeGrid scroll error", e);
         }
