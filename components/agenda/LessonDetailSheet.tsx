@@ -251,87 +251,89 @@ function LessonDetailSheetComponent({ lesson, onClose, onEdit, onCancel }: Lesso
             )}
           </View>
 
-          <View style={styles.card}>
-            <View style={styles.rowBetween}>
-              <Text style={styles.cardTitle}>Student voortgang</Text>
-              <Pressable accessibilityRole="button" onPress={() => {
-                if (studentName) {
-                  router.push({
-                    pathname: "/(tabs)/students/[id]",
-                    params: { id: studentName, name: studentName },
-                  });
-                }
-              }} testID="view-student-profile">
-                <Text style={{ color: "#2f95dc", fontWeight: "600" }}>Bekijk profiel</Text>
-              </Pressable>
+          {lesson.lessonType !== "Pauze" && lesson.lessonType !== "Verlof" && (
+            <View style={styles.card}>
+              <View style={styles.rowBetween}>
+                <Text style={styles.cardTitle}>Student voortgang</Text>
+                <Pressable accessibilityRole="button" onPress={() => {
+                  if (studentName) {
+                    router.push({
+                      pathname: "/(tabs)/students/[id]",
+                      params: { id: studentName, name: studentName },
+                    });
+                  }
+                }} testID="view-student-profile">
+                  <Text style={{ color: "#2f95dc", fontWeight: "600" }}>Bekijk profiel</Text>
+                </Pressable>
+              </View>
+              <View style={styles.row}>
+                <View style={styles.progressItem}>
+                  <Clock size={20} color={studentStats.drivenHours <= 0 ? "#6b7280" : (studentStats.drivenHours > studentStats.hoursPaid ? "#ef4444" : "#22c55e")} />
+                  <Text style={[styles.progressValue, { color: studentStats.drivenHours <= 0 ? "#6b7280" : (studentStats.drivenHours > studentStats.hoursPaid ? "#ef4444" : "#22c55e") }]}>{`${round1(studentStats.drivenHours)} u`}</Text>
+                  <Text style={styles.progressLabel}>Uren gereden</Text>
+                </View>
+                <View style={styles.progressItem}>
+                  <Clock size={20} color={(() => {
+                    const remainingPaid = Math.max(0, studentStats.hoursPaid - studentStats.drivenHours);
+                    return studentStats.plannedHours <= 0
+                      ? "#6b7280"
+                      : (studentStats.drivenHours > studentStats.hoursPaid
+                          ? "#ef4444"
+                          : (studentStats.noneAdded
+                              ? "#6b7280"
+                              : (remainingPaid >= studentStats.plannedHours
+                                  ? "#16a34a"
+                                  : (remainingPaid > 0 ? "#f59e0b" : "#2563eb"))));
+                  })()} />
+                  <Text style={[styles.progressValue, { color: (() => {
+                    const remainingPaid = Math.max(0, studentStats.hoursPaid - studentStats.drivenHours);
+                    return studentStats.plannedHours <= 0
+                      ? "#6b7280"
+                      : (studentStats.drivenHours > studentStats.hoursPaid
+                          ? "#ef4444"
+                          : (studentStats.noneAdded
+                              ? "#6b7280"
+                              : (remainingPaid >= studentStats.plannedHours
+                                  ? "#16a34a"
+                                  : (remainingPaid > 0 ? "#f59e0b" : "#2563eb"))));
+                  })() }]}>{`${round1(studentStats.plannedHours)} u`}</Text>
+                  <Text style={styles.progressLabel}>Uren gepland</Text>
+                </View>
+              </View>
+              <View style={styles.row}>
+                <View style={styles.progressItem}>
+                  <Clock size={20} color={studentStats.hoursPaid > 0 ? "#16a34a" : "#6b7280"} />
+                  <Text style={[styles.progressValue, { color: studentStats.hoursPaid > 0 ? "#16a34a" : "#6b7280" }]}>{`${round1(studentStats.hoursPaid)} u`}</Text>
+                  <Text style={styles.progressLabel}>Uren betaald</Text>
+                </View>
+                <View style={styles.progressItem}>
+                  <Clock size={20} color={
+                    studentStats.noneAdded
+                      ? "#6b7280"
+                      : studentStats.aggregatePaymentStatus === "unpaid" && studentStats.drivenHours === 0
+                      ? "#6b7280"
+                      : studentStats.aggregatePaymentStatus === "partial"
+                      ? "#f59e0b"
+                      : studentStats.aggregatePaymentStatus === "paid"
+                      ? "#16a34a"
+                      : (studentStats.hoursOver > 0 ? "#16a34a" : "#ef4444")
+                  } />
+                  <Text style={[styles.progressValue, { color: 
+                    studentStats.noneAdded
+                      ? "#6b7280"
+                      : studentStats.aggregatePaymentStatus === "unpaid" && studentStats.drivenHours === 0
+                      ? "#6b7280"
+                      : studentStats.aggregatePaymentStatus === "partial"
+                      ? "#f59e0b"
+                      : studentStats.aggregatePaymentStatus === "paid"
+                      ? "#16a34a"
+                      : (studentStats.hoursOver > 0 ? "#16a34a" : "#ef4444")
+                  }]}>{`${round1(studentStats.hoursOver)} u`}</Text>
+                  <Text style={styles.progressLabel}>Uren over</Text>
+                </View>
+              </View>
             </View>
-            <View style={styles.row}>
-              <View style={styles.progressItem}>
-                <Clock size={20} color={studentStats.drivenHours <= 0 ? "#6b7280" : (studentStats.drivenHours > studentStats.hoursPaid ? "#ef4444" : "#22c55e")} />
-                <Text style={[styles.progressValue, { color: studentStats.drivenHours <= 0 ? "#6b7280" : (studentStats.drivenHours > studentStats.hoursPaid ? "#ef4444" : "#22c55e") }]}>{`${round1(studentStats.drivenHours)} u`}</Text>
-                <Text style={styles.progressLabel}>Uren gereden</Text>
-              </View>
-              <View style={styles.progressItem}>
-                <Clock size={20} color={(() => {
-                  const remainingPaid = Math.max(0, studentStats.hoursPaid - studentStats.drivenHours);
-                  return studentStats.plannedHours <= 0
-                    ? "#6b7280"
-                    : (studentStats.drivenHours > studentStats.hoursPaid
-                        ? "#ef4444"
-                        : (studentStats.noneAdded
-                            ? "#6b7280"
-                            : (remainingPaid >= studentStats.plannedHours
-                                ? "#16a34a"
-                                : (remainingPaid > 0 ? "#f59e0b" : "#2563eb"))));
-                })()} />
-                <Text style={[styles.progressValue, { color: (() => {
-                  const remainingPaid = Math.max(0, studentStats.hoursPaid - studentStats.drivenHours);
-                  return studentStats.plannedHours <= 0
-                    ? "#6b7280"
-                    : (studentStats.drivenHours > studentStats.hoursPaid
-                        ? "#ef4444"
-                        : (studentStats.noneAdded
-                            ? "#6b7280"
-                            : (remainingPaid >= studentStats.plannedHours
-                                ? "#16a34a"
-                                : (remainingPaid > 0 ? "#f59e0b" : "#2563eb"))));
-                })() }]}>{`${round1(studentStats.plannedHours)} u`}</Text>
-                <Text style={styles.progressLabel}>Uren gepland</Text>
-              </View>
-            </View>
-            <View style={styles.row}>
-              <View style={styles.progressItem}>
-                <Clock size={20} color={studentStats.hoursPaid > 0 ? "#16a34a" : "#6b7280"} />
-                <Text style={[styles.progressValue, { color: studentStats.hoursPaid > 0 ? "#16a34a" : "#6b7280" }]}>{`${round1(studentStats.hoursPaid)} u`}</Text>
-                <Text style={styles.progressLabel}>Uren betaald</Text>
-              </View>
-              <View style={styles.progressItem}>
-                <Clock size={20} color={
-                  studentStats.noneAdded
-                    ? "#6b7280"
-                    : studentStats.aggregatePaymentStatus === "unpaid" && studentStats.drivenHours === 0
-                    ? "#6b7280"
-                    : studentStats.aggregatePaymentStatus === "partial"
-                    ? "#f59e0b"
-                    : studentStats.aggregatePaymentStatus === "paid"
-                    ? "#16a34a"
-                    : (studentStats.hoursOver > 0 ? "#16a34a" : "#ef4444")
-                } />
-                <Text style={[styles.progressValue, { color: 
-                  studentStats.noneAdded
-                    ? "#6b7280"
-                    : studentStats.aggregatePaymentStatus === "unpaid" && studentStats.drivenHours === 0
-                    ? "#6b7280"
-                    : studentStats.aggregatePaymentStatus === "partial"
-                    ? "#f59e0b"
-                    : studentStats.aggregatePaymentStatus === "paid"
-                    ? "#16a34a"
-                    : (studentStats.hoursOver > 0 ? "#16a34a" : "#ef4444")
-                }]}>{`${round1(studentStats.hoursOver)} u`}</Text>
-                <Text style={styles.progressLabel}>Uren over</Text>
-              </View>
-            </View>
-          </View>
+          )}
 
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Recente lessen</Text>
