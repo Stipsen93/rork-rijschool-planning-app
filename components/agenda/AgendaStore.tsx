@@ -11,6 +11,7 @@ export type AgendaLesson = {
   status?: string;
   location?: string;
   notes?: string;
+  recurringId?: string;
 };
 
 function keyFor(date: Date): string {
@@ -73,13 +74,32 @@ export const [AgendaProvider, useAgenda] = createContextHook(() => {
     });
   }, []);
 
+  const removeLessonsByRecurringId = useCallback((recurringId: string, fromDate?: Date) => {
+    setLessonsByDate((prev) => {
+      const next: Record<string, AgendaLesson[]> = {};
+      let removed = 0;
+      Object.entries(prev).forEach(([k, arr]) => {
+        const filtered = arr.filter((l) => {
+          if (l.recurringId !== recurringId) return true;
+          if (fromDate && l.date < fromDate) return true;
+          removed++;
+          return false;
+        });
+        if (filtered.length > 0) next[k] = filtered;
+      });
+      console.log("AgendaStore: removeLessonsByRecurringId", { recurringId, fromDate, removed });
+      return next;
+    });
+  }, []);
+
   const value = useMemo(() => ({
     lessonsByDate,
     getLessonsForDate,
     addLesson,
     removeLessonById,
+    removeLessonsByRecurringId,
     keyFor,
-  }), [lessonsByDate, getLessonsForDate, addLesson, removeLessonById]);
+  }), [lessonsByDate, getLessonsForDate, addLesson, removeLessonById, removeLessonsByRecurringId]);
 
   return value;
 });

@@ -1,12 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { Check, Loader2, X } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CategoryTypeSection, Category } from "@/components/add-lesson/CategoryTypeSection";
 import { StudentVehicleSection, Student, Vehicle } from "@/components/add-lesson/StudentVehicleSection";
-import { ScheduleSection } from "@/components/add-lesson/ScheduleSection";
+import { ScheduleSection, RecurrenceType, RecurrenceLimit } from "@/components/add-lesson/ScheduleSection";
 import { LocationSection } from "@/components/add-lesson/LocationSection";
 import { NotesSection } from "@/components/add-lesson/NotesSection";
 import { useAgenda } from "@/components/agenda/AgendaStore";
@@ -55,6 +56,8 @@ export default function AddLessonScreen() {
   const [location, setLocation] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [recurrenceType, setRecurrenceType] = useState<RecurrenceType>("none");
+  const [recurrenceLimit, setRecurrenceLimit] = useState<RecurrenceLimit>({ type: "count", value: 1 });
 
   const isPauseOrLeave = category === "Pauze" || category === "Verlof";
 
@@ -184,35 +187,141 @@ export default function AddLessonScreen() {
         endTime = `${pad(endH)}:${pad(endM)}`;
       }
 
-      if (editingId) {
-        removeLessonById(editingId);
-      }
 
-      if (isPauseOrLeave) {
-        addLesson({
-          id: editingId ?? undefined,
-          date: baseDate,
-          startTime,
-          endTime,
-          studentName: category,
-          lessonType: category,
-          location: "",
-          notes: notes ?? "",
-          status: "Gepland",
+
+      const studentName = mockStudents.find((s) => s.id === selectedStudentId)?.name ?? "Leerling";
+      
+      const shouldRecur = !isPauseOrLeave && !editingId && recurrenceType !== "none";
+      const recurringId = shouldRecur ? Math.random().toString(36).slice(2, 10) : undefined;
+
+      if (shouldRecur) {
+        const studentPackagesStr = await AsyncStorage.getItem(`student_packages_${studentName}`);
+        const studentPackages = studentPackagesStr ? JSON.parse(studentPackagesStr) : [];
+        
+        const [pkgStr, prodStr] = await Promise.all([
+          AsyncStorage.getItem("instructor_packages"),
+          AsyncStorage.getItem("instructor_products"),
+        ]);
+        const pkgs = (pkgStr ? JSON.parse(pkgStr) : []) as { id: string; name: string; hours: number; price: number; vatStatus: "incl" | "excl" }[];
+        const prods = (prodStr ? JSON.parse(prodStr) : []) as { id: string; name: string; price: number; vatStatus: "incl" | "excl" }[];
+        const mappedPkgs = pkgs.map((p) => ({ id: p.id, name: p.name, hours: p.hours, price: p.price, vatStatus: p.vatStatus, isProduct: false }));
+        const mappedProds = prods.map((p) => ({ id: p.id, name: p.name, hours: 0, price: p.price, vatStatus: p.vatStatus, isProduct: true }));
+        const baseItems = [...mappedPkgs, ...mappedProds];
+        const products = mappedProds;
+        const productNames = new Set(products.map(p => p.name));
+
+        const allLessons = Object.values(lessonsByDate).flat();
+        const studentLessons = allLessons.filter((l) => (l.studentName ?? "") === studentName);
+
+        let plannedMin = 0;
+        let drivenMin = 0;
+        const now = new Date();
+
+        studentLessons.forEach((l) => {
+          const mins = (durationHours * 60 + durationMinutes);
+          const endDate = new Date(l.date);
+          const [eh, em] = l.endTime.split(":").map((v) => parseInt(v, 10));
+          endDate.setHours(Number.isFinite(eh) ? eh : 0, Number.isFinite(em) ? em : 0, 0, 0);
+
+          const isProduct = l.lessonType && productNames.has(l.lessonType);
+
+          if (endDate.getTime() > now.getTime()) {
+            if (!isProduct) plannedMin += mins;
+          } else {
+            if (!isProduct) drivenMin += mins;
+          }
         });
+
+        const drivenHours = drivenMin / 60;
+        const plannedHours = plannedMin / 60;
+
+        const totalAddedHours = studentPackages.reduce((sum: number, sp: any) => {
+          const baseItem = baseItems.find((p) => p.id === sp.packageId);
+          const isProduct = baseItem?.isProduct === true;
+          if (isProduct) return sum;
+          const base = sp.customHours ?? (baseItem?.hours ?? 0);
+          return sum + (base || 0);
+        }, 0);
+
+        const hoursPaid = studentPackages.reduce((sum: number, sp: any) => {
+          const baseItem = baseItems.find((p) => p.id === sp.packageId);
+          const isProduct = baseItem?.isProduct === true;
+          if (isProduct) return sum;
+          const baseHours = sp.customHours ?? (baseItem?.hours ?? 0);
+          const total = baseHours || 0;
+          const terms = sp.installments?.length ?? 0;
+          if (terms === 0) return sum;
+          const paidCount = sp.installments.filter((i: any) => i.paid).length;
+          const fraction = total * (paidCount / terms);
+          return sum + fraction;
+        }, 0);
+
+        const hoursOver = Math.max(0, totalAddedHours - drivenHours - plannedHours);
+
+        let maxOccurrences = 0;
+        if (recurrenceLimit.type === "count") {
+          maxOccurrences = recurrenceLimit.value;
+        } else if (recurrenceLimit.type === "remaining") {
+          const lessonDurationInHours = durationHours + durationMinutes / 60;
+          maxOccurrences = Math.floor(hoursOver / lessonDurationInHours);
+        } else if (recurrenceLimit.type === "paid") {
+          const remainingPaidHours = Math.max(0, hoursPaid - drivenHours);
+          const lessonDurationInHours = durationHours + durationMinutes / 60;
+          maxOccurrences = Math.floor(remainingPaidHours / lessonDurationInHours);
+        }
+
+        let currentDate = new Date(baseDate);
+        for (let i = 0; i < maxOccurrences; i++) {
+          addLesson({
+            date: new Date(currentDate),
+            startTime,
+            endTime,
+            studentName,
+            lessonType: type,
+            location: location ?? "",
+            notes: notes ?? "",
+            status: "Gepland",
+            recurringId,
+          });
+
+          if (recurrenceType === "daily") {
+            currentDate.setDate(currentDate.getDate() + 1);
+          } else if (recurrenceType === "weekly") {
+            currentDate.setDate(currentDate.getDate() + 7);
+          } else if (recurrenceType === "monthly") {
+            currentDate.setMonth(currentDate.getMonth() + 1);
+          }
+        }
       } else {
-        const studentName = mockStudents.find((s) => s.id === selectedStudentId)?.name ?? "Leerling";
-        addLesson({
-          id: editingId ?? undefined,
-          date: baseDate,
-          startTime,
-          endTime,
-          studentName,
-          lessonType: type,
-          location: location ?? "",
-          notes: notes ?? "",
-          status: "Gepland",
-        });
+        if (editingId) {
+          removeLessonById(editingId);
+        }
+
+        if (isPauseOrLeave) {
+          addLesson({
+            id: editingId ?? undefined,
+            date: baseDate,
+            startTime,
+            endTime,
+            studentName: category,
+            lessonType: category,
+            location: "",
+            notes: notes ?? "",
+            status: "Gepland",
+          });
+        } else {
+          addLesson({
+            id: editingId ?? undefined,
+            date: baseDate,
+            startTime,
+            endTime,
+            studentName,
+            lessonType: type,
+            location: location ?? "",
+            notes: notes ?? "",
+            status: "Gepland",
+          });
+        }
       }
 
       Alert.alert("Opgeslagen", isPauseOrLeave ? `${category} opgeslagen.` : editingId ? "De les is bijgewerkt." : "De les is opgeslagen.");
@@ -223,7 +332,7 @@ export default function AddLessonScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [addLesson, removeLessonById, editingId, category, type, selectedStudentId, selectedVehicleId, date, time, durationHours, durationMinutes, location, notes, isPauseOrLeave, isFullDay, workingHours, router, mockStudents]);
+  }, [addLesson, removeLessonById, editingId, category, type, selectedStudentId, selectedVehicleId, date, time, durationHours, durationMinutes, location, notes, isPauseOrLeave, isFullDay, workingHours, router, mockStudents, recurrenceType, recurrenceLimit, lessonsByDate]);
 
   return (
     <ErrorBoundary>
@@ -277,6 +386,11 @@ export default function AddLessonScreen() {
               isPauseOrLeave={isPauseOrLeave}
               isVerlof={category === "Verlof"}
               onFullDayToggle={setIsFullDay}
+              showRecurrence={!isPauseOrLeave && type === "Rijles" && !editingId}
+              recurrenceType={recurrenceType}
+              recurrenceLimit={recurrenceLimit}
+              onRecurrenceTypeChanged={setRecurrenceType}
+              onRecurrenceLimitChanged={setRecurrenceLimit}
             />
           </View>
 

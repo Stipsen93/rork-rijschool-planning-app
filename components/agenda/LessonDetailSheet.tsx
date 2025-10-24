@@ -1,5 +1,5 @@
 import React, { memo, useMemo } from "react";
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { X, Clock, History as HistoryIcon } from "lucide-react-native";
 import { useRouter } from "expo-router";
@@ -11,6 +11,7 @@ export interface LessonDetailSheetProps {
   lesson: LessonCardLesson & {
     duration?: number;
     lessonHistory?: { date: string | Date; notes?: string }[];
+    recurringId?: string;
   };
   onClose: () => void;
   onEdit?: () => void;
@@ -92,6 +93,10 @@ function LessonDetailSheetComponent({ lesson, onClose, onEdit, onCancel }: Lesso
       }
     })();
   }, [lesson.studentName]);
+
+  const hasRecurringId = !!lesson.recurringId;
+  const [showDeleteModal, setShowDeleteModal] = React.useState(false);
+  const { removeLessonById, removeLessonsByRecurringId } = useAgenda();
 
   const recentLessons = useMemo(() => {
     const now = new Date();
@@ -356,10 +361,65 @@ function LessonDetailSheetComponent({ lesson, onClose, onEdit, onCancel }: Lesso
             <Pressable accessibilityRole="button" onPress={onEdit} style={[styles.cta, styles.ctaPrimary]} testID="edit-lesson">
               <Text style={styles.ctaPrimaryText}>Bewerken</Text>
             </Pressable>
-            <Pressable accessibilityRole="button" onPress={onCancel} style={[styles.cta, styles.ctaDanger]} testID="cancel-lesson">
+            <Pressable accessibilityRole="button" onPress={() => {
+              if (hasRecurringId) {
+                setShowDeleteModal(true);
+              } else {
+                onCancel?.();
+              }
+            }} style={[styles.cta, styles.ctaDanger]} testID="cancel-lesson">
               <Text style={styles.ctaDangerText}>Annuleren</Text>
             </Pressable>
           </View>
+
+          {showDeleteModal && hasRecurringId && (
+            <Modal visible animationType="fade" transparent>
+              <View style={styles.modalBackdrop}>
+                <View style={styles.deleteModalCard}>
+                  <Text style={styles.deleteModalTitle}>Afspraak verwijderen</Text>
+                  <Text style={styles.deleteModalText}>Deze afspraak is onderdeel van een reeks. Wat wilt u verwijderen?</Text>
+                  <View style={styles.deleteModalButtons}>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => {
+                        if (lesson.id) {
+                          removeLessonById(String(lesson.id));
+                        }
+                        setShowDeleteModal(false);
+                        onClose();
+                      }}
+                      style={styles.deleteModalButton}
+                      testID="delete-this-lesson"
+                    >
+                      <Text style={styles.deleteModalButtonText}>Alleen deze afspraak</Text>
+                    </Pressable>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => {
+                        if (lesson.recurringId) {
+                          removeLessonsByRecurringId(lesson.recurringId, lesson.date);
+                        }
+                        setShowDeleteModal(false);
+                        onClose();
+                      }}
+                      style={styles.deleteModalButton}
+                      testID="delete-following-lessons"
+                    >
+                      <Text style={styles.deleteModalButtonText}>Alle volgende afspraken</Text>
+                    </Pressable>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => setShowDeleteModal(false)}
+                      style={[styles.deleteModalButton, styles.deleteModalButtonCancel]}
+                      testID="cancel-delete"
+                    >
+                      <Text style={[styles.deleteModalButtonText, styles.deleteModalButtonCancelText]}>Annuleren</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              </View>
+            </Modal>
+          )}
         </ScrollView>
       </View>
     </View>
@@ -421,4 +481,13 @@ const styles = StyleSheet.create({
   ctaPrimaryText: { color: "#fff", fontWeight: "700" },
   ctaDanger: { borderWidth: 1, borderColor: "#ef4444" },
   ctaDangerText: { color: "#ef4444", fontWeight: "700" },
+  modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", alignItems: "center", justifyContent: "center", padding: 16 },
+  deleteModalCard: { width: "100%", maxWidth: 400, backgroundColor: "#fff", borderRadius: 16, padding: 24, borderWidth: 1, borderColor: "#e5e7eb" },
+  deleteModalTitle: { fontSize: 18, fontWeight: "700", marginBottom: 12 },
+  deleteModalText: { fontSize: 14, color: "#6b7280", marginBottom: 20 },
+  deleteModalButtons: { gap: 8 },
+  deleteModalButton: { paddingVertical: 14, borderRadius: 8, alignItems: "center", justifyContent: "center", backgroundColor: "#2563eb" },
+  deleteModalButtonText: { color: "#fff", fontWeight: "700" },
+  deleteModalButtonCancel: { backgroundColor: "#f3f4f6" },
+  deleteModalButtonCancelText: { color: "#111827" },
 });

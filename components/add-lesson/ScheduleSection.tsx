@@ -1,6 +1,9 @@
 import React, { memo, useMemo, useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View, FlatList } from "react-native";
-import { CalendarDays, Clock, ChevronLeft, ChevronRight, Timer, X } from "lucide-react-native";
+import { CalendarDays, Clock, ChevronLeft, ChevronRight, Timer, X, Repeat } from "lucide-react-native";
+
+export type RecurrenceType = "none" | "daily" | "weekly" | "monthly";
+export type RecurrenceLimit = { type: "count"; value: number } | { type: "remaining" } | { type: "paid" };
 
 export interface ScheduleSectionProps {
   selectedDate: string; // YYYY-MM-DD
@@ -18,9 +21,14 @@ export interface ScheduleSectionProps {
   isVerlof?: boolean;
   onFullDayToggle?: (v: boolean) => void;
   testID?: string;
+  showRecurrence?: boolean;
+  recurrenceType?: RecurrenceType;
+  recurrenceLimit?: RecurrenceLimit;
+  onRecurrenceTypeChanged?: (type: RecurrenceType) => void;
+  onRecurrenceLimitChanged?: (limit: RecurrenceLimit) => void;
 }
 
-function ScheduleSectionComponent({ selectedDate, selectedTime, lessonDurationHours, lessonDurationMinutes, location, onDateChanged, onTimeChanged, onDurationChanged, onLocationChanged, isFullDay = false, showLocationField = true, isPauseOrLeave = false, isVerlof = false, onFullDayToggle, testID }: ScheduleSectionProps) {
+function ScheduleSectionComponent({ selectedDate, selectedTime, lessonDurationHours, lessonDurationMinutes, location, onDateChanged, onTimeChanged, onDurationChanged, onLocationChanged, isFullDay = false, showLocationField = true, isPauseOrLeave = false, isVerlof = false, onFullDayToggle, testID, showRecurrence = false, recurrenceType = "none", recurrenceLimit = { type: "count", value: 1 }, onRecurrenceTypeChanged, onRecurrenceLimitChanged }: ScheduleSectionProps) {
   const durationString = useMemo(() => {
     const h = Math.max(0, Number(lessonDurationHours || 0));
     const m = Math.max(0, Math.min(59, Number(lessonDurationMinutes || 0)));
@@ -32,6 +40,7 @@ function ScheduleSectionComponent({ selectedDate, selectedTime, lessonDurationHo
   const [showDate, setShowDate] = useState<boolean>(false);
   const [showTime, setShowTime] = useState<boolean>(false);
   const [showDuration, setShowDuration] = useState<boolean>(false);
+  const [showRecurrenceModal, setShowRecurrenceModal] = useState<boolean>(false);
 
   const parseDate = (iso: string) => {
     const [y, m, d] = iso.split("-").map((v) => parseInt(v, 10));
@@ -200,6 +209,122 @@ function ScheduleSectionComponent({ selectedDate, selectedTime, lessonDurationHo
                     );
                   }}
                 />
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {showRecurrence && (
+        <View style={{ marginTop: 12 }}>
+          <Text style={styles.header}>Herhaling</Text>
+          <TouchableOpacity
+            accessibilityRole="button"
+            testID="recurrence-input"
+            onPress={() => setShowRecurrenceModal(true)}
+            activeOpacity={0.8}
+            style={styles.inputWrap}
+          >
+            <Repeat size={16} color="#2563eb" />
+            <Text style={styles.inputText}>
+              {recurrenceType === "none" ? "Geen herhaling" : 
+               recurrenceType === "daily" ? "Dagelijks" :
+               recurrenceType === "weekly" ? "Wekelijks" :
+               "Maandelijks"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {showRecurrenceModal && (
+        <Modal visible animationType="fade" transparent>
+          <View style={styles.modalBackdrop}>
+            <View style={styles.modalCard}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Herhaling instellen</Text>
+                <TouchableOpacity accessibilityRole="button" onPress={() => setShowRecurrenceModal(false)}>
+                  <X size={20} color="#111827" />
+                </TouchableOpacity>
+              </View>
+              <View style={{ padding: 12 }}>
+                <Text style={[styles.header, { marginBottom: 8 }]}>Herhaal</Text>
+                {(["none", "daily", "weekly", "monthly"] as RecurrenceType[]).map((type) => (
+                  <Pressable
+                    key={type}
+                    onPress={() => {
+                      if (onRecurrenceTypeChanged) onRecurrenceTypeChanged(type);
+                    }}
+                    style={[styles.recurrenceOption, recurrenceType === type && styles.recurrenceOptionSelected]}
+                    testID={`recurrence-${type}`}
+                  >
+                    <Text style={[styles.recurrenceOptionText, recurrenceType === type && styles.recurrenceOptionTextSelected]}>
+                      {type === "none" ? "Geen herhaling" :
+                       type === "daily" ? "Dagelijks" :
+                       type === "weekly" ? "Wekelijks" :
+                       "Maandelijks"}
+                    </Text>
+                  </Pressable>
+                ))}
+
+                {recurrenceType !== "none" && (
+                  <View style={{ marginTop: 16 }}>
+                    <Text style={[styles.header, { marginBottom: 8 }]}>Duur</Text>
+                    <Pressable
+                      onPress={() => {
+                        if (onRecurrenceLimitChanged) onRecurrenceLimitChanged({ type: "count", value: recurrenceLimit.type === "count" ? recurrenceLimit.value : 1 });
+                      }}
+                      style={[styles.recurrenceOption, recurrenceLimit.type === "count" && styles.recurrenceOptionSelected]}
+                      testID="recurrence-limit-count"
+                    >
+                      <Text style={[styles.recurrenceOptionText, recurrenceLimit.type === "count" && styles.recurrenceOptionTextSelected]}>
+                        Specifiek aantal
+                      </Text>
+                      {recurrenceLimit.type === "count" && (
+                        <TextInput
+                          value={String(recurrenceLimit.value)}
+                          onChangeText={(text) => {
+                            const val = parseInt(text, 10);
+                            if (onRecurrenceLimitChanged && Number.isFinite(val) && val > 0) {
+                              onRecurrenceLimitChanged({ type: "count", value: val });
+                            }
+                          }}
+                          keyboardType="number-pad"
+                          style={styles.recurrenceInput}
+                        />
+                      )}
+                    </Pressable>
+                    <Pressable
+                      onPress={() => {
+                        if (onRecurrenceLimitChanged) onRecurrenceLimitChanged({ type: "remaining" });
+                      }}
+                      style={[styles.recurrenceOption, recurrenceLimit.type === "remaining" && styles.recurrenceOptionSelected]}
+                      testID="recurrence-limit-remaining"
+                    >
+                      <Text style={[styles.recurrenceOptionText, recurrenceLimit.type === "remaining" && styles.recurrenceOptionTextSelected]}>
+                        Tot uren over op zijn
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => {
+                        if (onRecurrenceLimitChanged) onRecurrenceLimitChanged({ type: "paid" });
+                      }}
+                      style={[styles.recurrenceOption, recurrenceLimit.type === "paid" && styles.recurrenceOptionSelected]}
+                      testID="recurrence-limit-paid"
+                    >
+                      <Text style={[styles.recurrenceOptionText, recurrenceLimit.type === "paid" && styles.recurrenceOptionTextSelected]}>
+                        Tot betaalde uren op zijn
+                      </Text>
+                    </Pressable>
+                  </View>
+                )}
+
+                <TouchableOpacity
+                  onPress={() => setShowRecurrenceModal(false)}
+                  style={styles.doneButton}
+                  testID="recurrence-done"
+                >
+                  <Text style={styles.doneButtonText}>Gereed</Text>
+                </TouchableOpacity>
               </View>
             </View>
           </View>
@@ -477,4 +602,11 @@ const styles = StyleSheet.create({
   yearItemSelected: { backgroundColor: "#eff6ff" },
   yearText: { fontSize: 18, color: "#111827" },
   yearTextSelected: { color: "#2563eb", fontWeight: "700" },
+  recurrenceOption: { paddingVertical: 12, paddingHorizontal: 16, borderRadius: 8, borderWidth: 1, borderColor: "#e5e7eb", marginBottom: 8, backgroundColor: "#fff" },
+  recurrenceOptionSelected: { backgroundColor: "#eff6ff", borderColor: "#2563eb" },
+  recurrenceOptionText: { fontSize: 16, color: "#111827" },
+  recurrenceOptionTextSelected: { color: "#2563eb", fontWeight: "700" },
+  recurrenceInput: { marginTop: 8, borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 6, paddingHorizontal: 12, paddingVertical: 8, fontSize: 16 },
+  doneButton: { marginTop: 16, paddingVertical: 14, backgroundColor: "#2563eb", borderRadius: 8, alignItems: "center" },
+  doneButtonText: { color: "#fff", fontWeight: "700", fontSize: 16 },
 });
