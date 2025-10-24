@@ -92,8 +92,11 @@ export default function TasksWidget({ studentId, studentName }: TasksWidgetProps
   }, [packageHoursForStudent]);
 
   const shouldShowWarning = useMemo(() => {
-    const twothirds = packageHours * (2 / 3);
-    return totalHoursForStudent >= twothirds || totalHoursForStudent >= 20;
+    if (packageHours > 0) {
+      const twothirds = packageHours * (2 / 3);
+      return totalHoursForStudent >= twothirds;
+    }
+    return totalHoursForStudent >= 15;
   }, [totalHoursForStudent, packageHours]);
 
   const toggleTask = useCallback((taskId: string) => {
