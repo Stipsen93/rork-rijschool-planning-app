@@ -17,7 +17,7 @@ export interface StudentItem {
 
 function seedStudents(): StudentItem[] {
   const now = new Date();
-  return Array.from({ length: 18 }).map((_, i) => {
+  return Array.from({ length: 2 }).map((_, i) => {
     const daysAgo = Math.floor(Math.random() * 180);
     const dateAdded = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000);
     
