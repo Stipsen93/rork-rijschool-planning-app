@@ -1,19 +1,13 @@
-import React, { memo, useMemo, useRef } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import React, { memo, useRef, useEffect } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, View, Animated } from "react-native";
 import { useAgenda } from "@/components/agenda/AgendaStore";
 import { useWorkingHours, type DayKey } from "@/components/settings/WorkingHoursStore";
 import { useFocusEffect } from "expo-router";
+import { MapPin } from "lucide-react-native";
 
 export interface TimeGridProps {
   date: Date;
   onLessonPress?: (id: string) => void;
-}
-
-function toMinutes(hhmm: string): number {
-  const [h, m] = hhmm.split(":").map((v) => parseInt(v, 10));
-  const hh = Number.isFinite(h) ? h : 0;
-  const mm = Number.isFinite(m) ? m : 0;
-  return hh * 60 + mm;
 }
 
 function dutchDayName(d: Date): DayKey {
@@ -27,14 +21,6 @@ function dutchDayName(d: Date): DayKey {
     case 6: return "Zaterdag";
     default: return "Zondag";
   }
-}
-
-function minutesBetween(start: string, end: string): number {
-  const s = toMinutes(start);
-  const e = toMinutes(end);
-  let diff = e - s;
-  if (diff < 0) diff += 24 * 60;
-  return diff;
 }
 
 function colorForType(type?: string): string {
@@ -56,182 +42,131 @@ function colorForType(type?: string): string {
   }
 }
 
-function intervalOverlap(aStart: number, aEnd: number, bStart: number, bEnd: number): number {
-  const start = Math.max(aStart, bStart);
-  const end = Math.min(aEnd, bEnd);
-  return Math.max(0, end - start);
-}
-
-function lessonsOverlap(a: { startTime: string; endTime: string }, b: { startTime: string; endTime: string }): boolean {
-  const aStart = toMinutes(a.startTime);
-  const aEnd = toMinutes(a.endTime);
-  const bStart = toMinutes(b.startTime);
-  const bEnd = toMinutes(b.endTime);
-  return intervalOverlap(aStart, aEnd, bStart, bEnd) > 0;
-}
-
-type LessonLayout = {
+type AnimatedLessonItemProps = {
   lesson: any;
-  column: number;
-  totalColumns: number;
+  index: number;
+  onPress: () => void;
 };
 
-function calculateLessonLayout(lessons: any[]): LessonLayout[] {
-  if (lessons.length === 0) return [];
+function AnimatedLessonItem({ lesson, index, onPress }: AnimatedLessonItemProps) {
+  const animatedValue = useRef(new Animated.Value(0)).current;
 
-  const sortedLessons = [...lessons].sort((a, b) => toMinutes(a.startTime) - toMinutes(b.startTime));
-  const layouts: LessonLayout[] = [];
-  const groups: any[][] = [];
+  useEffect(() => {
+    Animated.timing(animatedValue, {
+      toValue: 1,
+      duration: 200,
+      delay: index * 30,
+      useNativeDriver: true,
+    }).start();
+  }, [animatedValue, index]);
 
-  for (const lesson of sortedLessons) {
-    let placed = false;
+  const scale = animatedValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.7, 1],
+  });
 
-    for (const group of groups) {
-      const overlapsWithAny = group.some(existing => lessonsOverlap(lesson, existing));
-      if (overlapsWithAny) {
-        group.push(lesson);
-        placed = true;
-        break;
-      }
-    }
+  const opacity = animatedValue;
 
-    if (!placed) {
-      groups.push([lesson]);
-    }
-  }
+  const isCancelled = lesson.status === "Geannuleerd";
 
-  for (const group of groups) {
-    const totalColumns = group.length;
-    group.forEach((lesson, index) => {
-      layouts.push({
-        lesson,
-        column: index,
-        totalColumns,
-      });
-    });
-  }
+  return (
+    <Animated.View style={{ opacity, transform: [{ scale }], marginBottom: 12 }}>
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [
+          styles.lessonCard,
+          { backgroundColor: isCancelled ? "#f3f4f6" : colorForType(lesson.lessonType) },
+          pressed && { opacity: 0.9 },
+        ]}
+        testID={`lesson-card-${lesson.id}`}
+      >
+        <View style={styles.lessonCardContent}>
+          <View style={styles.lessonCardHeader}>
+            <Text style={[styles.lessonCardStudentName, isCancelled && styles.cancelledText]}>
+              {lesson.studentName ?? "Onbekend"}
+            </Text>
+            {isCancelled && (
+              <View style={styles.cancelledBadge}>
+                <Text style={styles.cancelledBadgeText}>GEANNULEERD</Text>
+              </View>
+            )}
+          </View>
+          
+          <View style={styles.lessonCardRow}>
+            <Text style={[styles.lessonCardTime, isCancelled && styles.cancelledText]}>
+              {`${lesson.startTime} - ${lesson.endTime}`}
+            </Text>
+            <Text style={[styles.lessonCardType, isCancelled && styles.cancelledText]}>
+              {lesson.lessonType ?? "Rijles"}
+            </Text>
+          </View>
 
-  return layouts;
+          {!!lesson.location && (
+            <View style={styles.lessonCardLocationRow}>
+              <MapPin size={14} color={isCancelled ? "#9ca3af" : "#374151"} />
+              <Text numberOfLines={1} style={[styles.lessonCardLocation, isCancelled && styles.cancelledText]}>
+                {lesson.location}
+              </Text>
+            </View>
+          )}
+        </View>
+      </Pressable>
+    </Animated.View>
+  );
 }
 
 function Inner({ date, onLessonPress }: TimeGridProps) {
   const { getLessonsForDate } = useAgenda();
   const lessons = getLessonsForDate(date);
   const { workingHours } = useWorkingHours();
-  const { width: windowWidth } = useWindowDimensions();
 
   const dayKey = dutchDayName(date);
   const conf = workingHours?.[dayKey];
   const enabled = conf?.enabled ?? false;
-  const ranges = conf?.ranges ?? [];
-  const pauses = conf?.pauses ?? [];
-
-  const hours = useMemo(() => Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, "0")}:00`), []);
-
-  const earliestStartMin = useMemo(() => {
-    if (!enabled || ranges.length === 0) return 8 * 60;
-    return Math.min(...ranges.map((r) => toMinutes(r.start)));
-  }, [enabled, ranges]);
-
-  const isHourWorking = (hour: number): boolean => {
-    if (!enabled) return false;
-    const slotStart = hour * 60;
-    const slotEnd = slotStart + 60;
-    let workingOverlap = 0;
-    for (const r of ranges) {
-      const rStart = toMinutes(r.start);
-      const rEnd = toMinutes(r.end);
-      workingOverlap += intervalOverlap(slotStart, slotEnd, rStart, rEnd);
-    }
-    let pauseOverlap = 0;
-    for (const p of pauses) {
-      const pStart = toMinutes(p.start);
-      const pEnd = toMinutes(p.end);
-      pauseOverlap += intervalOverlap(slotStart, slotEnd, pStart, pEnd);
-    }
-    return workingOverlap - pauseOverlap > 0;
-  };
-
-  const PPM = 2.0 as const;
-  const timelineHeight = 24 * 60 * PPM;
 
   const scrollRef = useRef<ScrollView | null>(null);
-  const hasScrolledRef = useRef<boolean>(false);
 
   useFocusEffect(
     React.useCallback(() => {
-      hasScrolledRef.current = false;
-      
-      const targetTime = 14 * 60;
-      const y = Math.max(0, targetTime * PPM - 200);
-      
       const id = setTimeout(() => {
         try {
-          console.log('Scrolling to position:', y);
-          scrollRef.current?.scrollTo({ y, animated: true });
-          hasScrolledRef.current = true;
+          scrollRef.current?.scrollTo({ y: 0, animated: true });
         } catch (e) {
-          console.log("TimeGrid initial scroll error", e);
+          console.log("TimeGrid scroll error", e);
         }
-      }, 300);
+      }, 100);
       
       return () => clearTimeout(id);
-    }, [date, dayKey, PPM])
+    }, [])
   );
 
   return (
     <View style={styles.wrapper} testID="time-grid">
-      <ScrollView ref={scrollRef} horizontal={false} showsVerticalScrollIndicator contentContainerStyle={[styles.scrollContent, { height: timelineHeight + 32 }]}>        
-        <View style={styles.timelineCard}>
-          <View style={styles.gridArea}>
-            {hours.map((h, idx) => {
-              const isWorking = isHourWorking(idx);
-              return (
-                <View key={h} style={styles.gridHourRow}>
-                  {isWorking && <View style={styles.workingTimeSlot} />}
-                  <View style={styles.hourLine} />
-                  <Text style={styles.hourLabel}>{h}</Text>
-                </View>
-              );
-            })}
-
-            {calculateLessonLayout(lessons).map(({ lesson: l, column, totalColumns }) => {
-              const top = toMinutes(l.startTime) * PPM;
-              const height = minutesBetween(l.startTime, l.endTime) * PPM;
-              const leftInset = 84;
-              const rightInset = 12;
-              
-              const availableWidth = windowWidth - 32 - leftInset - rightInset;
-              const columnWidth = availableWidth / totalColumns;
-              const leftPos = leftInset + (columnWidth * column);
-              const blockWidth = columnWidth - (column < totalColumns - 1 ? 4 : 0);
-              
-              return (
-                <Pressable
-                  key={String(l.id)}
-                  style={[
-                    styles.lessonBlock,
-                    { 
-                      top, 
-                      height, 
-                      left: leftPos,
-                      width: blockWidth,
-                      backgroundColor: colorForType(l.lessonType) 
-                    },
-                  ]}
-                  onPress={() => onLessonPress?.(String(l.id))}
-                  testID={`lesson-block-${l.id}`}
-                >
-                  <Text style={styles.lessonTitle}>{l.studentName ?? ""}</Text>
-                  <Text style={styles.lessonMeta}>{`${l.startTime} - ${l.endTime}`}</Text>
-                  {!!l.location && <Text numberOfLines={1} style={styles.lessonLocation}>{l.location}</Text>}
-                </Pressable>
-              );
-            })}
+      <ScrollView 
+        ref={scrollRef} 
+        showsVerticalScrollIndicator
+        contentContainerStyle={styles.listContent}
+      >
+        {!enabled && (
+          <View style={styles.disabledCard}>
+            <Text style={styles.disabledCardText}>Niet werkdag</Text>
           </View>
+        )}
+        
+        {enabled && lessons.length === 0 && (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyCardText}>Geen lessen gepland</Text>
+          </View>
+        )}
 
-          {!enabled && <View style={styles.disabledBanner}><Text style={styles.disabledText}>Niet werkdag</Text></View>}
-        </View>
+        {enabled && lessons.map((lesson, index) => (
+          <AnimatedLessonItem
+            key={String(lesson.id)}
+            lesson={lesson}
+            index={index}
+            onPress={() => onLessonPress?.(String(lesson.id))}
+          />
+        ))}
       </ScrollView>
     </View>
   );
@@ -240,45 +175,98 @@ function Inner({ date, onLessonPress }: TimeGridProps) {
 export const TimeGrid = memo(Inner);
 
 const styles = StyleSheet.create({
-  wrapper: { paddingHorizontal: 0, marginHorizontal: -16 },
-  scrollContent: { paddingBottom: 24 },
-  timelineCard: {
-    position: "relative",
+  wrapper: { flex: 1 },
+  listContent: { 
+    paddingVertical: 8,
+    paddingBottom: 24,
+  },
+  lessonCard: {
     borderRadius: 16,
-    backgroundColor: "#9ca3af",
-    overflow: "hidden",
-  },
-  workingTimeSlot: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 120,
-    backgroundColor: "#ffffff",
-    zIndex: 0,
-  },
-  timeLabels: { position: "absolute", top: 0, left: 0, right: 0 },
-  labelRow: { height: 120, justifyContent: "center" },
-  gridArea: { paddingLeft: 0, paddingRight: 0, zIndex: 1 },
-  gridHourRow: { height: 120, alignItems: "flex-start", justifyContent: "flex-start", paddingHorizontal: 0 },
-  hourLabel: { color: "#d1d5db", fontWeight: "700", marginTop: 4, paddingLeft: 12 },
-  hourLine: { height: 1, backgroundColor: "#4b5563", opacity: 1, alignSelf: "stretch" },
-
-  lessonBlock: {
-    position: "absolute",
-    borderRadius: 12,
-    padding: 10,
-    backgroundColor: "#a78bfa",
+    padding: 16,
     shadowColor: "#000",
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.08,
     shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
+    shadowOffset: { width: 0, height: 4 },
     elevation: 3,
   },
-  lessonTitle: { color: "#111827", fontWeight: "700" },
-  lessonMeta: { color: "#111827", opacity: 0.8, marginTop: 2, fontWeight: "600" },
-  lessonLocation: { color: "#111827", opacity: 0.7, marginTop: 4 },
-
-  disabledBanner: { position: "absolute", top: 12, left: 12, backgroundColor: "#f3f4f6", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
-  disabledText: { color: "#6b7280", fontWeight: "600" },
+  lessonCardContent: {
+    gap: 8,
+  },
+  lessonCardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  lessonCardStudentName: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#111827",
+    flex: 1,
+  },
+  lessonCardRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  lessonCardTime: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#374151",
+  },
+  lessonCardType: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#374151",
+  },
+  lessonCardLocationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  lessonCardLocation: {
+    fontSize: 14,
+    color: "#374151",
+    flex: 1,
+  },
+  cancelledText: {
+    color: "#9ca3af",
+    textDecorationLine: "line-through",
+  },
+  cancelledBadge: {
+    backgroundColor: "#e5e7eb",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  cancelledBadgeText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#6b7280",
+  },
+  disabledCard: {
+    backgroundColor: "#f3f4f6",
+    padding: 20,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  disabledCardText: {
+    color: "#6b7280",
+    fontWeight: "600",
+    fontSize: 16,
+  },
+  emptyCard: {
+    backgroundColor: "#fff",
+    padding: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderStyle: "dashed",
+  },
+  emptyCardText: {
+    color: "#9ca3af",
+    fontSize: 16,
+  },
 });
