@@ -28,7 +28,7 @@ export default function TabLayout() {
           paddingVertical: 4,
         },
         tabBarLabelStyle: {
-          fontSize: 12,
+          fontSize: 12.6,
         },
       }}
     >
@@ -37,7 +37,7 @@ export default function TabLayout() {
         options={{
           title: "Agenda",
           tabBarLabel: "Agenda",
-          tabBarIcon: ({ color }) => <Calendar color={color} />,
+          tabBarIcon: ({ color }) => <Calendar color={color} size={25.2} />,
         }}
       />
       <Tabs.Screen
@@ -45,7 +45,7 @@ export default function TabLayout() {
         options={{
           title: "Overzicht",
           tabBarLabel: "Overzicht",
-          tabBarIcon: ({ color }) => <LayoutDashboard color={color} />,
+          tabBarIcon: ({ color }) => <LayoutDashboard color={color} size={25.2} />,
         }}
       />
       <Tabs.Screen
@@ -53,7 +53,7 @@ export default function TabLayout() {
         options={{
           title: "Leerlingen",
           tabBarLabel: "Leerlingen",
-          tabBarIcon: ({ color }) => <Users color={color} />,
+          tabBarIcon: ({ color }) => <Users color={color} size={25.2} />,
         }}
         listeners={{
           tabPress: (e) => {
@@ -69,7 +69,7 @@ export default function TabLayout() {
         options={{
           title: "Instellingen",
           href: null,
-          tabBarIcon: ({ color }) => <Settings color={color} />,
+          tabBarIcon: ({ color }) => <Settings color={color} size={25.2} />,
         }}
       />
     </Tabs>
