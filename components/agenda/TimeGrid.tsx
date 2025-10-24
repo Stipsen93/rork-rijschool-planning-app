@@ -123,8 +123,16 @@ function Inner({ date, onLessonPress }: TimeGridProps) {
   const dayKey = dutchDayName(date);
   const conf = workingHours?.[dayKey];
   const enabled = conf?.enabled ?? false;
+  const firstRange = conf?.ranges?.[0];
+  const startHour = firstRange?.start ? parseInt(firstRange.start.split(":")[0], 10) : 8;
+  const endHour = firstRange?.end ? parseInt(firstRange.end.split(":")[0], 10) : 18;
 
   const scrollRef = useRef<ScrollView | null>(null);
+
+  const hours: number[] = [];
+  for (let h = Math.max(0, startHour); h <= Math.min(23, endHour); h++) {
+    hours.push(h);
+  }
 
   useFocusEffect(
     React.useCallback(() => {
@@ -153,20 +161,40 @@ function Inner({ date, onLessonPress }: TimeGridProps) {
           </View>
         )}
         
+        {enabled && (
+          <View style={styles.gridBackground}>
+            {hours.map((h) => {
+              const hStr = h.toString().padStart(2, "0");
+              return (
+                <View key={hStr} style={styles.hourRow}>
+                  <View style={styles.hourLabelContainer}>
+                    <Text style={styles.hourLabel}>{hStr}:00</Text>
+                  </View>
+                  <View style={styles.hourLine} />
+                </View>
+              );
+            })}
+          </View>
+        )}
+
         {enabled && lessons.length === 0 && (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyCardText}>Geen lessen gepland</Text>
           </View>
         )}
 
-        {enabled && lessons.map((lesson, index) => (
-          <AnimatedLessonItem
-            key={String(lesson.id)}
-            lesson={lesson}
-            index={index}
-            onPress={() => onLessonPress?.(String(lesson.id))}
-          />
-        ))}
+        {enabled && lessons.length > 0 && (
+          <View style={styles.lessonsContainer}>
+            {lessons.map((lesson, index) => (
+              <AnimatedLessonItem
+                key={String(lesson.id)}
+                lesson={lesson}
+                index={index}
+                onPress={() => onLessonPress?.(String(lesson.id))}
+              />
+            ))}
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -179,6 +207,34 @@ const styles = StyleSheet.create({
   listContent: { 
     paddingVertical: 8,
     paddingBottom: 24,
+  },
+  gridBackground: {
+    marginBottom: 16,
+  },
+  hourRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    height: 60,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
+  },
+  hourLabelContainer: {
+    width: 60,
+    paddingRight: 12,
+  },
+  hourLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#6b7280",
+    textAlign: "right",
+  },
+  hourLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "#e5e7eb",
+  },
+  lessonsContainer: {
+    marginTop: -16,
   },
   lessonCard: {
     borderRadius: 16,
