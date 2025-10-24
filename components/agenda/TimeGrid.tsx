@@ -167,6 +167,7 @@ function Inner({ date, onLessonPress, onSwipeLeft, onSwipeRight }: TimeGridProps
     startY: 0,
     isScrolling: false,
   });
+  const swipeAnimValue = useRef(new Animated.Value(0)).current;
 
   const panResponder = useRef(
     PanResponder.create({
@@ -203,10 +204,38 @@ function Inner({ date, onLessonPress, onSwipeLeft, onSwipeRight }: TimeGridProps
         if (absX > 60 && absX > absY * 1.5 && !panRef.current.isScrolling) {
           if (dx > 0) {
             console.log("Swipe right - previous day");
-            onSwipeRight?.();
+            swipeAnimValue.setValue(0);
+            Animated.sequence([
+              Animated.timing(swipeAnimValue, {
+                toValue: 1,
+                duration: 200,
+                useNativeDriver: true,
+              }),
+              Animated.timing(swipeAnimValue, {
+                toValue: 0,
+                duration: 0,
+                useNativeDriver: true,
+              }),
+            ]).start(() => {
+              onSwipeRight?.();
+            });
           } else {
             console.log("Swipe left - next day");
-            onSwipeLeft?.();
+            swipeAnimValue.setValue(0);
+            Animated.sequence([
+              Animated.timing(swipeAnimValue, {
+                toValue: -1,
+                duration: 200,
+                useNativeDriver: true,
+              }),
+              Animated.timing(swipeAnimValue, {
+                toValue: 0,
+                duration: 0,
+                useNativeDriver: true,
+              }),
+            ]).start(() => {
+              onSwipeLeft?.();
+            });
           }
         }
       },
@@ -238,8 +267,13 @@ function Inner({ date, onLessonPress, onSwipeLeft, onSwipeRight }: TimeGridProps
     }, [])
   );
 
+  const translateX = swipeAnimValue.interpolate({
+    inputRange: [-1, 0, 1],
+    outputRange: [-300, 0, 300],
+  });
+
   return (
-    <View style={styles.wrapper} testID="time-grid" {...panResponder.panHandlers}>
+    <Animated.View style={[styles.wrapper, { transform: [{ translateX }] }]} testID="time-grid" {...panResponder.panHandlers}>
       <ScrollView 
         ref={scrollRef} 
         showsVerticalScrollIndicator
@@ -304,7 +338,7 @@ function Inner({ date, onLessonPress, onSwipeLeft, onSwipeRight }: TimeGridProps
           )}
         </View>
       </ScrollView>
-    </View>
+    </Animated.View>
   );
 }
 

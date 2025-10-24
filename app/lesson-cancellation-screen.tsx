@@ -119,7 +119,11 @@ export default function LessonCancellationScreen() {
           style={[styles.confirmBtn, !isFormValid && { opacity: 0.6 }]}
           accessibilityRole="button"
         >
-          Les annuleren bevestigen
+          {lesson?.lessonType === "Pauze" 
+            ? "Pauze annuleren bevestigen" 
+            : lesson?.lessonType === "Verlof"
+            ? "Verlof annuleren bevestigen"
+            : "Les annuleren bevestigen"}
         </Text>
       </View>
     </View>
