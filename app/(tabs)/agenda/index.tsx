@@ -1,10 +1,9 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AgendaHeader } from "@/components/agenda/AgendaHeader";
 import { DayStrip } from "@/components/agenda/DayStrip";
 import { MonthlyView } from "@/components/agenda/MonthlyView";
-import { LessonCard } from "@/components/agenda/LessonCard";
 import { TimeGrid } from "@/components/agenda/TimeGrid";
 import { LessonDetailSheet } from "@/components/agenda/LessonDetailSheet";
 import { useRouter, useFocusEffect } from "expo-router";
@@ -12,13 +11,6 @@ import { Plus } from "lucide-react-native";
 import { useAgenda } from "@/components/agenda/AgendaStore";
 
 export type Lesson = { id?: string | number; studentName?: string; lessonType?: string; startTime: string; endTime: string; date: Date; status?: string; location?: string; notes?: string };
-
-function keyFor(date: Date): string {
-  const y = date.getFullYear();
-  const m = (date.getMonth() + 1).toString().padStart(2, "0");
-  const d = date.getDate().toString().padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
 
 function minutesBetween(start: string, end: string): number {
   const [sh, sm] = start.split(":").map((v) => parseInt(v, 10));
@@ -31,8 +23,8 @@ function minutesBetween(start: string, end: string): number {
 }
 
 
+// eslint-disable-next-line @rork/linters/expo-router-enforce-safe-area-usage
 export default function AgendaScreen() {
-  const [refreshing, setRefreshing] = useState<boolean>(false);
   const router = useRouter();
   const [currentDate, setCurrentDate] = useState<Date>(() => {
     const now = new Date();
@@ -63,12 +55,6 @@ export default function AgendaScreen() {
   const getLessonsForDate = useCallback((date: Date): Lesson[] => {
     return getLessonsForDateFromStore(date) as Lesson[];
   }, [getLessonsForDateFromStore]);
-
-  const onRefresh = useCallback(() => {
-    console.log("Refreshing agenda...");
-    setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 600);
-  }, []);
 
   const onPrevWeek = useCallback(() => {
     setCurrentDate((d) => new Date(d.getFullYear(), d.getMonth(), d.getDate() - 7));
@@ -104,16 +90,7 @@ export default function AgendaScreen() {
   }, []);
 
   return (
-    <View style={{ flex: 1 }}>
-      <ScrollView
-        testID="agenda-screen"
-        contentContainerStyle={[styles.container, { paddingTop: 0 }]}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        showsVerticalScrollIndicator
-        keyboardDismissMode="on-drag"
-        keyboardShouldPersistTaps="handled"
-        stickyHeaderIndices={[0]}
-      >
+    <View style={{ flex: 1, backgroundColor: '#f8fafc' }}>
         <View style={styles.stickyHeaderCombined}>
           <View style={styles.stickyHeaderInner}>
             <AgendaHeader
@@ -143,90 +120,86 @@ export default function AgendaScreen() {
           onSwipeRight={onPrevDay}
         />
 
-        <View style={{ height: 40 }} />
-      </ScrollView>
+        {showMonthly && (
+          <MonthlyView
+            focusedDay={selectedDate}
+            selectedDay={selectedDate}
+            onDaySelected={(sel) => {
+              setSelectedDate(sel);
+              setCurrentDate(new Date(sel.getFullYear(), sel.getMonth(), sel.getDate() - ((sel.getDay() || 7) - 1)));
+              setShowMonthly(false);
+            }}
+            lessons={lessonsByDate}
+            onClose={() => setShowMonthly(false)}
+          />
+        )}
 
-      {showMonthly && (
-        <MonthlyView
-          focusedDay={selectedDate}
-          selectedDay={selectedDate}
-          onDaySelected={(sel) => {
-            setSelectedDate(sel);
-            setCurrentDate(new Date(sel.getFullYear(), sel.getMonth(), sel.getDate() - ((sel.getDay() || 7) - 1)));
-            setShowMonthly(false);
-          }}
-          lessons={lessonsByDate}
-          onClose={() => setShowMonthly(false)}
-        />
-      )}
+        {!!selectedLesson && (
+          <LessonDetailSheet
+            lesson={{
+              ...selectedLesson,
+              duration: 60,
+              lessonHistory: [
+                { date: new Date(), notes: "Kijken in spiegels verbeteren" },
+                { date: new Date(Date.now() - 7 * 86400000), notes: "Parkeren geoefend" },
+              ],
+            } as any}
+            onClose={() => setSelectedLesson(null)}
+            onEdit={() => {
+              if (!selectedLesson) return;
+              const y = selectedLesson.date.getFullYear();
+              const m = (selectedLesson.date.getMonth() + 1).toString().padStart(2, "0");
+              const d = selectedLesson.date.getDate().toString().padStart(2, "0");
+              const durationMin = minutesBetween(selectedLesson.startTime, selectedLesson.endTime);
+              const id = (selectedLesson as any).id ? String((selectedLesson as any).id) : "";
+              setSelectedLesson(null);
+              router.push({
+                pathname: "/add-lesson",
+                params: {
+                  mode: "edit",
+                  id,
+                  date: `${y}-${m}-${d}`,
+                  time: selectedLesson.startTime,
+                  durationMinutes: String(durationMin),
+                  type: selectedLesson.lessonType ?? "Rijles",
+                  location: selectedLesson.location ?? "",
+                  notes: selectedLesson.notes ?? "",
+                },
+              });
+            }}
+            onCancel={() => {
+              const lessonParam = JSON.stringify({
+                id: (selectedLesson as any)?.id ?? "",
+                studentName: selectedLesson?.studentName,
+                lessonType: selectedLesson?.lessonType,
+                startTime: selectedLesson?.startTime,
+                endTime: selectedLesson?.endTime,
+                date: selectedLesson?.date?.toString(),
+              });
+              setSelectedLesson(null);
+              router.push({ pathname: "/lesson-cancellation-screen", params: { lesson: lessonParam } });
+            }}
+          />
+        )}
 
-      {!!selectedLesson && (
-        <LessonDetailSheet
-          lesson={{
-            ...selectedLesson,
-            duration: 60,
-            studentProgress: { totalLessons: 24, hoursCompleted: 18, theoryScore: 82, examReady: false },
-            lessonHistory: [
-              { date: new Date(), notes: "Kijken in spiegels verbeteren" },
-              { date: new Date(Date.now() - 7 * 86400000), notes: "Parkeren geoefend" },
-            ],
-          }}
-          onClose={() => setSelectedLesson(null)}
-          onEdit={() => {
-            if (!selectedLesson) return;
-            const y = selectedLesson.date.getFullYear();
-            const m = (selectedLesson.date.getMonth() + 1).toString().padStart(2, "0");
-            const d = selectedLesson.date.getDate().toString().padStart(2, "0");
-            const durationMin = minutesBetween(selectedLesson.startTime, selectedLesson.endTime);
-            const id = (selectedLesson as any).id ? String((selectedLesson as any).id) : "";
-            setSelectedLesson(null);
-            router.push({
-              pathname: "/add-lesson",
-              params: {
-                mode: "edit",
-                id,
-                date: `${y}-${m}-${d}`,
-                time: selectedLesson.startTime,
-                durationMinutes: String(durationMin),
-                type: selectedLesson.lessonType ?? "Rijles",
-                location: selectedLesson.location ?? "",
-                notes: selectedLesson.notes ?? "",
-              },
-            });
-          }}
-          onCancel={() => {
-            const lessonParam = JSON.stringify({
-              id: (selectedLesson as any)?.id ?? "",
-              studentName: selectedLesson?.studentName,
-              lessonType: selectedLesson?.lessonType,
-              startTime: selectedLesson?.startTime,
-              endTime: selectedLesson?.endTime,
-              date: selectedLesson?.date?.toString(),
-            });
-            setSelectedLesson(null);
-            router.push({ pathname: "/lesson-cancellation-screen", params: { lesson: lessonParam } });
-          }}
-        />
-      )}
-
-      {!selectedLesson && (
-        <TouchableOpacity
-          testID="fab-add-lesson"
-          onPress={() => {
-            console.log("Open add lesson modal");
-            const y = selectedDate.getFullYear();
-            const m = (selectedDate.getMonth() + 1).toString().padStart(2, "0");
-            const d = selectedDate.getDate().toString().padStart(2, "0");
-            router.push({ pathname: "/add-lesson", params: { date: `${y}-${m}-${d}` } });
-          }}
-          activeOpacity={0.8}
-          style={[styles.fab, { bottom: insets.bottom + 56 }]}
-          accessibilityRole="button"
-          accessibilityLabel="Les toevoegen"
-        >
-          <Plus color="#fff" size={24} />
-        </TouchableOpacity>
-      )}
+        {!selectedLesson && (
+          <TouchableOpacity
+            testID="fab-add-lesson"
+            onPress={() => {
+              console.log("Open add lesson modal");
+              const y = selectedDate.getFullYear();
+              const m = (selectedDate.getMonth() + 1).toString().padStart(2, "0");
+              const d = selectedDate.getDate().toString().padStart(2, "0");
+              router.push({ pathname: "/add-lesson", params: { date: `${y}-${m}-${d}` } });
+            }}
+            activeOpacity={0.8}
+            style={[styles.fab, { bottom: insets.bottom + 56 }]}
+            accessibilityRole="button"
+            accessibilityLabel="Les toevoegen"
+          >
+            <Plus color="#fff" size={24} />
+          </TouchableOpacity>
+        )}
     </View>
   );
 }
