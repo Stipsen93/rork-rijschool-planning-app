@@ -1,16 +1,17 @@
 // template
-import { Tabs } from "expo-router";
+import { Tabs, useRouter, useSegments } from "expo-router";
 import { Calendar, LayoutDashboard, Settings, Users } from "lucide-react-native";
 import React from "react";
 import { Platform } from "react-native";
 
-import Colors from "@/constants/colors";
-
 export default function TabLayout() {
+  const router = useRouter();
+  const segments = useSegments();
+
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors.light.tint,
+        tabBarActiveTintColor: "#2563EB",
         headerShown: false,
         tabBarStyle: {
           position: "absolute",
@@ -19,7 +20,7 @@ export default function TabLayout() {
           bottom: 0,
           height: 64,
           borderRadius: 0,
-          backgroundColor: Colors.light.background,
+          backgroundColor: "#FFFFFF",
           paddingBottom: Platform.OS === "android" ? 8 : 10,
           paddingTop: 8,
         },
@@ -53,6 +54,14 @@ export default function TabLayout() {
           title: "Leerlingen",
           tabBarLabel: "Leerlingen",
           tabBarIcon: ({ color }) => <Users color={color} />,
+        }}
+        listeners={{
+          tabPress: (e) => {
+            if (segments.length > 0 && segments[0] === "students" && segments.length > 1) {
+              e.preventDefault();
+              router.push("/students");
+            }
+          },
         }}
       />
       <Tabs.Screen
