@@ -1,5 +1,5 @@
 import React, { memo, useRef, useEffect } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View, Animated } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View, Animated, PanResponder } from "react-native";
 import { useAgenda } from "@/components/agenda/AgendaStore";
 import { useWorkingHours, type DayKey } from "@/components/settings/WorkingHoursStore";
 import { useFocusEffect } from "expo-router";
@@ -21,6 +21,8 @@ function timeToMinutes(hhmm: string): number {
 export interface TimeGridProps {
   date: Date;
   onLessonPress?: (id: string) => void;
+  onSwipeLeft?: () => void;
+  onSwipeRight?: () => void;
 }
 
 function dutchDayName(d: Date): DayKey {
@@ -147,7 +149,7 @@ function AnimatedLessonItem({ lesson, index, onPress, startHour }: AnimatedLesso
   );
 }
 
-function Inner({ date, onLessonPress }: TimeGridProps) {
+function Inner({ date, onLessonPress, onSwipeLeft, onSwipeRight }: TimeGridProps) {
   const { getLessonsForDate } = useAgenda();
   const lessons = getLessonsForDate(date);
   const { workingHours } = useWorkingHours();
@@ -160,6 +162,59 @@ function Inner({ date, onLessonPress }: TimeGridProps) {
   const endHour = 23;
 
   const scrollRef = useRef<ScrollView | null>(null);
+  const panRef = useRef({
+    startX: 0,
+    startY: 0,
+    isScrolling: false,
+  });
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (evt, gestureState) => {
+        const { dx, dy } = gestureState;
+        const absX = Math.abs(dx);
+        const absY = Math.abs(dy);
+        
+        if (absX > 10 && absX > absY * 1.5) {
+          return true;
+        }
+        return false;
+      },
+      onPanResponderGrant: (evt, gestureState) => {
+        panRef.current.startX = gestureState.x0;
+        panRef.current.startY = gestureState.y0;
+        panRef.current.isScrolling = false;
+      },
+      onPanResponderMove: (evt, gestureState) => {
+        const { dx, dy } = gestureState;
+        const absX = Math.abs(dx);
+        const absY = Math.abs(dy);
+        
+        if (absY > absX && !panRef.current.isScrolling) {
+          panRef.current.isScrolling = true;
+        }
+      },
+      onPanResponderRelease: (evt, gestureState) => {
+        const { dx, dy } = gestureState;
+        const absX = Math.abs(dx);
+        const absY = Math.abs(dy);
+
+        if (absX > 60 && absX > absY * 1.5 && !panRef.current.isScrolling) {
+          if (dx > 0) {
+            console.log("Swipe right - previous day");
+            onSwipeRight?.();
+          } else {
+            console.log("Swipe left - next day");
+            onSwipeLeft?.();
+          }
+        }
+      },
+      onPanResponderTerminate: () => {
+        panRef.current.isScrolling = false;
+      },
+    })
+  ).current;
 
   const hours: number[] = [];
   for (let h = startHour; h <= endHour; h++) {
@@ -184,11 +239,12 @@ function Inner({ date, onLessonPress }: TimeGridProps) {
   );
 
   return (
-    <View style={styles.wrapper} testID="time-grid">
+    <View style={styles.wrapper} testID="time-grid" {...panResponder.panHandlers}>
       <ScrollView 
         ref={scrollRef} 
         showsVerticalScrollIndicator
         contentContainerStyle={styles.listContent}
+        scrollEnabled
       >
         {!enabled && (
           <View style={styles.nonWorkDayBanner}>

@@ -81,6 +81,28 @@ export default function AgendaScreen() {
     setSelectedDate(d);
   }, []);
 
+  const onPrevDay = useCallback(() => {
+    setSelectedDate((d) => {
+      const prev = new Date(d);
+      prev.setDate(prev.getDate() - 1);
+      const mondayOffset = (prev.getDay() || 7) - 1;
+      const weekStart = new Date(prev.getFullYear(), prev.getMonth(), prev.getDate() - mondayOffset);
+      setCurrentDate(weekStart);
+      return prev;
+    });
+  }, []);
+
+  const onNextDay = useCallback(() => {
+    setSelectedDate((d) => {
+      const next = new Date(d);
+      next.setDate(next.getDate() + 1);
+      const mondayOffset = (next.getDay() || 7) - 1;
+      const weekStart = new Date(next.getFullYear(), next.getMonth(), next.getDate() - mondayOffset);
+      setCurrentDate(weekStart);
+      return next;
+    });
+  }, []);
+
   return (
     <View style={{ flex: 1 }}>
       <ScrollView
@@ -117,6 +139,8 @@ export default function AgendaScreen() {
             const l = getLessonsForDate(selectedDate).find((x) => String((x as any).id) === id);
             if (l) setSelectedLesson(l);
           }}
+          onSwipeLeft={onNextDay}
+          onSwipeRight={onPrevDay}
         />
 
         <View style={{ height: 40 }} />
