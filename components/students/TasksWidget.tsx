@@ -120,9 +120,9 @@ export default function TasksWidget({ studentId, studentName }: TasksWidgetProps
         <Text style={styles.sectionTitle}>Taken</Text>
         <TouchableOpacity
           onPress={() => setIsEditMode(!isEditMode)}
-          style={styles.editButton}
+          style={[styles.editButton, isEditMode && styles.editButtonActive]}
         >
-          <Pencil size={18} color={isEditMode ? "#3b82f6" : "#6b7280"} />
+          <Pencil size={18} color={isEditMode ? "#fff" : "#6b7280"} />
         </TouchableOpacity>
       </View>
       <View style={{ gap: 12 }}>
@@ -164,7 +164,13 @@ const styles = StyleSheet.create({
   },
   sectionTitle: { fontSize: 16, fontWeight: "700" },
   editButton: {
-    padding: 4,
+    padding: 8,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  editButtonActive: {
+    backgroundColor: "#3b82f6",
   },
   taskRow: {
     flexDirection: "row",
