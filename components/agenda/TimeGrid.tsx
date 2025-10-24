@@ -188,64 +188,62 @@ function Inner({ date, onLessonPress }: TimeGridProps) {
         contentContainerStyle={styles.listContent}
       >
         {!enabled && (
-          <View style={styles.disabledCard}>
-            <Text style={styles.disabledCardText}>Niet werkdag</Text>
+          <View style={styles.nonWorkDayBanner}>
+            <Text style={styles.nonWorkDayText}>Niet werkdag</Text>
           </View>
         )}
         
-        {enabled && (
-          <View style={styles.gridContainer}>
-            <View style={styles.gridBackground}>
-              {hours.map((h) => {
-                const hStr = h.toString().padStart(2, "0");
-                
-                let isWorkingHour = false;
-                if (conf?.ranges) {
-                  for (const range of conf.ranges) {
-                    const startMin = timeToMinutes(range.start);
-                    const endMin = timeToMinutes(range.end);
-                    const hourMin = h * 60;
-                    
-                    if (hourMin >= startMin && hourMin < endMin) {
-                      isWorkingHour = true;
-                      break;
-                    }
+        <View style={styles.gridContainer}>
+          <View style={styles.gridBackground}>
+            {hours.map((h) => {
+              const hStr = h.toString().padStart(2, "0");
+              
+              let isWorkingHour = false;
+              if (enabled && conf?.ranges) {
+                for (const range of conf.ranges) {
+                  const startMin = timeToMinutes(range.start);
+                  const endMin = timeToMinutes(range.end);
+                  const hourMin = h * 60;
+                  
+                  if (hourMin >= startMin && hourMin < endMin) {
+                    isWorkingHour = true;
+                    break;
                   }
                 }
-                
-                return (
-                  <View key={hStr} style={styles.hourRow}>
-                    <View style={styles.hourLabelContainer}>
-                      <Text style={styles.hourLabel}>{hStr}:00</Text>
-                    </View>
-                    <View style={styles.hourLine} />
-                    {isWorkingHour && <View style={styles.workingHourBg} />}
+              }
+              
+              return (
+                <View key={hStr} style={styles.hourRow}>
+                  <View style={styles.hourLabelContainer}>
+                    <Text style={styles.hourLabel}>{hStr}:00</Text>
                   </View>
-                );
-              })}
-            </View>
-
-            {lessons.length === 0 && (
-              <View style={styles.emptyCard}>
-                <Text style={styles.emptyCardText}>Geen lessen gepland</Text>
-              </View>
-            )}
-
-            {lessons.length > 0 && (
-              <View style={styles.lessonsOverlay}>
-                {lessons.map((lesson, index) => (
-                  <AnimatedLessonItem
-                    key={String(lesson.id)}
-                    lesson={lesson}
-                    index={index}
-                    startHour={startHour}
-                    onPress={() => onLessonPress?.(String(lesson.id))}
-                  />
-                ))}
-              </View>
-            )}
+                  <View style={styles.hourLine} />
+                  {isWorkingHour && <View style={styles.workingHourBg} />}
+                </View>
+              );
+            })}
           </View>
-        )}
+
+          {lessons.length === 0 && (
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyCardText}>Geen lessen gepland</Text>
+            </View>
+          )}
+
+          {lessons.length > 0 && (
+            <View style={styles.lessonsOverlay}>
+              {lessons.map((lesson, index) => (
+                <AnimatedLessonItem
+                  key={String(lesson.id)}
+                  lesson={lesson}
+                  index={index}
+                  startHour={startHour}
+                  onPress={() => onLessonPress?.(String(lesson.id))}
+                />
+              ))}
+            </View>
+          )}
+        </View>
       </ScrollView>
     </View>
   );
@@ -381,17 +379,20 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#6b7280",
   },
-  disabledCard: {
-    backgroundColor: "#f3f4f6",
-    padding: 20,
-    borderRadius: 16,
+  nonWorkDayBanner: {
+    backgroundColor: "#fef3c7",
+    padding: 12,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#fbbf24",
   },
-  disabledCardText: {
-    color: "#6b7280",
+  nonWorkDayText: {
+    color: "#92400e",
     fontWeight: "600",
-    fontSize: 16,
+    fontSize: 14,
   },
   emptyCard: {
     backgroundColor: "#fff",
