@@ -1,8 +1,8 @@
 import React from "react";
 import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
-import { User, ChevronRight, Clock, Boxes, Cog, CalendarRange } from "lucide-react-native";
+import { useRouter, Stack } from "expo-router";
+import { User, ChevronRight, Clock, Boxes, Cog, CalendarRange, ArrowLeft } from "lucide-react-native";
 
 export default function SettingsScreen() {
   const [refreshing, setRefreshing] = React.useState<boolean>(false);
@@ -10,7 +10,23 @@ export default function SettingsScreen() {
   const router = useRouter();
 
   return (
-    <ScrollView
+    <>
+      <Stack.Screen
+        options={{
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => {
+                console.log("Navigating back to Overview");
+                router.push("/(tabs)/");
+              }}
+              style={{ marginLeft: 8, padding: 8 }}
+            >
+              <ArrowLeft color="#2563EB" size={24} />
+            </TouchableOpacity>
+          ),
+        }}
+      />
+      <ScrollView
       testID="settings-screen"
       contentContainerStyle={[styles.container, { paddingTop: insets.top + 8 }]}
       refreshControl={
@@ -146,7 +162,8 @@ export default function SettingsScreen() {
       <View style={styles.versionContainer}>
         <Text style={styles.versionText}>Versie 1.0</Text>
       </View>
-    </ScrollView>
+      </ScrollView>
+    </>
   );
 }
 
