@@ -89,7 +89,7 @@ function AnimatedLessonItem({ lesson, index, onPress, startHour }: AnimatedLesso
 
   const gridStartMinutes = startHour * 60;
   const topOffset = ((startMinutes - gridStartMinutes) / 60) * 80;
-  const height = (durationMinutes / 60) * 80;
+  const height = (durationMinutes / 60) * 80 - 4;
 
   return (
     <Animated.View 
@@ -97,7 +97,7 @@ function AnimatedLessonItem({ lesson, index, onPress, startHour }: AnimatedLesso
         styles.lessonCardPositioned,
         {
           top: topOffset,
-          height: Math.max(height - 4, 50),
+          height: Math.max(height, 50),
           opacity,
           transform: [{ scale }],
         },
@@ -283,7 +283,6 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 12,
     right: 12,
-    paddingVertical: 2,
   },
   lessonCard: {
     borderRadius: 12,
