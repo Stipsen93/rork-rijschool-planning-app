@@ -191,7 +191,7 @@ export default function AddLessonScreen() {
 
       const studentName = mockStudents.find((s) => s.id === selectedStudentId)?.name ?? "Leerling";
       
-      const shouldRecur = !isPauseOrLeave && !editingId && recurrenceType !== "none";
+      const shouldRecur = !isPauseOrLeave && !editingId && recurrenceType !== "none" && type === "Rijles";
       const recurringId = shouldRecur ? Math.random().toString(36).slice(2, 10) : undefined;
 
       if (shouldRecur) {
