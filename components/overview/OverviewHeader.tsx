@@ -2,19 +2,96 @@ import React, { memo } from "react";
 import { Platform, StyleSheet, Text, View, Image } from "react-native";
 import { Bell, User } from "lucide-react-native";
 import { useProfile } from "@/components/settings/ProfileStore";
+import { useWorkingHours, DayKey } from "@/components/settings/WorkingHoursStore";
+import { useAgenda, AgendaLesson } from "@/components/agenda/AgendaStore";
 
-interface WeeklyEarnings {
-  currentWeek: number;
-  trend: number;
+interface Props {}
+
+const dayKeys: DayKey[] = ["Zondag", "Maandag", "Dinsdag", "Woensdag", "Donderdag", "Vrijdag", "Zaterdag"];
+
+function getWeekDates(date: Date): Date[] {
+  const curr = new Date(date);
+  const first = curr.getDate() - curr.getDay() + 1;
+  const dates: Date[] = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(curr);
+    d.setDate(first + i);
+    dates.push(d);
+  }
+  return dates;
 }
 
-interface Props {
-  weeklyEarnings: WeeklyEarnings;
+function toMinutes(hhmm: string): number {
+  const [h, m] = hhmm.split(":").map((v) => parseInt(v, 10));
+  return (h || 0) * 60 + (m || 0);
 }
 
-function OverviewHeaderComponent({ weeklyEarnings }: Props) {
+function calculateLessonHours(lessons: AgendaLesson[]): number {
+  let totalMinutes = 0;
+  lessons.forEach((lesson) => {
+    const start = toMinutes(lesson.startTime);
+    const end = toMinutes(lesson.endTime);
+    totalMinutes += end - start;
+  });
+  return totalMinutes / 60;
+}
+
+function calculateScheduledHours(weekDates: Date[], workingHours: any): number {
+  let totalMinutes = 0;
+  weekDates.forEach((date) => {
+    const dayKey = dayKeys[date.getDay()];
+    const dayConfig = workingHours[dayKey];
+    if (dayConfig?.enabled && dayConfig.ranges) {
+      dayConfig.ranges.forEach((range: any) => {
+        const start = toMinutes(range.start);
+        const end = toMinutes(range.end);
+        totalMinutes += end - start;
+      });
+      if (dayConfig.pauses) {
+        dayConfig.pauses.forEach((pause: any) => {
+          const start = toMinutes(pause.start);
+          const end = toMinutes(pause.end);
+          totalMinutes -= end - start;
+        });
+      }
+    }
+  });
+  return totalMinutes / 60;
+}
+
+function getHoursColor(worked: number, scheduled: number): string {
+  if (worked < scheduled) return "#22c55e";
+  if (Math.abs(worked - scheduled) <= 0.5) return "#000";
+  return "#ef4444";
+}
+
+function OverviewHeaderComponent({}: Props) {
   const { profile, fullName } = useProfile();
-  const isPositive = weeklyEarnings.trend > 0;
+  const { workingHours } = useWorkingHours();
+  const { getLessonsForDate } = useAgenda();
+
+  const now = new Date();
+  const currentWeekDates = getWeekDates(now);
+  const nextWeek = new Date(now);
+  nextWeek.setDate(now.getDate() + 7);
+  const nextWeekDates = getWeekDates(nextWeek);
+
+  const currentWeekLessons: AgendaLesson[] = [];
+  currentWeekDates.forEach((date) => {
+    currentWeekLessons.push(...getLessonsForDate(date));
+  });
+  const hoursWorkedThisWeek = calculateLessonHours(currentWeekLessons);
+  const scheduledHoursThisWeek = calculateScheduledHours(currentWeekDates, workingHours);
+
+  const nextWeekLessons: AgendaLesson[] = [];
+  nextWeekDates.forEach((date) => {
+    nextWeekLessons.push(...getLessonsForDate(date));
+  });
+  const hoursPlannedNextWeek = calculateLessonHours(nextWeekLessons);
+  const scheduledHoursNextWeek = calculateScheduledHours(nextWeekDates, workingHours);
+
+  const thisWeekColor = getHoursColor(hoursWorkedThisWeek, scheduledHoursThisWeek);
+  const nextWeekColor = getHoursColor(hoursPlannedNextWeek, scheduledHoursNextWeek);
   return (
     <View style={styles.card} testID="overview-header">
       <View style={styles.row}>
@@ -36,17 +113,27 @@ function OverviewHeaderComponent({ weeklyEarnings }: Props) {
         </View>
       </View>
 
-      <View style={styles.earnings}>
-        <View style={styles.flex1}>
-          <Text style={styles.earningsLabel}>Deze week verdiend</Text>
-          <Text style={styles.earningsValue}>
-            €{weeklyEarnings.currentWeek.toFixed(2)}
-          </Text>
+      <View style={styles.hoursContainer}>
+        <View style={styles.hoursRow}>
+          <Text style={styles.hoursLabel}>Uren gewerkt deze week</Text>
+          <View style={styles.hoursValueRow}>
+            <Text style={[styles.hoursValue, { color: thisWeekColor }]}>
+              {hoursWorkedThisWeek.toFixed(1)}
+            </Text>
+            <Text style={styles.hoursSeparator}>/</Text>
+            <Text style={styles.hoursScheduled}>{scheduledHoursThisWeek.toFixed(1)}</Text>
+          </View>
         </View>
-        <View style={[styles.trendBadge, { backgroundColor: isPositive ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.12)" }]}> 
-          <Text style={[styles.trendText, { color: isPositive ? "#22c55e" : "#ef4444" }]}>
-            {isPositive ? "▲" : "▼"} {Math.abs(weeklyEarnings.trend).toFixed(1)}%
-          </Text>
+        <View style={styles.divider} />
+        <View style={styles.hoursRow}>
+          <Text style={styles.hoursLabel}>Uren gepland volgende week</Text>
+          <View style={styles.hoursValueRow}>
+            <Text style={[styles.hoursValue, { color: nextWeekColor }]}>
+              {hoursPlannedNextWeek.toFixed(1)}
+            </Text>
+            <Text style={styles.hoursSeparator}>/</Text>
+            <Text style={styles.hoursScheduled}>{scheduledHoursNextWeek.toFixed(1)}</Text>
+          </View>
         </View>
       </View>
     </View>
@@ -89,19 +176,46 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  earnings: {
+  hoursContainer: {
     marginTop: 16,
-    padding: 14,
+    padding: 16,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "rgba(47,149,220,0.12)",
     backgroundColor: "rgba(47,149,220,0.06)",
-    flexDirection: "row",
-    alignItems: "center",
     gap: 12,
   },
-  earningsLabel: { color: "#6b7280", fontSize: 12 },
-  earningsValue: { color: "#2f95dc", fontSize: 24, fontWeight: "800" },
-  trendBadge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
-  trendText: { fontWeight: "700" },
+  hoursRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  hoursLabel: {
+    color: "#6b7280",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  hoursValueRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 4,
+  },
+  hoursValue: {
+    fontSize: 20,
+    fontWeight: "800",
+  },
+  hoursSeparator: {
+    fontSize: 18,
+    color: "#9ca3af",
+    fontWeight: "600",
+  },
+  hoursScheduled: {
+    fontSize: 16,
+    color: "#6b7280",
+    fontWeight: "600",
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "rgba(47,149,220,0.12)",
+  },
 });

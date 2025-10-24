@@ -43,7 +43,6 @@ export default function InstructorOverview() {
   const studentActivity = useStudentActivity();
 
   const nextAppointment = useMemo(() => computeNextAppointment(lessonsByDate), [lessonsByDate]);
-  const weeklyEarnings: { currentWeek: number; trend: number } = useMemo(() => ({ currentWeek: 1250.0, trend: 8.5 }), []);
   const metrics: PerformanceMetrics = useMemo(
     () => ({ completionRate: 96.5, studentSatisfaction: 4.8, averageLessonDuration: 52.5 }),
     [],
@@ -83,7 +82,7 @@ export default function InstructorOverview() {
             </Pressable>
           </View>
 
-          <OverviewHeader weeklyEarnings={weeklyEarnings} />
+          <OverviewHeader />
 
           <NextAppointment appointment={nextAppointment} />
 
