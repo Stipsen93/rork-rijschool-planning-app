@@ -88,8 +88,8 @@ function AnimatedLessonItem({ lesson, index, onPress, startHour }: AnimatedLesso
   const durationMinutes = endMinutes - startMinutes;
 
   const gridStartMinutes = startHour * 60;
-  const topOffset = ((startMinutes - gridStartMinutes) / 60) * 60;
-  const height = (durationMinutes / 60) * 60;
+  const topOffset = ((startMinutes - gridStartMinutes) / 60) * 80;
+  const height = (durationMinutes / 60) * 80;
 
   return (
     <Animated.View 
@@ -155,14 +155,14 @@ function Inner({ date, onLessonPress }: TimeGridProps) {
   const dayKey = dutchDayName(date);
   const conf = workingHours?.[dayKey];
   const enabled = conf?.enabled ?? false;
-  const firstRange = conf?.ranges?.[0];
-  const startHour = firstRange?.start ? parseInt(firstRange.start.split(":")[0], 10) : 8;
-  const endHour = firstRange?.end ? parseInt(firstRange.end.split(":")[0], 10) : 18;
+
+  const startHour = 0;
+  const endHour = 23;
 
   const scrollRef = useRef<ScrollView | null>(null);
 
   const hours: number[] = [];
-  for (let h = Math.max(0, startHour); h <= Math.min(23, endHour); h++) {
+  for (let h = startHour; h <= endHour; h++) {
     hours.push(h);
   }
 
@@ -253,7 +253,7 @@ const styles = StyleSheet.create({
   hourRow: {
     flexDirection: "row",
     alignItems: "center",
-    height: 60,
+    height: 80,
     borderBottomWidth: 1,
     borderBottomColor: "#e5e7eb",
   },
