@@ -1,4 +1,4 @@
-import React, { memo, useEffect, useMemo, useRef } from "react";
+import React, { memo, useMemo, useRef } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useAgenda } from "@/components/agenda/AgendaStore";
 import { useWorkingHours, type DayKey } from "@/components/settings/WorkingHoursStore";
@@ -161,25 +161,23 @@ function Inner({ date, onLessonPress }: TimeGridProps) {
   useFocusEffect(
     React.useCallback(() => {
       hasScrolledRef.current = false;
-      return () => {};
-    }, [])
+      
+      const targetTime = 14 * 60;
+      const y = Math.max(0, targetTime * PPM - 200);
+      
+      const id = setTimeout(() => {
+        try {
+          console.log('Scrolling to position:', y);
+          scrollRef.current?.scrollTo({ y, animated: true });
+          hasScrolledRef.current = true;
+        } catch (e) {
+          console.log("TimeGrid initial scroll error", e);
+        }
+      }, 300);
+      
+      return () => clearTimeout(id);
+    }, [date, dayKey, PPM])
   );
-
-  useEffect(() => {
-    if (hasScrolledRef.current) return;
-    
-    const targetTime = 14 * 60;
-    const y = Math.max(0, targetTime * PPM - 180);
-    const id = setTimeout(() => {
-      try {
-        scrollRef.current?.scrollTo({ y, animated: true });
-        hasScrolledRef.current = true;
-      } catch (e) {
-        console.log("TimeGrid initial scroll error", e);
-      }
-    }, 100);
-    return () => clearTimeout(id);
-  }, [date, dayKey]);
 
   return (
     <View style={styles.wrapper} testID="time-grid">
