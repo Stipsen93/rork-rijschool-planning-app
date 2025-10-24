@@ -2,6 +2,7 @@ import React, { memo, useMemo } from "react";
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { X, Clock, History as HistoryIcon } from "lucide-react-native";
+import { useRouter } from "expo-router";
 import type { LessonCardLesson } from "./LessonCard";
 import { useAgenda } from "./AgendaStore";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -56,6 +57,7 @@ function LessonDetailSheetComponent({ lesson, onClose, onEdit, onCancel }: Lesso
   const insets = useSafeAreaInsets();
   const { lessonsByDate } = useAgenda();
   const studentName = lesson.studentName ?? "";
+  const router = useRouter();
 
   const [studentPackages, setStudentPackages] = React.useState<any[]>([]);
   const [baseItems, setBaseItems] = React.useState<any[]>([]);
@@ -252,7 +254,14 @@ function LessonDetailSheetComponent({ lesson, onClose, onEdit, onCancel }: Lesso
           <View style={styles.card}>
             <View style={styles.rowBetween}>
               <Text style={styles.cardTitle}>Student voortgang</Text>
-              <Pressable accessibilityRole="button" onPress={() => {}}>
+              <Pressable accessibilityRole="button" onPress={() => {
+                if (studentName) {
+                  router.push({
+                    pathname: "/(tabs)/students/[id]",
+                    params: { id: studentName, name: studentName },
+                  });
+                }
+              }} testID="view-student-profile">
                 <Text style={{ color: "#2f95dc", fontWeight: "600" }}>Bekijk profiel</Text>
               </Pressable>
             </View>
