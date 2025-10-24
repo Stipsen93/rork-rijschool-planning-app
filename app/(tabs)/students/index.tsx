@@ -389,18 +389,20 @@ function AddStudentModal({ visible, onClose, onCreated }: { visible: boolean; on
               <X color="#111827" />
             </Pressable>
           </View>
-          <ScrollView style={{ maxHeight: "85%" }} contentContainerStyle={{ gap: 12, paddingBottom: 24 }}>
-            <PersonalInformation value={personal} onChange={setPersonal} />
-            <NotesSection value={notes} onChange={setNotes} />
-            <Pressable
-              testID="save-student"
-              accessibilityRole="button"
-              onPress={saving ? undefined : onSave}
-              style={({ pressed }) => [styles.primaryBtn, { opacity: pressed || saving ? 0.7 : 1 }]}
-            >
-              <Text style={styles.primaryBtnText}>{saving ? "Opslaan..." : "Leerling Aanmaken"}</Text>
-            </Pressable>
-          </ScrollView>
+          <View style={{ maxHeight: "85%" }}>
+            <ScrollView contentContainerStyle={{ gap: 12, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
+              <PersonalInformation value={personal} onChange={setPersonal} />
+              <NotesSection value={notes} onChange={setNotes} />
+              <Pressable
+                testID="save-student"
+                accessibilityRole="button"
+                onPress={saving ? undefined : onSave}
+                style={({ pressed }) => [styles.primaryBtn, { opacity: pressed || saving ? 0.7 : 1 }]}
+              >
+                <Text style={styles.primaryBtnText}>{saving ? "Opslaan..." : "Leerling Aanmaken"}</Text>
+              </Pressable>
+            </ScrollView>
+          </View>
         </View>
       </View>
     </Modal>
