@@ -96,14 +96,16 @@ export default function LessonCancellationScreen() {
 
         <CancellationReason selectedReason={selectedReason} onReasonChanged={setSelectedReason} />
 
-        <CancellationOptions
-          chargeCredit={chargeCredit}
-          notifyStudent={notifyStudent}
-          keepInAgenda={keepInAgenda}
-          onChargeCreditChanged={setChargeCredit}
-          onNotifyStudentChanged={setNotifyStudent}
-          onKeepInAgendaChanged={setKeepInAgenda}
-        />
+        {lesson?.lessonType !== "Pauze" && lesson?.lessonType !== "Verlof" && (
+          <CancellationOptions
+            chargeCredit={chargeCredit}
+            notifyStudent={notifyStudent}
+            keepInAgenda={keepInAgenda}
+            onChargeCreditChanged={setChargeCredit}
+            onNotifyStudentChanged={setNotifyStudent}
+            onKeepInAgendaChanged={setKeepInAgenda}
+          />
+        )}
 
             <NotesInput value={notes} onChangeText={setNotes} />
           </ScrollView>
