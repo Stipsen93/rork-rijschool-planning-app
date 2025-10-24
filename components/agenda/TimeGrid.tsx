@@ -177,7 +177,7 @@ function Inner({ date, onLessonPress, onSwipeLeft, onSwipeRight }: TimeGridProps
         const absX = Math.abs(dx);
         const absY = Math.abs(dy);
         
-        if (absX > 10 && absX > absY * 1.5) {
+        if (absX > 5 && absX > absY * 0.8) {
           return true;
         }
         return false;
@@ -201,14 +201,14 @@ function Inner({ date, onLessonPress, onSwipeLeft, onSwipeRight }: TimeGridProps
         const absX = Math.abs(dx);
         const absY = Math.abs(dy);
 
-        if (absX > 60 && absX > absY * 1.5 && !panRef.current.isScrolling) {
+        if (absX > 35 && absX > absY * 0.8 && !panRef.current.isScrolling) {
           if (dx > 0) {
             console.log("Swipe right - previous day");
             swipeAnimValue.setValue(0);
             Animated.sequence([
               Animated.timing(swipeAnimValue, {
                 toValue: 1,
-                duration: 200,
+                duration: 150,
                 useNativeDriver: true,
               }),
               Animated.timing(swipeAnimValue, {
@@ -225,7 +225,7 @@ function Inner({ date, onLessonPress, onSwipeLeft, onSwipeRight }: TimeGridProps
             Animated.sequence([
               Animated.timing(swipeAnimValue, {
                 toValue: -1,
-                duration: 200,
+                duration: 150,
                 useNativeDriver: true,
               }),
               Animated.timing(swipeAnimValue, {
