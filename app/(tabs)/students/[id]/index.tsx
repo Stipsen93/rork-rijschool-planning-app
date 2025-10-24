@@ -332,7 +332,8 @@ export default function StudentProfileScreen() {
                             {pkg.installments.map((inst, i) => (
                               <View key={i} style={styles.termRow}>
                                 <TouchableOpacity
-                                  onPress={() => (!inst.paid ? markInstallmentPaid(idx, i) : unmarkInstallment(idx, i))}
+                                  onPress={() => !inst.paid ? markInstallmentPaid(idx, i) : undefined}
+                                  disabled={inst.paid}
                                   style={[styles.termBtn, inst.paid && styles.termBtnPaid]}>
                                   <Text style={[styles.termBtnText, inst.paid && styles.termBtnTextPaid]}>Termijn {inst.installmentNumber}</Text>
                                 </TouchableOpacity>
