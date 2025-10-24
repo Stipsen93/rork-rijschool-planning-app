@@ -1051,7 +1051,7 @@ function ArchiveStudentModal({
                 </TouchableOpacity>
               </View>
               <Text style={styles.mutedText}>Er zijn nog {unpaidTerms.length} openstaande termijn(en). Markeer ze als betaald voordat je archiveert:</Text>
-              <ScrollView style={{ maxHeight: 300, marginTop: 12 }} contentContainerStyle={{ gap: 8 }}>
+              <View style={{ maxHeight: 300, marginTop: 12, gap: 8 }}>
                 {unpaidTerms.map((term) => {
                   const key = `${term.idx}-${term.termIdx}`;
                   const isMarked = markedTerms.has(key);
@@ -1068,7 +1068,7 @@ function ArchiveStudentModal({
                     </TouchableOpacity>
                   );
                 })}
-              </ScrollView>
+              </View>
               <View style={{ flexDirection: "row", gap: 8, marginTop: 16 }}>
                 <TouchableOpacity onPress={handleClose} style={[styles.secondaryBtn, { flex: 1 }]} testID="cancel-archive-terms">
                   <Text style={styles.secondaryBtnText}>Annuleren</Text>
@@ -1210,14 +1210,14 @@ function DeleteStudentModal({
               ) : (
                 <>
                   <Text style={styles.mutedText}>De volgende termijnen staan nog open:</Text>
-                  <ScrollView style={{ maxHeight: 300, marginTop: 12 }} contentContainerStyle={{ gap: 8 }}>
+                  <View style={{ maxHeight: 300, marginTop: 12, gap: 8 }}>
                     {unpaidTerms.map((term, idx) => (
                       <View key={idx} style={[styles.termBtn, { opacity: 0.6 }]}>
                         <Text style={styles.termBtnText}>{term.pkgName} - Termijn {term.termNumber}</Text>
                         <Text style={[styles.mutedText, { fontSize: 12 }]}>€{term.amount.toFixed(2)}</Text>
                       </View>
                     ))}
-                  </ScrollView>
+                  </View>
                 </>
               )}
               <View style={{ flexDirection: "row", gap: 8, marginTop: 16 }}>
