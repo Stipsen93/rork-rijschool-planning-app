@@ -4,6 +4,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput,
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Pencil, Trash2, X, AlertTriangle } from "lucide-react-native";
+import TasksWidget from "@/components/students/TasksWidget";
 import { useAgenda, AgendaLesson } from "@/components/agenda/AgendaStore";
 import { useStudents } from "@/components/students/StudentsStore";
 import type { Router } from "expo-router";
@@ -367,6 +368,8 @@ export default function StudentProfileScreen() {
         </View>
 
         <RecentLessonsCard studentName={params.name ?? ""} />
+
+        <TasksWidget studentId={params.id ?? ""} studentName={params.name ?? ""} />
 
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Beheer leerling</Text>
