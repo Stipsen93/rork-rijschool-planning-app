@@ -198,12 +198,28 @@ function Inner({ date, onLessonPress }: TimeGridProps) {
             <View style={styles.gridBackground}>
               {hours.map((h) => {
                 const hStr = h.toString().padStart(2, "0");
+                
+                let isWorkingHour = false;
+                if (conf?.ranges) {
+                  for (const range of conf.ranges) {
+                    const startMin = timeToMinutes(range.start);
+                    const endMin = timeToMinutes(range.end);
+                    const hourMin = h * 60;
+                    
+                    if (hourMin >= startMin && hourMin < endMin) {
+                      isWorkingHour = true;
+                      break;
+                    }
+                  }
+                }
+                
                 return (
                   <View key={hStr} style={styles.hourRow}>
                     <View style={styles.hourLabelContainer}>
                       <Text style={styles.hourLabel}>{hStr}:00</Text>
                     </View>
                     <View style={styles.hourLine} />
+                    {isWorkingHour && <View style={styles.workingHourBg} />}
                   </View>
                 );
               })}
@@ -251,11 +267,21 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   hourRow: {
+    position: "relative",
     flexDirection: "row",
     alignItems: "flex-start",
     height: 80,
     borderTopWidth: 1,
     borderTopColor: "#e5e7eb",
+  },
+  workingHourBg: {
+    position: "absolute",
+    left: 60,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: "#ffffff",
+    zIndex: -1,
   },
   hourLabelContainer: {
     width: 60,
