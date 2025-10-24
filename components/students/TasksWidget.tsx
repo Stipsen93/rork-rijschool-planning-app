@@ -17,6 +17,7 @@ type TasksWidgetProps = {
 
 export default function TasksWidget({ studentId, studentName }: TasksWidgetProps) {
   const { lessonsByDate } = useAgenda();
+  const [isEditMode, setIsEditMode] = useState(false);
   const [tasks, setTasks] = useState<Task[]>([
     { id: "theory", label: "Theorie", completed: false },
     { id: "health", label: "Gezondheidsverklaring", completed: false },
@@ -96,12 +97,13 @@ export default function TasksWidget({ studentId, studentName }: TasksWidgetProps
   }, [totalHoursForStudent, packageHours]);
 
   const toggleTask = useCallback((taskId: string) => {
+    if (!isEditMode) return;
     setTasks((prev) =>
       prev.map((t) =>
         t.id === taskId ? { ...t, completed: !t.completed } : t
       )
     );
-  }, []);
+  }, [isEditMode]);
 
   const getTaskColor = useCallback(
     (task: Task) => {
@@ -114,25 +116,28 @@ export default function TasksWidget({ studentId, studentName }: TasksWidgetProps
 
   return (
     <View style={styles.card}>
-      <Text style={styles.sectionTitle}>Taken</Text>
+      <View style={styles.header}>
+        <Text style={styles.sectionTitle}>Taken</Text>
+        <TouchableOpacity
+          onPress={() => setIsEditMode(!isEditMode)}
+          style={styles.editButton}
+        >
+          <Pencil size={18} color={isEditMode ? "#3b82f6" : "#6b7280"} />
+        </TouchableOpacity>
+      </View>
       <View style={{ gap: 12 }}>
         {tasks.map((task) => (
           <View key={task.id} style={styles.taskRow}>
             <TouchableOpacity
               onPress={() => toggleTask(task.id)}
               style={[styles.checkbox, task.completed && styles.checkboxChecked]}
+              disabled={!isEditMode}
             >
               {task.completed && <Text style={styles.checkmark}>✓</Text>}
             </TouchableOpacity>
             <Text style={[styles.taskLabel, { color: getTaskColor(task) }]}>
               {task.label}
             </Text>
-            <TouchableOpacity
-              onPress={() => toggleTask(task.id)}
-              style={{ padding: 4 }}
-            >
-              <Pencil size={16} color="#6b7280" />
-            </TouchableOpacity>
           </View>
         ))}
       </View>
@@ -152,7 +157,15 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     elevation: 1,
   },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
   sectionTitle: { fontSize: 16, fontWeight: "700" },
+  editButton: {
+    padding: 4,
+  },
   taskRow: {
     flexDirection: "row",
     alignItems: "center",
