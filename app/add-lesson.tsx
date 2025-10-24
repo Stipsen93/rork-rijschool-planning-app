@@ -118,6 +118,8 @@ export default function AddLessonScreen() {
     { id: "3", model: "Opel Corsa", licensePlate: "78-GHI-9", type: "Handschakeling", year: 2021 },
   ]), []);
 
+  const [initialStudentName, setInitialStudentName] = useState<string | null>(null);
+
   useEffect(() => {
     try {
       const mode = typeof params.mode === "string" ? params.mode : Array.isArray(params.mode) ? params.mode[0] : undefined;
@@ -128,6 +130,7 @@ export default function AddLessonScreen() {
       const locationParam = typeof params.location === "string" ? params.location : Array.isArray(params.location) ? params.location[0] : undefined;
       const notesParam = typeof params.notes === "string" ? params.notes : Array.isArray(params.notes) ? params.notes[0] : undefined;
       const idParam = typeof params.id === "string" ? params.id : Array.isArray(params.id) ? params.id[0] : undefined;
+      const studentNameParam = typeof params.studentName === "string" ? params.studentName : Array.isArray(params.studentName) ? params.studentName[0] : undefined;
 
       if (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) setDate(dateParam);
       if (timeParam && /^\d{2}:\d{2}$/.test(timeParam)) setTime(timeParam);
@@ -142,11 +145,24 @@ export default function AddLessonScreen() {
         }
       }
       if (mode === "edit" && idParam) setEditingId(idParam);
+      if (studentNameParam && studentNameParam !== "Pauze" && studentNameParam !== "Verlof") {
+        setInitialStudentName(studentNameParam);
+      }
     } catch (e) {
       console.log("[AddLesson] Failed to parse params", e);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (initialStudentName && mockStudents.length > 0 && !selectedStudentId) {
+      const foundStudent = mockStudents.find(s => s.name === initialStudentName);
+      if (foundStudent) {
+        console.log("[AddLesson] Setting student from params:", foundStudent.name);
+        setSelectedStudentId(foundStudent.id);
+      }
+    }
+  }, [initialStudentName, mockStudents, selectedStudentId]);
 
   const onSave = useCallback(async () => {
     try {

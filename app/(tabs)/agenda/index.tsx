@@ -164,6 +164,7 @@ export default function AgendaScreen() {
                   type: selectedLesson.lessonType ?? "Rijles",
                   location: selectedLesson.location ?? "",
                   notes: selectedLesson.notes ?? "",
+                  studentName: selectedLesson.studentName ?? "",
                 },
               });
             }}
