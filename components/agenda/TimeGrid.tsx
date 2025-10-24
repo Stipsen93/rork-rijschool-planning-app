@@ -252,14 +252,15 @@ const styles = StyleSheet.create({
   },
   hourRow: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     height: 80,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
+    borderTopWidth: 1,
+    borderTopColor: "#e5e7eb",
   },
   hourLabelContainer: {
     width: 60,
     paddingRight: 12,
+    paddingTop: 4,
   },
   hourLabel: {
     fontSize: 13,
