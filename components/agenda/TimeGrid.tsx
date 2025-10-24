@@ -5,6 +5,19 @@ import { useWorkingHours, type DayKey } from "@/components/settings/WorkingHours
 import { useFocusEffect } from "expo-router";
 import { MapPin } from "lucide-react-native";
 
+function parseTime(hhmm: string): { hours: number; minutes: number } {
+  const [h, m] = hhmm.split(":").map((v) => parseInt(v, 10));
+  return {
+    hours: Number.isFinite(h) ? h : 0,
+    minutes: Number.isFinite(m) ? m : 0,
+  };
+}
+
+function timeToMinutes(hhmm: string): number {
+  const { hours, minutes } = parseTime(hhmm);
+  return hours * 60 + minutes;
+}
+
 export interface TimeGridProps {
   date: Date;
   onLessonPress?: (id: string) => void;
@@ -46,9 +59,10 @@ type AnimatedLessonItemProps = {
   lesson: any;
   index: number;
   onPress: () => void;
+  startHour: number;
 };
 
-function AnimatedLessonItem({ lesson, index, onPress }: AnimatedLessonItemProps) {
+function AnimatedLessonItem({ lesson, index, onPress, startHour }: AnimatedLessonItemProps) {
   const animatedValue = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -69,8 +83,26 @@ function AnimatedLessonItem({ lesson, index, onPress }: AnimatedLessonItemProps)
 
   const isCancelled = lesson.status === "Geannuleerd";
 
+  const startMinutes = timeToMinutes(lesson.startTime);
+  const endMinutes = timeToMinutes(lesson.endTime);
+  const durationMinutes = endMinutes - startMinutes;
+
+  const gridStartMinutes = startHour * 60;
+  const topOffset = ((startMinutes - gridStartMinutes) / 60) * 60;
+  const height = (durationMinutes / 60) * 60;
+
   return (
-    <Animated.View style={{ opacity, transform: [{ scale }], marginBottom: 12 }}>
+    <Animated.View 
+      style={[
+        styles.lessonCardPositioned,
+        {
+          top: topOffset,
+          height: Math.max(height - 4, 50),
+          opacity,
+          transform: [{ scale }],
+        },
+      ]}
+    >
       <Pressable
         onPress={onPress}
         style={({ pressed }) => [
@@ -82,7 +114,7 @@ function AnimatedLessonItem({ lesson, index, onPress }: AnimatedLessonItemProps)
       >
         <View style={styles.lessonCardContent}>
           <View style={styles.lessonCardHeader}>
-            <Text style={[styles.lessonCardStudentName, isCancelled && styles.cancelledText]}>
+            <Text style={[styles.lessonCardStudentName, isCancelled && styles.cancelledText]} numberOfLines={1}>
               {lesson.studentName ?? "Onbekend"}
             </Text>
             {isCancelled && (
@@ -96,7 +128,7 @@ function AnimatedLessonItem({ lesson, index, onPress }: AnimatedLessonItemProps)
             <Text style={[styles.lessonCardTime, isCancelled && styles.cancelledText]}>
               {`${lesson.startTime} - ${lesson.endTime}`}
             </Text>
-            <Text style={[styles.lessonCardType, isCancelled && styles.cancelledText]}>
+            <Text style={[styles.lessonCardType, isCancelled && styles.cancelledText]} numberOfLines={1}>
               {lesson.lessonType ?? "Rijles"}
             </Text>
           </View>
@@ -162,37 +194,40 @@ function Inner({ date, onLessonPress }: TimeGridProps) {
         )}
         
         {enabled && (
-          <View style={styles.gridBackground}>
-            {hours.map((h) => {
-              const hStr = h.toString().padStart(2, "0");
-              return (
-                <View key={hStr} style={styles.hourRow}>
-                  <View style={styles.hourLabelContainer}>
-                    <Text style={styles.hourLabel}>{hStr}:00</Text>
+          <View style={styles.gridContainer}>
+            <View style={styles.gridBackground}>
+              {hours.map((h) => {
+                const hStr = h.toString().padStart(2, "0");
+                return (
+                  <View key={hStr} style={styles.hourRow}>
+                    <View style={styles.hourLabelContainer}>
+                      <Text style={styles.hourLabel}>{hStr}:00</Text>
+                    </View>
+                    <View style={styles.hourLine} />
                   </View>
-                  <View style={styles.hourLine} />
-                </View>
-              );
-            })}
-          </View>
-        )}
+                );
+              })}
+            </View>
 
-        {enabled && lessons.length === 0 && (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyCardText}>Geen lessen gepland</Text>
-          </View>
-        )}
+            {lessons.length === 0 && (
+              <View style={styles.emptyCard}>
+                <Text style={styles.emptyCardText}>Geen lessen gepland</Text>
+              </View>
+            )}
 
-        {enabled && lessons.length > 0 && (
-          <View style={styles.lessonsContainer}>
-            {lessons.map((lesson, index) => (
-              <AnimatedLessonItem
-                key={String(lesson.id)}
-                lesson={lesson}
-                index={index}
-                onPress={() => onLessonPress?.(String(lesson.id))}
-              />
-            ))}
+            {lessons.length > 0 && (
+              <View style={styles.lessonsOverlay}>
+                {lessons.map((lesson, index) => (
+                  <AnimatedLessonItem
+                    key={String(lesson.id)}
+                    lesson={lesson}
+                    index={index}
+                    startHour={startHour}
+                    onPress={() => onLessonPress?.(String(lesson.id))}
+                  />
+                ))}
+              </View>
+            )}
           </View>
         )}
       </ScrollView>
@@ -207,6 +242,10 @@ const styles = StyleSheet.create({
   listContent: { 
     paddingVertical: 8,
     paddingBottom: 24,
+  },
+  gridContainer: {
+    position: "relative",
+    minHeight: 200,
   },
   gridBackground: {
     marginBottom: 16,
@@ -233,28 +272,40 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: "#e5e7eb",
   },
-  lessonsContainer: {
-    marginTop: -16,
+  lessonsOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 60,
+    right: 0,
+    bottom: 16,
+  },
+  lessonCardPositioned: {
+    position: "absolute",
+    left: 12,
+    right: 12,
+    paddingVertical: 2,
   },
   lessonCard: {
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 12,
+    padding: 12,
     shadowColor: "#000",
     shadowOpacity: 0.08,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
     elevation: 3,
+    flex: 1,
   },
   lessonCardContent: {
-    gap: 8,
+    gap: 6,
   },
   lessonCardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    gap: 8,
   },
   lessonCardStudentName: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "700",
     color: "#111827",
     flex: 1,
@@ -263,16 +314,20 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    gap: 8,
   },
   lessonCardTime: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: "600",
     color: "#374151",
+    flex: 1,
   },
   lessonCardType: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: "600",
     color: "#374151",
+    flex: 1,
+    textAlign: "right",
   },
   lessonCardLocationRow: {
     flexDirection: "row",
@@ -280,7 +335,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   lessonCardLocation: {
-    fontSize: 14,
+    fontSize: 13,
     color: "#374151",
     flex: 1,
   },
@@ -290,12 +345,12 @@ const styles = StyleSheet.create({
   },
   cancelledBadge: {
     backgroundColor: "#e5e7eb",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
   },
   cancelledBadgeText: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: "700",
     color: "#6b7280",
   },
@@ -320,6 +375,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#e5e7eb",
     borderStyle: "dashed",
+    marginTop: 16,
   },
   emptyCardText: {
     color: "#9ca3af",
