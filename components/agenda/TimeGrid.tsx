@@ -2,6 +2,7 @@ import React, { memo, useEffect, useMemo, useRef } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useAgenda } from "@/components/agenda/AgendaStore";
 import { useWorkingHours, type DayKey } from "@/components/settings/WorkingHoursStore";
+import { useFocusEffect } from "expo-router";
 
 export interface TimeGridProps {
   date: Date;
@@ -155,19 +156,30 @@ function Inner({ date, onLessonPress }: TimeGridProps) {
   const timelineHeight = 24 * 60 * PPM;
 
   const scrollRef = useRef<ScrollView | null>(null);
+  const hasScrolledRef = useRef<boolean>(false);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      hasScrolledRef.current = false;
+      return () => {};
+    }, [])
+  );
 
   useEffect(() => {
+    if (hasScrolledRef.current) return;
+    
     const targetTime = 14 * 60;
     const y = Math.max(0, targetTime * PPM - 180);
     const id = setTimeout(() => {
       try {
         scrollRef.current?.scrollTo({ y, animated: true });
+        hasScrolledRef.current = true;
       } catch (e) {
         console.log("TimeGrid initial scroll error", e);
       }
-    }, 50);
+    }, 100);
     return () => clearTimeout(id);
-  }, [dayKey]);
+  }, [date, dayKey]);
 
   return (
     <View style={styles.wrapper} testID="time-grid">
