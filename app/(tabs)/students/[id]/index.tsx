@@ -8,6 +8,7 @@ import TasksWidget from "@/components/students/TasksWidget";
 import { useAgenda, AgendaLesson } from "@/components/agenda/AgendaStore";
 import { useStudents } from "@/components/students/StudentsStore";
 import type { Router } from "expo-router";
+import DateTimePicker from "@react-native-community/datetimepicker";
 
 type StatusType = "active" | "irregular" | "inactive" | string | undefined;
 
@@ -762,6 +763,39 @@ function StudentOverviewTable({ studentName, baseItems, products, studentPackage
   );
 }
 
+function DatePickerInline({ value, onChange }: { value: Date; onChange: (date: Date) => void }) {
+  if (Platform.OS === "web") {
+    const yyyy = value.getFullYear();
+    const mm = String(value.getMonth() + 1).padStart(2, "0");
+    const dd = String(value.getDate()).padStart(2, "0");
+    const v = `${yyyy}-${mm}-${dd}`;
+    return (
+      // @ts-ignore - using web input for RNW
+      <input
+        data-testid="date-input"
+        type="date"
+        value={v}
+        onChange={(e: any) => {
+          const parts = String(e.target.value).split("-");
+          const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+          onChange(d);
+        }}
+        style={{ fontSize: 16, padding: 10, borderRadius: 10, border: "1px solid #e5e7eb" }}
+      />
+    ) as unknown as React.ReactElement;
+  }
+  return (
+    <DateTimePicker
+      value={value}
+      mode="date"
+      display={Platform.OS === "ios" ? "spinner" : "default"}
+      onChange={(_, d) => {
+        if (d) onChange(d);
+      }}
+    />
+  );
+}
+
 function EditStudentPackageModal({
   visible,
   onClose,
@@ -789,6 +823,8 @@ function EditStudentPackageModal({
   const [confirmOpen, setConfirmOpen] = useState<boolean>(false);
   const [termSelection, setTermSelection] = useState<"1x" | "2x" | "3x" | "4x" | "custom">("1x");
   const [customTermCount, setCustomTermCount] = useState<number>(2);
+  const [dueDates, setDueDates] = useState<(string | null)[]>([]);
+  const [openPickerIndex, setOpenPickerIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (pkg) {
@@ -796,6 +832,7 @@ function EditStudentPackageModal({
       setPrice((pkg.customPrice ?? base?.price ?? 0).toString());
       setHours((pkg.customHours ?? base?.hours ?? 0).toString());
       setIncludedIds(pkg.includedProductIds ?? []);
+      setDueDates((pkg.installments ?? []).map((inst) => inst.dueDate ?? null));
     }
   }, [pkgIndex, pkg, base]);
 
@@ -815,12 +852,13 @@ function EditStudentPackageModal({
       const amount = count > 0 ? totalPrice / count : totalPrice;
       const nextInstallments = Array.from({ length: count }, (_, i) => {
         const existing = target.installments[i];
+        const pickedDue = dueDates[i] ?? null;
         return {
           installmentNumber: i + 1,
           amount,
           paid: existing?.paid ?? false,
           paidDate: existing?.paid ? (existing.paidDate ?? new Date().toISOString()) : null as string | null,
-          dueDate: existing?.dueDate ?? null as string | null,
+          dueDate: pickedDue ?? existing?.dueDate ?? null as string | null,
         };
       });
       const paidCount = nextInstallments.filter(x => x.paid).length;
@@ -838,7 +876,7 @@ function EditStudentPackageModal({
       return copy;
     });
     onClose();
-  }, [hours, includedIds, name, onClose, pkgIndex, price, setStudentPackages, termSelection, customTermCount, base?.price]);
+  }, [hours, includedIds, name, onClose, pkgIndex, price, setStudentPackages, termSelection, customTermCount, base?.price, dueDates]);
 
   const confirmDelete = useCallback(() => {
     setConfirmOpen(true);
@@ -950,12 +988,42 @@ function EditStudentPackageModal({
                 const inst = exists ? existing[i] : undefined;
                 const paid = Boolean(inst?.paid);
                 const paidDate = inst?.paidDate ?? null;
+                const due = dueDates[i] ?? inst?.dueDate ?? null;
                 return (
-                  <View key={`current-${i}`} style={styles.termRow}>
-                    <TouchableOpacity onPress={() => exists ? togglePaid(i) : undefined} disabled={!exists} style={[styles.termBtn, paid && styles.termBtnPaid, !exists && { opacity: 0.6 }]}> 
-                      <Text style={[styles.termBtnText, paid && styles.termBtnTextPaid]}>Termijn {i + 1}</Text>
-                    </TouchableOpacity>
-                    <Text style={styles.termDateText}>{paid && paidDate ? formatDate(paidDate) : "–"}</Text>
+                  <View key={`current-${i}`} style={{ gap: 6 }}>
+                    <View style={styles.termRow}>
+                      <TouchableOpacity onPress={() => exists ? togglePaid(i) : undefined} disabled={!exists} style={[styles.termBtn, paid && styles.termBtnPaid, !exists && { opacity: 0.6 }]}> 
+                        <Text style={[styles.termBtnText, paid && styles.termBtnTextPaid]}>Termijn {i + 1}</Text>
+                      </TouchableOpacity>
+                      <Text style={styles.termDateText}>{paid && paidDate ? formatDate(paidDate) : "–"}</Text>
+                    </View>
+                    <View style={[styles.dropdownBox, { paddingVertical: 8 }]}>
+                      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                        <Text style={styles.dropdownLabel}>Vervaldatum</Text>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                          <Text style={[styles.optionPrice, { color: "#111827" }]}>{due ? formatDate(due) : "Kies datum"}</Text>
+                          <TouchableOpacity onPress={() => setOpenPickerIndex(openPickerIndex === i ? null : i)} testID={`open-due-picker-${i}`} style={[styles.chip]}>
+                            <Text style={styles.chipText}>{openPickerIndex === i ? "Sluiten" : "Kies"}</Text>
+                          </TouchableOpacity>
+                          {due ? (
+                            <TouchableOpacity onPress={() => { setDueDates(prev => { const arr = [...prev]; arr[i] = null; return arr; }); }} testID={`clear-due-${i}`} style={[styles.chip]}>
+                              <Text style={styles.chipText}>Wissen</Text>
+                            </TouchableOpacity>
+                          ) : null}
+                        </View>
+                      </View>
+                      {openPickerIndex === i && (
+                        <View style={{ marginTop: 8 }}>
+                          <DatePickerInline
+                            value={due ? new Date(due) : new Date()}
+                            onChange={(d) => {
+                              setDueDates(prev => { const arr = [...prev]; arr[i] = d.toISOString(); return arr; });
+                              setOpenPickerIndex(null);
+                            }}
+                          />
+                        </View>
+                      )}
+                    </View>
                   </View>
                 );
               });
