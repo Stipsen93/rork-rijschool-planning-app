@@ -97,24 +97,26 @@ export default function AgendaScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: '#f8fafc' }}>
-        <View style={styles.stickyHeaderCombined}>
-          <View style={styles.stickyHeaderInner}>
-            <AgendaHeader
-              currentDate={currentDate}
-              onPreviousWeek={onPrevWeek}
-              onNextWeek={onNextWeek}
-              onMonthlyView={() => setShowMonthly(true)}
-            />
+        {!selectedLesson && (
+          <View style={styles.stickyHeaderCombined}>
+            <View style={styles.stickyHeaderInner}>
+              <AgendaHeader
+                currentDate={currentDate}
+                onPreviousWeek={onPrevWeek}
+                onNextWeek={onNextWeek}
+                onMonthlyView={() => setShowMonthly(true)}
+              />
+            </View>
+            <View style={styles.stickyHeaderInnerBottom}>
+              <DayStrip
+                currentWeekStart={currentDate}
+                selectedDate={selectedDate}
+                onDateSelected={onDateSelected}
+                lessonCounts={lessonCounts}
+              />
+            </View>
           </View>
-          <View style={styles.stickyHeaderInnerBottom}>
-            <DayStrip
-              currentWeekStart={currentDate}
-              selectedDate={selectedDate}
-              onDateSelected={onDateSelected}
-              lessonCounts={lessonCounts}
-            />
-          </View>
-        </View>
+        )}
 
         <TimeGrid
           date={selectedDate}
