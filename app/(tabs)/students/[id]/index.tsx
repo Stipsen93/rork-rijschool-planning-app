@@ -823,7 +823,6 @@ function EditStudentPackageModal({
   const [confirmOpen, setConfirmOpen] = useState<boolean>(false);
   const [termSelection, setTermSelection] = useState<"1x" | "2x" | "3x" | "4x" | "custom">("1x");
   const [customTermCount, setCustomTermCount] = useState<number>(2);
-  const [dueDates, setDueDates] = useState<(string | null)[]>([]);
   const [openPickerIndex, setOpenPickerIndex] = useState<number | null>(null);
 
   useEffect(() => {
@@ -832,7 +831,6 @@ function EditStudentPackageModal({
       setPrice((pkg.customPrice ?? base?.price ?? 0).toString());
       setHours((pkg.customHours ?? base?.hours ?? 0).toString());
       setIncludedIds(pkg.includedProductIds ?? []);
-      setDueDates((pkg.installments ?? []).map((inst) => inst.dueDate ?? null));
     }
   }, [pkgIndex, pkg, base]);
 
@@ -852,13 +850,12 @@ function EditStudentPackageModal({
       const amount = count > 0 ? totalPrice / count : totalPrice;
       const nextInstallments = Array.from({ length: count }, (_, i) => {
         const existing = target.installments[i];
-        const pickedDue = dueDates[i] ?? null;
         return {
           installmentNumber: i + 1,
           amount,
           paid: existing?.paid ?? false,
           paidDate: existing?.paid ? (existing.paidDate ?? new Date().toISOString()) : null as string | null,
-          dueDate: pickedDue ?? existing?.dueDate ?? null as string | null,
+          dueDate: null as string | null,
         };
       });
       const paidCount = nextInstallments.filter(x => x.paid).length;
@@ -876,7 +873,7 @@ function EditStudentPackageModal({
       return copy;
     });
     onClose();
-  }, [hours, includedIds, name, onClose, pkgIndex, price, setStudentPackages, termSelection, customTermCount, base?.price, dueDates]);
+  }, [hours, includedIds, name, onClose, pkgIndex, price, setStudentPackages, termSelection, customTermCount, base?.price]);
 
   const confirmDelete = useCallback(() => {
     setConfirmOpen(true);
@@ -988,42 +985,43 @@ function EditStudentPackageModal({
                 const inst = exists ? existing[i] : undefined;
                 const paid = Boolean(inst?.paid);
                 const paidDate = inst?.paidDate ?? null;
-                const due = dueDates[i] ?? inst?.dueDate ?? null;
                 return (
                   <View key={`current-${i}`} style={{ gap: 6 }}>
                     <View style={styles.termRow}>
                       <TouchableOpacity onPress={() => exists ? togglePaid(i) : undefined} disabled={!exists} style={[styles.termBtn, paid && styles.termBtnPaid, !exists && { opacity: 0.6 }]}> 
                         <Text style={[styles.termBtnText, paid && styles.termBtnTextPaid]}>Termijn {i + 1}</Text>
                       </TouchableOpacity>
-                      <Text style={styles.termDateText}>{paid && paidDate ? formatDate(paidDate) : "–"}</Text>
-                    </View>
-                    <View style={[styles.dropdownBox, { paddingVertical: 8 }]}>
-                      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                        <Text style={styles.dropdownLabel}>Vervaldatum</Text>
-                        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                          <Text style={[styles.optionPrice, { color: "#111827" }]}>{due ? formatDate(due) : "Kies datum"}</Text>
-                          <TouchableOpacity onPress={() => setOpenPickerIndex(openPickerIndex === i ? null : i)} testID={`open-due-picker-${i}`} style={[styles.chip]}>
-                            <Text style={styles.chipText}>{openPickerIndex === i ? "Sluiten" : "Kies"}</Text>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                        <Text style={styles.termDateText}>{paid && paidDate ? formatDate(paidDate) : "–"}</Text>
+                        {paid ? (
+                          <TouchableOpacity onPress={() => setOpenPickerIndex(openPickerIndex === i ? null : i)} testID={`open-paiddate-picker-${i}`} style={[styles.chip]}>
+                            <Text style={styles.chipText}>{openPickerIndex === i ? "Sluiten" : "Wijzig"}</Text>
                           </TouchableOpacity>
-                          {due ? (
-                            <TouchableOpacity onPress={() => { setDueDates(prev => { const arr = [...prev]; arr[i] = null; return arr; }); }} testID={`clear-due-${i}`} style={[styles.chip]}>
-                              <Text style={styles.chipText}>Wissen</Text>
-                            </TouchableOpacity>
-                          ) : null}
-                        </View>
+                        ) : null}
                       </View>
-                      {openPickerIndex === i && (
-                        <View style={{ marginTop: 8 }}>
-                          <DatePickerInline
-                            value={due ? new Date(due) : new Date()}
-                            onChange={(d) => {
-                              setDueDates(prev => { const arr = [...prev]; arr[i] = d.toISOString(); return arr; });
-                              setOpenPickerIndex(null);
-                            }}
-                          />
-                        </View>
-                      )}
                     </View>
+                    {openPickerIndex === i && paid && (
+                      <View style={{ marginTop: 8 }}>
+                        <DatePickerInline
+                          value={paidDate ? new Date(paidDate) : new Date()}
+                          onChange={(d) => {
+                            if (typeof pkgIndex === "number") {
+                              setStudentPackages(prev => {
+                                const copy = [...prev];
+                                const t = copy[pkgIndex!];
+                                if (!t) return prev;
+                                const arr = [...t.installments];
+                                if (!arr[i]) return prev;
+                                arr[i] = { ...arr[i], paidDate: d.toISOString(), paid: true };
+                                copy[pkgIndex!] = { ...t, installments: arr };
+                                return copy;
+                              });
+                            }
+                            setOpenPickerIndex(null);
+                          }}
+                        />
+                      </View>
+                    )}
                   </View>
                 );
               });
