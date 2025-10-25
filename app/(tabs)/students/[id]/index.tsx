@@ -4,11 +4,12 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput,
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Pencil, Trash2, X, AlertTriangle } from "lucide-react-native";
+import { CalendarPicker } from "@/components/add-lesson/ScheduleSection";
 import TasksWidget from "@/components/students/TasksWidget";
 import { useAgenda, AgendaLesson } from "@/components/agenda/AgendaStore";
 import { useStudents } from "@/components/students/StudentsStore";
 import type { Router } from "expo-router";
-import DateTimePicker from "@react-native-community/datetimepicker";
+
 
 type StatusType = "active" | "irregular" | "inactive" | string | undefined;
 
@@ -764,35 +765,10 @@ function StudentOverviewTable({ studentName, baseItems, products, studentPackage
 }
 
 function DatePickerInline({ value, onChange }: { value: Date; onChange: (date: Date) => void }) {
-  if (Platform.OS === "web") {
-    const yyyy = value.getFullYear();
-    const mm = String(value.getMonth() + 1).padStart(2, "0");
-    const dd = String(value.getDate()).padStart(2, "0");
-    const v = `${yyyy}-${mm}-${dd}`;
-    return (
-      // @ts-ignore - using web input for RNW
-      <input
-        data-testid="date-input"
-        type="date"
-        value={v}
-        onChange={(e: any) => {
-          const parts = String(e.target.value).split("-");
-          const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-          onChange(d);
-        }}
-        style={{ fontSize: 16, padding: 10, borderRadius: 10, border: "1px solid #e5e7eb" }}
-      />
-    ) as unknown as React.ReactElement;
-  }
   return (
-    <DateTimePicker
-      value={value}
-      mode="date"
-      display={Platform.OS === "ios" ? "spinner" : "default"}
-      onChange={(_, d) => {
-        if (d) onChange(d);
-      }}
-    />
+    <View style={{ borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 12, overflow: "hidden", backgroundColor: "#fff" }}>
+      <CalendarPicker initialDate={value} onSelectDate={(d) => d && onChange(d)} />
+    </View>
   );
 }
 

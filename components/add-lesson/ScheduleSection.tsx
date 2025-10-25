@@ -347,7 +347,7 @@ const pad = (n: number) => String(n).padStart(2, "0");
 
 export const ScheduleSection = memo(ScheduleSectionComponent);
 
-interface CalendarPickerProps {
+export interface CalendarPickerProps {
   initialDate: Date;
   onSelectDate: (d: Date | null) => void;
   testID?: string;
@@ -365,7 +365,7 @@ function endOfMonth(d: Date) {
   return new Date(d.getFullYear(), d.getMonth() + 1, 0);
 }
 
-function CalendarPicker({ initialDate, onSelectDate, testID }: CalendarPickerProps) {
+export function CalendarPicker({ initialDate, onSelectDate, testID }: CalendarPickerProps) {
   const [cursor, setCursor] = useState<Date>(startOfMonth(initialDate));
   const [showYearPicker, setShowYearPicker] = useState<boolean>(false);
   const today = new Date();
