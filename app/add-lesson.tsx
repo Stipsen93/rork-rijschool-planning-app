@@ -286,10 +286,21 @@ export default function AddLessonScreen() {
           maxOccurrences = Math.floor(remainingPaidHours / lessonDurationInHours);
         }
 
-        let currentDate = new Date(baseDate);
         for (let i = 0; i < maxOccurrences; i++) {
+          const currentDate = new Date(baseDate);
+          
+          if (recurrenceType === "daily") {
+            currentDate.setDate(currentDate.getDate() + i);
+          } else if (recurrenceType === "weekly") {
+            currentDate.setDate(currentDate.getDate() + (i * 7));
+          } else if (recurrenceType === "monthly") {
+            currentDate.setMonth(currentDate.getMonth() + i);
+          }
+
+          console.log(`[AddLesson] Creating recurring lesson ${i + 1}/${maxOccurrences} for ${currentDate.toISOString().slice(0, 10)}`);
+          
           addLesson({
-            date: new Date(currentDate),
+            date: currentDate,
             startTime,
             endTime,
             studentName,
@@ -299,14 +310,6 @@ export default function AddLessonScreen() {
             status: "Gepland",
             recurringId,
           });
-
-          if (recurrenceType === "daily") {
-            currentDate.setDate(currentDate.getDate() + 1);
-          } else if (recurrenceType === "weekly") {
-            currentDate.setDate(currentDate.getDate() + 7);
-          } else if (recurrenceType === "monthly") {
-            currentDate.setMonth(currentDate.getMonth() + 1);
-          }
         }
       } else {
         if (editingId) {
