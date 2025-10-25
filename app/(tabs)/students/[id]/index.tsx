@@ -935,22 +935,7 @@ function EditStudentPackageModal({
               <TouchableOpacity onPress={() => setCustomTermCount(Math.min(12, customTermCount + 1))} style={styles.numberBtn} testID="edit-terms-inc"><Text style={styles.numberBtnText}>+</Text></TouchableOpacity>
             </View>
           )}
-          <View style={{ gap: 8, marginTop: 8 }}>
-            {(() => {
-              const totalPrice = Number(price) || Number(pkg.customPrice ?? base?.price ?? 0);
-              const terms = termSelection === "custom" ? customTermCount : Number(termSelection.replace("x", ""));
-              const count = Math.max(1, Math.min(12, terms));
-              const amount = count > 0 ? totalPrice / count : totalPrice;
-              return Array.from({ length: count }, (_, i) => (
-                <View key={i} style={styles.termRow}>
-                  <View style={[styles.termBtn, { backgroundColor: "#e5e7eb" }]}>
-                    <Text style={styles.termBtnText}>Termijn {i + 1}</Text>
-                  </View>
-                  <Text style={styles.termDateText}>€{amount.toFixed(2)}</Text>
-                </View>
-              ));
-            })()}
-          </View>
+
           <Text style={styles.modalLabel}>Huidige termijnen</Text>
           <View style={{ gap: 8 }}>
             {(() => {
