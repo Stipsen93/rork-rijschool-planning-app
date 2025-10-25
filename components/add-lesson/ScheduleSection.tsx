@@ -606,7 +606,7 @@ const styles = StyleSheet.create({
   recurrenceOptionSelected: { backgroundColor: "#eff6ff", borderColor: "#2563eb" },
   recurrenceOptionText: { fontSize: 16, color: "#111827" },
   recurrenceOptionTextSelected: { color: "#2563eb", fontWeight: "700" },
-  recurrenceInput: { marginTop: 8, borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 6, paddingHorizontal: 12, paddingVertical: 8, fontSize: 16 },
+  recurrenceInput: { marginTop: 8, borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 6, paddingHorizontal: 12, paddingVertical: 8, fontSize: 16, outlineWidth: 0 },
   doneButton: { marginTop: 16, paddingVertical: 14, backgroundColor: "#2563eb", borderRadius: 8, alignItems: "center" },
   doneButtonText: { color: "#fff", fontWeight: "700", fontSize: 16 },
 });
