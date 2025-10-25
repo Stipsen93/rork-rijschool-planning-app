@@ -784,6 +784,8 @@ function EditStudentPackageModal({
   const [hours, setHours] = useState<string>("0");
   const [includedIds, setIncludedIds] = useState<string[]>([]);
   const [confirmOpen, setConfirmOpen] = useState<boolean>(false);
+  const [termSelection, setTermSelection] = useState<"1x" | "2x" | "3x" | "custom">("1x");
+  const [customTermCount, setCustomTermCount] = useState<number>(2);
 
   useEffect(() => {
     if (pkg) {
@@ -804,17 +806,25 @@ function EditStudentPackageModal({
       const copy = [...prev];
       const target = copy[pkgIndex];
       if (!target) return prev;
+      const totalPrice = Number(price) || Number(target.customPrice ?? base?.price ?? 0);
+      const terms = termSelection === "custom" ? customTermCount : Number(termSelection.replace("x", ""));
+      const count = Math.max(1, Math.min(12, terms));
+      const amount = count > 0 ? totalPrice / count : totalPrice;
+      const nextInstallments = Array.from({ length: count }, (_, i) => ({ installmentNumber: i + 1, amount, paid: false, paidDate: null as string | null, dueDate: null as string | null }));
       copy[pkgIndex] = {
         ...target,
         customName: name.trim() || undefined,
         customPrice: Number.isFinite(Number(price)) ? Number(price) : target.customPrice,
         customHours: Number.isFinite(Number(hours)) ? Number(hours) : target.customHours,
         includedProductIds: includedIds,
+        paymentTerms: termSelection === "custom" ? "custom" : termSelection,
+        installments: nextInstallments,
+        paymentStatus: "unpaid",
       };
       return copy;
     });
     onClose();
-  }, [hours, includedIds, name, onClose, pkgIndex, price, setStudentPackages]);
+  }, [hours, includedIds, name, onClose, pkgIndex, price, setStudentPackages, termSelection, customTermCount, base?.price]);
 
   const confirmDelete = useCallback(() => {
     setConfirmOpen(true);
@@ -900,6 +910,37 @@ function EditStudentPackageModal({
           </View>
 
           <Text style={styles.modalLabel}>Termijnen</Text>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+            {(["1x", "2x", "3x", "custom"] as const).map((t) => (
+              <TouchableOpacity key={t} onPress={() => setTermSelection(t)} style={[styles.chip, termSelection === t && { backgroundColor: "#0ea5e9" }]} testID={`edit-terms-${t}`}>
+                <Text style={[styles.chipText, termSelection === t && { color: "#fff" }]}>{t === "custom" ? "Aangepast" : t}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          {termSelection === "custom" && (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginTop: 8 }}>
+              <TouchableOpacity onPress={() => setCustomTermCount(Math.max(2, customTermCount - 1))} style={styles.numberBtn} testID="edit-terms-dec"><Text style={styles.numberBtnText}>-</Text></TouchableOpacity>
+              <Text style={styles.customTerms}>{customTermCount} termijnen</Text>
+              <TouchableOpacity onPress={() => setCustomTermCount(Math.min(12, customTermCount + 1))} style={styles.numberBtn} testID="edit-terms-inc"><Text style={styles.numberBtnText}>+</Text></TouchableOpacity>
+            </View>
+          )}
+          <View style={{ gap: 8, marginTop: 8 }}>
+            {(() => {
+              const totalPrice = Number(price) || Number(pkg.customPrice ?? base?.price ?? 0);
+              const terms = termSelection === "custom" ? customTermCount : Number(termSelection.replace("x", ""));
+              const count = Math.max(1, Math.min(12, terms));
+              const amount = count > 0 ? totalPrice / count : totalPrice;
+              return Array.from({ length: count }, (_, i) => (
+                <View key={i} style={styles.termRow}>
+                  <View style={[styles.termBtn, { backgroundColor: "#e5e7eb" }]}>
+                    <Text style={styles.termBtnText}>Termijn {i + 1}</Text>
+                  </View>
+                  <Text style={styles.termDateText}>€{amount.toFixed(2)}</Text>
+                </View>
+              ));
+            })()}
+          </View>
+          <Text style={styles.modalLabel}>Huidige termijnen</Text>
           <View style={{ gap: 8 }}>
             {pkg.installments.map((inst, i) => (
               <View key={i} style={styles.termRow}>
