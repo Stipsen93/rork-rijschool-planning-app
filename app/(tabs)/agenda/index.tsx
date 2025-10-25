@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { StyleSheet, TouchableOpacity, View, Text } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AgendaHeader } from "@/components/agenda/AgendaHeader";
 import { DayStrip } from "@/components/agenda/DayStrip";
@@ -7,7 +7,7 @@ import { MonthlyView } from "@/components/agenda/MonthlyView";
 import { TimeGrid } from "@/components/agenda/TimeGrid";
 import { LessonDetailSheet } from "@/components/agenda/LessonDetailSheet";
 import { useRouter, useFocusEffect } from "expo-router";
-import { Plus } from "lucide-react-native";
+import { Plus, ArrowLeft } from "lucide-react-native";
 import { useAgenda } from "@/components/agenda/AgendaStore";
 
 export type Lesson = { id?: string | number; studentName?: string; lessonType?: string; startTime: string; endTime: string; date: Date; status?: string; location?: string; notes?: string };
@@ -67,6 +67,10 @@ export default function AgendaScreen() {
     setSelectedDate(d);
   }, []);
 
+  function isSameDay(a: Date, b: Date): boolean {
+    return a.getDate() === b.getDate() && a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear();
+  }
+
   const onPrevDay = useCallback(() => {
     setSelectedDate((d) => {
       const prev = new Date(d);
@@ -88,6 +92,8 @@ export default function AgendaScreen() {
       return next;
     });
   }, []);
+
+  const today = new Date();
 
   return (
     <View style={{ flex: 1, backgroundColor: '#f8fafc' }}>
@@ -183,6 +189,27 @@ export default function AgendaScreen() {
           />
         )}
 
+        {!isSameDay(selectedDate, today) && (
+          <TouchableOpacity
+            testID="fab-back-to-today"
+            onPress={() => {
+              console.log("Agenda: Back to today pressed");
+              const now = new Date();
+              const mondayOffset = (now.getDay() || 7) - 1;
+              const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - mondayOffset);
+              setSelectedDate(now);
+              setCurrentDate(weekStart);
+            }}
+            activeOpacity={0.9}
+            style={[styles.backToToday, { bottom: insets.bottom + 56 }]}
+            accessibilityRole="button"
+            accessibilityLabel="Terug naar vandaag"
+          >
+            <ArrowLeft color="#111827" size={18} />
+            <Text style={styles.backToTodayText}>Terug naar vandaag</Text>
+          </TouchableOpacity>
+        )}
+
         {!selectedLesson && (
           <TouchableOpacity
             testID="fab-add-lesson"
@@ -247,5 +274,28 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
     elevation: 4,
+  },
+  backToToday: {
+    position: "absolute",
+    left: 16,
+    bottom: 28,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: "#ffffff",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+  },
+  backToTodayText: {
+    color: "#111827",
+    fontWeight: "700",
   },
 });
