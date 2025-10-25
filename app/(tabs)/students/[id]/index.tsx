@@ -338,6 +338,9 @@ export default function StudentProfileScreen() {
                                   style={[styles.termBtn, inst.paid && styles.termBtnPaid]}>
                                   <Text style={[styles.termBtnText, inst.paid && styles.termBtnTextPaid]}>Termijn {inst.installmentNumber}</Text>
                                 </TouchableOpacity>
+                                {pkg.installments.length >= 2 && (
+                                  <Text style={styles.termAmountText}>€{inst.amount.toFixed(2)}</Text>
+                                )}
                                 <Text style={styles.termDateText}>{inst.paid && inst.paidDate ? formatDate(inst.paidDate) : "–"}</Text>
                               </View>
                             ))}
@@ -1626,6 +1629,7 @@ const styles = StyleSheet.create({
   termBtnText: { fontWeight: "700", color: "#111827" },
   termBtnTextPaid: { color: "#fff" },
   termDateText: { color: "#111827", fontWeight: "700" },
+  termAmountText: { color: "#374151", fontWeight: "700" },
   optionRow: { flexDirection: "row", alignItems: "center", paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: "#e5e7eb", backgroundColor: "#fff" },
   optionRowActive: { borderColor: "#0ea5e9", backgroundColor: "#f0f9ff" },
   optionTitle: { fontWeight: "700" },
