@@ -53,6 +53,30 @@ export const [AgendaProvider, useAgenda] = createContextHook(() => {
       const id = lesson.id && `${lesson.id}`.length > 0 ? `${lesson.id}` : uid();
       const key = keyFor(lesson.date);
       const existing = prev[key] ?? [];
+
+      // Try to update by id if present
+      const byIdIndex = existing.findIndex((l) => l.id === id);
+      if (byIdIndex >= 0) {
+        const updated = existing.slice();
+        updated[byIdIndex] = { ...existing[byIdIndex], ...lesson, id };
+        const sorted = updated.slice().sort(byStartTimeAsc);
+        const next = { ...prev, [key]: sorted };
+        console.log("AgendaStore: addLesson (updated existing by id)", { key, id });
+        return next;
+      }
+
+      // Prevent duplicates on same day with same time/student/type
+      const hasDuplicate = existing.some((l) =>
+        l.startTime === lesson.startTime &&
+        l.endTime === lesson.endTime &&
+        (l.studentName ?? "") === (lesson.studentName ?? "") &&
+        (l.lessonType ?? "") === (lesson.lessonType ?? "")
+      );
+      if (hasDuplicate) {
+        console.log("AgendaStore: addLesson skipped duplicate", { key, id });
+        return prev;
+      }
+
       const nextArr = [...existing, { ...lesson, id }].sort(byStartTimeAsc);
       const next = { ...prev, [key]: nextArr };
       console.log("AgendaStore: addLesson", { key, count: nextArr.length, id });

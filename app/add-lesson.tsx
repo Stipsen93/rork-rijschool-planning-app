@@ -217,6 +217,15 @@ export default function AddLessonScreen() {
       const recurringId = shouldRecur ? Math.random().toString(36).slice(2, 10) : undefined;
 
       if (shouldRecur) {
+        if (editingId) {
+          try {
+            removeLessonById(editingId);
+            console.log("[AddLesson] Removed existing lesson before creating recurrence", { editingId });
+          } catch (e) {
+            console.log("[AddLesson] Failed to remove existing lesson before recurrence", e);
+          }
+        }
+
         const studentPackagesStr = await AsyncStorage.getItem(`student_packages_${studentName}`);
         const studentPackages = studentPackagesStr ? JSON.parse(studentPackagesStr) : [];
         
