@@ -293,7 +293,7 @@ export default function StudentProfileScreen() {
         <StudentOverviewTable studentName={params.name ?? ""} baseItems={availablePackages} products={settingsProducts} studentPackages={studentPackages} />
 
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Pakketten/Uren</Text>
+          <Text style={styles.sectionTitle}>Pakketten/Producten/Uren</Text>
           {studentPackages.length === 0 ? (
             <View style={styles.emptyBox}>
               <Text style={styles.emptyTitle}>Nog geen pakketten of uren toegevoegd</Text>
@@ -366,7 +366,7 @@ export default function StudentProfileScreen() {
               })}
 
               <TouchableOpacity onPress={openAdd} style={[styles.primaryBtn]}>
-                <Text style={styles.primaryBtnText}>Nieuw pakket of uren toevoegen</Text>
+                <Text style={styles.primaryBtnText}>Nieuw pakket, product of uren toevoegen</Text>
               </TouchableOpacity>
             </View>
           )}
