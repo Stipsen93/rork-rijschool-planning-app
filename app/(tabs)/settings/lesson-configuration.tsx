@@ -1,5 +1,5 @@
 import React from "react";
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View, PanResponder } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Stack } from "expo-router";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
@@ -193,28 +193,56 @@ function ToggleRow({ title, subtitle, value, onToggle }: { title: string; subtit
 
 function Slider({ value, min, max, step, onChange }: { value: number; min: number; max: number; step: number; onChange: (v: number) => void }) {
   const pct = Math.round(((value - min) / (max - min)) * 100);
+  const trackWidthRef = React.useRef<number>(0);
+  const [isDragging, setIsDragging] = React.useState<boolean>(false);
+
+  const calculateValue = React.useCallback((x: number) => {
+    if (trackWidthRef.current === 0) return value;
+    const ratio = Math.max(0, Math.min(1, x / trackWidthRef.current));
+    const rawValue = min + ratio * (max - min);
+    const steppedValue = Math.round(rawValue / step) * step;
+    return Math.min(max, Math.max(min, steppedValue));
+  }, [min, max, step, value]);
+
+  const panResponder = React.useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: (evt) => {
+        setIsDragging(true);
+        const newValue = calculateValue(evt.nativeEvent.locationX);
+        onChange(newValue);
+      },
+      onPanResponderMove: (evt) => {
+        const newValue = calculateValue(evt.nativeEvent.locationX);
+        onChange(newValue);
+      },
+      onPanResponderRelease: () => {
+        setIsDragging(false);
+      },
+      onPanResponderTerminate: () => {
+        setIsDragging(false);
+      },
+    })
+  ).current;
+
   return (
     <View style={styles.sliderRoot}>
       <View style={[styles.sliderTrack]} />
       <View style={[styles.sliderFilled, { width: `${pct}%` }]} />
-      <View style={[styles.sliderThumb, { left: `${pct}%` }]} />
+      <View style={[styles.sliderThumb, { left: `${pct}%`, transform: [{ scale: isDragging ? 1.2 : 1 }] }]} />
       <View style={styles.sliderTicksRow} pointerEvents="none">
         {Array.from({ length: Math.floor((max - min) / step) + 1 }).map((_, i) => (
           <View key={i} style={styles.tick} />
         ))}
       </View>
-      <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-        <View style={{ flex: 1, flexDirection: "row" }}>
-          {Array.from({ length: Math.floor((max - min) / step) + 1 }).map((_, i) => (
-            <TouchableOpacity
-              key={i}
-              style={{ flex: 1, height: 32 }}
-              onPress={() => onChange(Math.min(max, Math.max(min, min + i * step)))}
-              accessibilityRole="button"
-            />
-          ))}
-        </View>
-      </View>
+      <View 
+        style={StyleSheet.absoluteFill} 
+        onLayout={(e) => {
+          trackWidthRef.current = e.nativeEvent.layout.width;
+        }}
+        {...panResponder.panHandlers}
+      />
     </View>
   );
 }
