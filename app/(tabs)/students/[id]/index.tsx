@@ -514,21 +514,20 @@ function RecentLessonsCard({ studentName }: { studentName: string }) {
     return () => { if (saveDebouncePRef.current) clearTimeout(saveDebouncePRef.current); };
   }, [lessonPayments, studentName]);
 
-  const pastLessons = useMemo(() => {
-    const arr: AgendaLesson[] = [];
+  const lessonsList = useMemo(() => {
+    const arr: { lesson: AgendaLesson; isFuture: boolean }[] = [];
     Object.values(lessonsByDate).forEach((day) => {
       day.forEach((l) => {
         if ((l.studentName ?? "") === studentName) {
           const endDate = new Date(l.date);
           const [eh, em] = l.endTime.split(":").map((v) => parseInt(v, 10));
           endDate.setHours(Number.isFinite(eh) ? eh : 0, Number.isFinite(em) ? em : 0, 0, 0);
-          if (endDate.getTime() <= now.getTime()) {
-            arr.push(l);
-          }
+          const isFuture = endDate.getTime() > now.getTime();
+          arr.push({ lesson: l, isFuture });
         }
       });
     });
-    return arr.sort((a, b) => b.date.getTime() - a.date.getTime());
+    return arr.sort((a, b) => b.lesson.date.getTime() - a.lesson.date.getTime());
   }, [lessonsByDate, studentName, now]);
 
   const togglePayment = useCallback((lessonId: string) => {
@@ -549,23 +548,33 @@ function RecentLessonsCard({ studentName }: { studentName: string }) {
   return (
     <View style={styles.card}>
       <Text style={styles.sectionTitle}>Recente lessen</Text>
-      {pastLessons.length === 0 ? (
+      {lessonsList.length === 0 ? (
         <Text style={styles.emptyText}>Geen recente lessen</Text>
       ) : (
-        pastLessons.map((lesson) => {
+        lessonsList.map(({ lesson, isFuture }) => {
           const isPaid = lessonPayments[lesson.id] === true;
           const duration = minutesDuration(lesson.startTime, lesson.endTime);
           return (
             <View key={lesson.id} style={styles.lessonRow}>
-              <Text style={styles.lessonText}>
-                {lesson.lessonType ?? "Les"} • {formatDate(lesson.date.toISOString())} • {duration} min
-              </Text>
-              <TouchableOpacity
-                onPress={() => togglePayment(lesson.id)}
-                style={[styles.lessonBadge, isPaid ? styles.lessonBadgePaid : styles.lessonBadgeUnpaid]}
-              >
-                <Text style={styles.lessonBadgeText}>{isPaid ? "Betaald" : "Niet betaald"}</Text>
-              </TouchableOpacity>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flex: 1 }}>
+                <Text style={styles.lessonText}>
+                  {(lesson.lessonType ?? "Les") + " • " + formatDate(lesson.date.toISOString())}
+                </Text>
+                {isFuture && (
+                  <View style={styles.plannedBadge}>
+                    <Text style={styles.plannedBadgeText}>Gepland</Text>
+                  </View>
+                )}
+                <Text style={styles.lessonText}>{" • " + duration + " min"}</Text>
+              </View>
+              {!isFuture && (
+                <TouchableOpacity
+                  onPress={() => togglePayment(lesson.id)}
+                  style={[styles.lessonBadge, isPaid ? styles.lessonBadgePaid : styles.lessonBadgeUnpaid]}
+                >
+                  <Text style={styles.lessonBadgeText}>{isPaid ? "Betaald" : "Niet betaald"}</Text>
+                </TouchableOpacity>
+              )}
             </View>
           );
         })
