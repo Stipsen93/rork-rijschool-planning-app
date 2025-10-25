@@ -810,7 +810,18 @@ function EditStudentPackageModal({
       const terms = termSelection === "custom" ? customTermCount : Number(termSelection.replace("x", ""));
       const count = Math.max(1, Math.min(12, terms));
       const amount = count > 0 ? totalPrice / count : totalPrice;
-      const nextInstallments = Array.from({ length: count }, (_, i) => ({ installmentNumber: i + 1, amount, paid: false, paidDate: null as string | null, dueDate: null as string | null }));
+      const nextInstallments = Array.from({ length: count }, (_, i) => {
+        const existing = target.installments[i];
+        return {
+          installmentNumber: i + 1,
+          amount,
+          paid: existing?.paid ?? false,
+          paidDate: existing?.paid ? (existing.paidDate ?? new Date().toISOString()) : null as string | null,
+          dueDate: existing?.dueDate ?? null as string | null,
+        };
+      });
+      const paidCount = nextInstallments.filter(x => x.paid).length;
+      const paymentStatus: StudentPackage["paymentStatus"] = paidCount === nextInstallments.length ? "paid" : paidCount > 0 ? "partial" : "unpaid";
       copy[pkgIndex] = {
         ...target,
         customName: name.trim() || undefined,
@@ -819,7 +830,7 @@ function EditStudentPackageModal({
         includedProductIds: includedIds,
         paymentTerms: termSelection === "custom" ? "custom" : termSelection,
         installments: nextInstallments,
-        paymentStatus: "unpaid",
+        paymentStatus,
       };
       return copy;
     });
@@ -942,14 +953,25 @@ function EditStudentPackageModal({
           </View>
           <Text style={styles.modalLabel}>Huidige termijnen</Text>
           <View style={{ gap: 8 }}>
-            {pkg.installments.map((inst, i) => (
-              <View key={i} style={styles.termRow}>
-                <TouchableOpacity onPress={() => togglePaid(i)} style={[styles.termBtn, inst.paid && styles.termBtnPaid]}>
-                  <Text style={[styles.termBtnText, inst.paid && styles.termBtnTextPaid]}>Termijn {inst.installmentNumber}</Text>
-                </TouchableOpacity>
-                <Text style={styles.termDateText}>{inst.paid && inst.paidDate ? formatDate(inst.paidDate) : "–"}</Text>
-              </View>
-            ))}
+            {(() => {
+              const terms = termSelection === "custom" ? customTermCount : Number(termSelection.replace("x", ""));
+              const count = Math.max(1, Math.min(12, terms));
+              const existing = pkg.installments;
+              return Array.from({ length: count }, (_, i) => {
+                const exists = i < existing.length;
+                const inst = exists ? existing[i] : undefined;
+                const paid = Boolean(inst?.paid);
+                const paidDate = inst?.paidDate ?? null;
+                return (
+                  <View key={`current-${i}`} style={styles.termRow}>
+                    <TouchableOpacity onPress={() => exists ? togglePaid(i) : undefined} disabled={!exists} style={[styles.termBtn, paid && styles.termBtnPaid, !exists && { opacity: 0.6 }]}> 
+                      <Text style={[styles.termBtnText, paid && styles.termBtnTextPaid]}>Termijn {i + 1}</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.termDateText}>{paid && paidDate ? formatDate(paidDate) : "–"}</Text>
+                  </View>
+                );
+              });
+            })()}
           </View>
 
           <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
