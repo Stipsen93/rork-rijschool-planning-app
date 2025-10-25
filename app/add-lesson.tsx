@@ -293,8 +293,9 @@ export default function AddLessonScreen() {
         }
 
         if (!Number.isFinite(maxOccurrences) || maxOccurrences <= 0) {
-          console.log("[AddLesson] Recurrence computed 0 occurrences, defaulting to 1 so at least the first lesson is saved");
-          maxOccurrences = 1;
+          const fallback = recurrenceLimit.type === "count" ? 1 : 12;
+          console.log("[AddLesson] Recurrence computed 0 occurrences. Using fallback:", { type: recurrenceLimit.type, fallback });
+          maxOccurrences = fallback;
         }
 
         for (let i = 0; i < maxOccurrences; i++) {
