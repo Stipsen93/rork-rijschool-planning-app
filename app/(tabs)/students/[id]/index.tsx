@@ -784,7 +784,7 @@ function EditStudentPackageModal({
   const [hours, setHours] = useState<string>("0");
   const [includedIds, setIncludedIds] = useState<string[]>([]);
   const [confirmOpen, setConfirmOpen] = useState<boolean>(false);
-  const [termSelection, setTermSelection] = useState<"1x" | "2x" | "3x" | "custom">("1x");
+  const [termSelection, setTermSelection] = useState<"1x" | "2x" | "3x" | "4x" | "custom">("1x");
   const [customTermCount, setCustomTermCount] = useState<number>(2);
 
   useEffect(() => {
@@ -911,7 +911,7 @@ function EditStudentPackageModal({
 
           <Text style={styles.modalLabel}>Termijnen</Text>
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-            {(["1x", "2x", "3x", "custom"] as const).map((t) => (
+            {(["1x", "2x", "3x", "4x", "custom"] as const).map((t) => (
               <TouchableOpacity key={t} onPress={() => setTermSelection(t)} style={[styles.chip, termSelection === t && { backgroundColor: "#0ea5e9" }]} testID={`edit-terms-${t}`}>
                 <Text style={[styles.chipText, termSelection === t && { color: "#fff" }]}>{t === "custom" ? "Aangepast" : t}</Text>
               </TouchableOpacity>
