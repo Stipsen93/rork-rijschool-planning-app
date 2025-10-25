@@ -4,8 +4,8 @@ import { Stack, useRouter } from "expo-router";
 import { Check, Plus, Save, Trash2, ChevronDown, ChevronUp, Pencil } from "lucide-react-native";
 import { useSettings } from "@/components/settings/SettingsStore";
 
-type Product = { id: string; name: string; price: number; vatStatus: "incl" | "excl" };
-type PackageItem = { id: string; name: string; hours: number; price: number; vatStatus: "incl" | "excl"; selectedProducts: string[] };
+type Product = { id: string; name: string; price: number; vatStatus: "incl" | "excl"; installments: number };
+type PackageItem = { id: string; name: string; hours: number; price: number; vatStatus: "incl" | "excl"; selectedProducts: string[]; installments: number };
 type HourlyRates = { price: number; vatStatus: "incl" | "excl" };
 
 type EditState =
@@ -16,6 +16,7 @@ type EditState =
       name: string;
       price: string;
       vatStatus: "incl" | "excl";
+      installments: number;
     }
   | {
       type: "package";
@@ -26,6 +27,8 @@ type EditState =
       vatStatus: "incl" | "excl";
       selectedProducts: string[];
       dropdownOpen: boolean;
+      installments: number;
+      customInstallmentsInput?: string;
     };
 
 function confirmCrossPlatform(title: string, message: string, onConfirm: () => void) {
@@ -122,7 +125,7 @@ export default function PackagesAndHoursScreen() {
       return;
     }
     const id = String(Date.now());
-    const next: Product = { id, name, price: priceNum, vatStatus: newProductVat };
+    const next: Product = { id, name, price: priceNum, vatStatus: newProductVat, installments: 1 };
     setProducts((prev) => [...prev, next]);
     setNewProductName("");
     setNewProductPrice("");
@@ -148,7 +151,7 @@ export default function PackagesAndHoursScreen() {
       return;
     }
     const id = String(Date.now());
-    const next: PackageItem = { id, name, hours: hoursNum, price: priceNum, vatStatus: newPackageVat, selectedProducts: newPackageSelectedProducts };
+    const next: PackageItem = { id, name, hours: hoursNum, price: priceNum, vatStatus: newPackageVat, selectedProducts: newPackageSelectedProducts, installments: 1 };
     setPackages((prev) => [...prev, next]);
     setNewPackageName("");
     setNewPackageHours("");
@@ -204,7 +207,7 @@ export default function PackagesAndHoursScreen() {
   const beginEditProduct = (id: string) => {
     const prod = products.find((p) => p.id === id);
     if (!prod) return;
-    setEditState({ type: "product", id, name: prod.name, price: String(prod.price), vatStatus: prod.vatStatus });
+    setEditState({ type: "product", id, name: prod.name, price: String(prod.price), vatStatus: prod.vatStatus, installments: typeof (prod as Product).installments === "number" ? (prod as Product).installments : 1 });
   };
 
   const beginEditPackage = (id: string) => {
@@ -219,6 +222,7 @@ export default function PackagesAndHoursScreen() {
       vatStatus: pkg.vatStatus,
       selectedProducts: [...pkg.selectedProducts],
       dropdownOpen: false,
+      installments: typeof (pkg as PackageItem).installments === "number" ? (pkg as PackageItem).installments : 1,
     });
   };
 
@@ -231,7 +235,7 @@ export default function PackagesAndHoursScreen() {
         Alert.alert("Let op", "Controleer de naam en prijs.");
         return;
       }
-      updateProduct(editState.id, { name, price: priceNum, vatStatus: editState.vatStatus });
+      updateProduct(editState.id, { name, price: priceNum, vatStatus: editState.vatStatus, installments: editState.installments });
       setEditState(null);
     } else {
       const name = editState.name.trim();
@@ -247,6 +251,7 @@ export default function PackagesAndHoursScreen() {
         price: priceNum,
         vatStatus: editState.vatStatus,
         selectedProducts: editState.selectedProducts,
+        installments: editState.installments,
       });
       setEditState(null);
     }
@@ -613,6 +618,46 @@ export default function PackagesAndHoursScreen() {
                     <Text style={styles.tagText}>{editState.vatStatus === "incl" ? "Incl. BTW" : "Excl. BTW"}</Text>
                   </TouchableOpacity>
                 </View>
+                <View style={{ gap: 8 }}>
+                  <Text style={styles.sectionLabel}>Termijnen</Text>
+                  <View style={styles.inline}>
+                    <TouchableOpacity
+                      testID="product-terms-1x"
+                      style={[styles.chip, (editState.type === "product" && editState.installments === 1) && styles.chipActive]}
+                      onPress={() => setEditState((prev) => (prev && prev.type === "product" ? { ...prev, installments: 1 } : prev))}
+                      accessibilityRole="button"
+                    >
+                      <Text style={styles.chipLabel}>1x</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      testID="product-terms-2x"
+                      style={[styles.chip, (editState.type === "product" && editState.installments === 2) && styles.chipActive]}
+                      onPress={() => setEditState((prev) => (prev && prev.type === "product" ? { ...prev, installments: 2 } : prev))}
+                      accessibilityRole="button"
+                    >
+                      <Text style={styles.chipLabel}>2x</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      testID="product-terms-3x"
+                      style={[styles.chip, (editState.type === "product" && editState.installments === 3) && styles.chipActive]}
+                      onPress={() => setEditState((prev) => (prev && prev.type === "product" ? { ...prev, installments: 3 } : prev))}
+                      accessibilityRole="button"
+                    >
+                      <Text style={styles.chipLabel}>3x</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      testID="product-terms-custom"
+                      style={[styles.chip, (editState.type === "product" && ![1,2,3].includes(editState.installments)) && styles.chipActive]}
+                      onPress={() => {}}
+                      accessibilityRole="button"
+                    >
+                      <Text style={styles.chipLabel}>Aangepast</Text>
+                    </TouchableOpacity>
+                  </View>
+                  {editState.type === "product" && ![1,2,3].includes(editState.installments) && (
+                    <Text style={styles.muted}>Huidige: {editState.installments}x</Text>
+                  )}
+                </View>
               </View>
             ) : editState ? (
               <View style={{ gap: 10 }}>
@@ -666,6 +711,70 @@ export default function PackagesAndHoursScreen() {
                     {editState.type === "package" && editState.dropdownOpen ? <ChevronUp color="#64748b" /> : <ChevronDown color="#64748b" />}
                   </View>
                 </TouchableOpacity>
+                <View style={{ gap: 8, marginTop: 4 }}>
+                  <Text style={styles.sectionLabel}>Termijnen</Text>
+                  <View style={styles.inline}>
+                    <TouchableOpacity
+                      testID="package-terms-1x"
+                      style={[styles.chip, (editState.type === "package" && editState.installments === 1) && styles.chipActive]}
+                      onPress={() => setEditState((prev) => (prev && prev.type === "package" ? { ...prev, installments: 1, customInstallmentsInput: undefined } : prev))}
+                      accessibilityRole="button"
+                    >
+                      <Text style={styles.chipLabel}>1x</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      testID="package-terms-2x"
+                      style={[styles.chip, (editState.type === "package" && editState.installments === 2) && styles.chipActive]}
+                      onPress={() => setEditState((prev) => (prev && prev.type === "package" ? { ...prev, installments: 2, customInstallmentsInput: undefined } : prev))}
+                      accessibilityRole="button"
+                    >
+                      <Text style={styles.chipLabel}>2x</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      testID="package-terms-3x"
+                      style={[styles.chip, (editState.type === "package" && editState.installments === 3) && styles.chipActive]}
+                      onPress={() => setEditState((prev) => (prev && prev.type === "package" ? { ...prev, installments: 3, customInstallmentsInput: undefined } : prev))}
+                      accessibilityRole="button"
+                    >
+                      <Text style={styles.chipLabel}>3x</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      testID="package-terms-custom"
+                      style={[styles.chip, (editState.type === "package" && ![1,2,3].includes(editState.installments)) && styles.chipActive]}
+                      onPress={() => setEditState((prev) => (prev && prev.type === "package" ? { ...prev, customInstallmentsInput: String(prev.installments) } : prev))}
+                      accessibilityRole="button"
+                    >
+                      <Text style={styles.chipLabel}>Aangepast</Text>
+                    </TouchableOpacity>
+                  </View>
+                  {editState.type === "package" && ![1,2,3].includes(editState.installments) && (
+                    <View style={styles.inlineBetween}>
+                      <TextInput
+                        testID="package-terms-custom-input"
+                        style={[styles.input, styles.inputSmall]}
+                        placeholder="Aantal termijnen"
+                        placeholderTextColor="#9ca3af"
+                        keyboardType="number-pad"
+                        value={editState.customInstallmentsInput ?? String(editState.installments)}
+                        onChangeText={(t) => setEditState((prev) => (prev && prev.type === "package" ? { ...prev, customInstallmentsInput: t } : prev))}
+                      />
+                      <TouchableOpacity
+                        testID="package-terms-apply-custom"
+                        style={styles.tag}
+                        onPress={() => setEditState((prev) => {
+                          if (prev && prev.type === "package") {
+                            const n = Number(prev.customInstallmentsInput);
+                            if (!Number.isNaN(n) && n >= 1) return { ...prev, installments: n };
+                            return prev;
+                          }
+                          return prev;
+                        })}
+                      >
+                        <Text style={styles.tagText}>Toepassen</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
                 {editState.type === "package" && editState.dropdownOpen && (
                   <View style={styles.dropdownPanel}>
                     {products.length === 0 ? (
@@ -822,4 +931,8 @@ const styles = StyleSheet.create({
   modalBtnDangerText: { color: "#fff", fontWeight: "700" },
   modalBtnPrimary: { backgroundColor: "#0ea5e9" },
   modalBtnPrimaryText: { color: "#fff", fontWeight: "700" },
+  chip: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 999, borderWidth: 2, borderColor: "#e5e7eb", backgroundColor: "#fff" },
+  chipActive: { borderColor: "#0ea5e9", backgroundColor: "#e0f2fe" },
+  chipLabel: { fontWeight: "700", color: "#0f172a" },
+  sectionLabel: { fontSize: 14, fontWeight: "700", color: "#0f172a" },
 });

@@ -13,8 +13,8 @@ type LessonConfig = {
   cancellationNoticeHours: 2 | 4 | 12 | 24 | 48;
 };
 
-type Product = { id: string; name: string; price: number; vatStatus: "incl" | "excl" };
-type PackageItem = { id: string; name: string; hours: number; price: number; vatStatus: "incl" | "excl"; selectedProducts: string[] };
+type Product = { id: string; name: string; price: number; vatStatus: "incl" | "excl"; installments: number };
+type PackageItem = { id: string; name: string; hours: number; price: number; vatStatus: "incl" | "excl"; selectedProducts: string[]; installments: number };
 type HourlyRates = { price: number; vatStatus: "incl" | "excl" };
 
 const LESSON_CONFIG_KEY = "lesson_configuration" as const;
@@ -94,7 +94,14 @@ export const [SettingsProvider, useSettings] = createContextHook(() => {
         }
 
         if (productsStr) {
-          const list = JSON.parse(productsStr) as Product[];
+          const raw = JSON.parse(productsStr) as Partial<Product>[];
+          const list: Product[] = raw.map((p) => ({
+            id: String(p.id ?? ""),
+            name: String(p.name ?? ""),
+            price: Number(p.price ?? 0),
+            vatStatus: (p.vatStatus as Product["vatStatus"]) ?? "incl",
+            installments: typeof p.installments === "number" && p.installments >= 1 ? p.installments : 1,
+          }));
           setProducts(list);
           setLessonConfig((prev) => {
             const nextDurations = { ...prev.productDurations };
@@ -105,7 +112,17 @@ export const [SettingsProvider, useSettings] = createContextHook(() => {
         }
 
         if (packagesStr) {
-          setPackages(JSON.parse(packagesStr) as PackageItem[]);
+          const rawPk = JSON.parse(packagesStr) as Partial<PackageItem>[];
+          const pkgs: PackageItem[] = rawPk.map((p) => ({
+            id: String(p.id ?? ""),
+            name: String(p.name ?? ""),
+            hours: Number(p.hours ?? 0),
+            price: Number(p.price ?? 0),
+            vatStatus: (p.vatStatus as PackageItem["vatStatus"]) ?? "incl",
+            selectedProducts: Array.isArray(p.selectedProducts) ? p.selectedProducts.map(String) : [],
+            installments: typeof p.installments === "number" && p.installments >= 1 ? p.installments : 1,
+          }));
+          setPackages(pkgs);
         }
 
         if (ratesStr) {
