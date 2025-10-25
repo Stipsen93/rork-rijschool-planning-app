@@ -167,7 +167,7 @@ export default function AddLessonScreen() {
   const onSave = useCallback(async () => {
     try {
       setIsLoading(true);
-      console.log("Saving lesson", { category, type, selectedStudentId, selectedVehicleId, date, time, durationHours, durationMinutes, location, notes });
+      console.log("Saving lesson", { category, type, selectedStudentId, selectedVehicleId, date, time, durationHours, durationMinutes, location, notes, recurrenceType, recurrenceLimit });
       await new Promise((res) => setTimeout(res, 600));
 
       const [y, m, d] = date.split("-").map((v) => parseInt(v, 10));
@@ -203,7 +203,13 @@ export default function AddLessonScreen() {
         endTime = `${pad(endH)}:${pad(endM)}`;
       }
 
-
+      const minutesBetween = (startHHMM: string, endHHMM: string): number => {
+        const [sh, sm] = startHHMM.split(":").map((v) => parseInt(v, 10));
+        const [eh, em] = endHHMM.split(":").map((v) => parseInt(v, 10));
+        const s = (Number.isFinite(sh) ? sh : 0) * 60 + (Number.isFinite(sm) ? sm : 0);
+        const e = (Number.isFinite(eh) ? eh : 0) * 60 + (Number.isFinite(em) ? em : 0);
+        return Math.max(0, e - s);
+      };
 
       const studentName = mockStudents.find((s) => s.id === selectedStudentId)?.name ?? "Leerling";
       
@@ -234,7 +240,7 @@ export default function AddLessonScreen() {
         const now = new Date();
 
         studentLessons.forEach((l) => {
-          const mins = (durationHours * 60 + durationMinutes);
+          const mins = minutesBetween(l.startTime, l.endTime);
           const endDate = new Date(l.date);
           const [eh, em] = l.endTime.split(":").map((v) => parseInt(v, 10));
           endDate.setHours(Number.isFinite(eh) ? eh : 0, Number.isFinite(em) ? em : 0, 0, 0);
@@ -284,6 +290,11 @@ export default function AddLessonScreen() {
           const remainingPaidHours = Math.max(0, hoursPaid - drivenHours);
           const lessonDurationInHours = durationHours + durationMinutes / 60;
           maxOccurrences = Math.floor(remainingPaidHours / lessonDurationInHours);
+        }
+
+        if (!Number.isFinite(maxOccurrences) || maxOccurrences <= 0) {
+          console.log("[AddLesson] Recurrence computed 0 occurrences, defaulting to 1 so at least the first lesson is saved");
+          maxOccurrences = 1;
         }
 
         for (let i = 0; i < maxOccurrences; i++) {
