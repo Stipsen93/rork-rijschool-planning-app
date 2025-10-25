@@ -646,15 +646,23 @@ export default function PackagesAndHoursScreen() {
                       <Text style={styles.chipLabel}>3x</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
+                      testID="product-terms-4x"
+                      style={[styles.chip, (editState.type === "product" && editState.installments === 4) && styles.chipActive]}
+                      onPress={() => setEditState((prev) => (prev && prev.type === "product" ? { ...prev, installments: 4 } : prev))}
+                      accessibilityRole="button"
+                    >
+                      <Text style={styles.chipLabel}>4x</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
                       testID="product-terms-custom"
-                      style={[styles.chip, (editState.type === "product" && ![1,2,3].includes(editState.installments)) && styles.chipActive]}
+                      style={[styles.chip, (editState.type === "product" && ![1,2,3,4].includes(editState.installments)) && styles.chipActive]}
                       onPress={() => {}}
                       accessibilityRole="button"
                     >
                       <Text style={styles.chipLabel}>Aangepast</Text>
                     </TouchableOpacity>
                   </View>
-                  {editState.type === "product" && ![1,2,3].includes(editState.installments) && (
+                  {editState.type === "product" && ![1,2,3,4].includes(editState.installments) && (
                     <Text style={styles.muted}>Huidige: {editState.installments}x</Text>
                   )}
                 </View>
@@ -739,15 +747,23 @@ export default function PackagesAndHoursScreen() {
                       <Text style={styles.chipLabel}>3x</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
+                      testID="package-terms-4x"
+                      style={[styles.chip, (editState.type === "package" && editState.installments === 4) && styles.chipActive]}
+                      onPress={() => setEditState((prev) => (prev && prev.type === "package" ? { ...prev, installments: 4, customInstallmentsInput: undefined } : prev))}
+                      accessibilityRole="button"
+                    >
+                      <Text style={styles.chipLabel}>4x</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
                       testID="package-terms-custom"
-                      style={[styles.chip, (editState.type === "package" && ![1,2,3].includes(editState.installments)) && styles.chipActive]}
+                      style={[styles.chip, (editState.type === "package" && ![1,2,3,4].includes(editState.installments)) && styles.chipActive]}
                       onPress={() => setEditState((prev) => (prev && prev.type === "package" ? { ...prev, customInstallmentsInput: String(prev.installments) } : prev))}
                       accessibilityRole="button"
                     >
                       <Text style={styles.chipLabel}>Aangepast</Text>
                     </TouchableOpacity>
                   </View>
-                  {editState.type === "package" && ![1,2,3].includes(editState.installments) && (
+                  {editState.type === "package" && ![1,2,3,4].includes(editState.installments) && (
                     <View style={styles.inlineBetween}>
                       <TextInput
                         testID="package-terms-custom-input"
