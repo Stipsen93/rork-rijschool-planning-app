@@ -189,7 +189,7 @@ export default function AgendaScreen() {
           />
         )}
 
-        {!isSameDay(selectedDate, today) && (
+        {!isSameDay(selectedDate, today) && !selectedLesson && (
           <TouchableOpacity
             testID="fab-back-to-today"
             onPress={() => {
