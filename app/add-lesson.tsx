@@ -296,7 +296,7 @@ export default function AddLessonScreen() {
           const lessonDurationInHours = durationHours + durationMinutes / 60;
           maxOccurrences = Math.floor(hoursOver / lessonDurationInHours);
         } else if (recurrenceLimit.type === "paid") {
-          const remainingPaidHours = Math.max(0, hoursPaid - drivenHours);
+          const remainingPaidHours = Math.max(0, hoursPaid - drivenHours - plannedHours);
           const lessonDurationInHours = durationHours + durationMinutes / 60;
           maxOccurrences = Math.floor(remainingPaidHours / lessonDurationInHours);
         }
