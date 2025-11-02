@@ -1,11 +1,12 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Stack } from "expo-router";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
-import { Clock, ChevronRight, MoreVertical, Copy, RefreshCcw, Plus, Trash2, Calendar } from "lucide-react-native";
+import { Clock, ChevronRight, MoreVertical, Copy, RefreshCcw, Plus, Trash2, Calendar, CalendarDays, X } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useWorkingHours, defaultWorkingHours, type DayKey, type DayConfig, type WorkingHours, type VacationPeriod } from "@/components/settings/WorkingHoursStore";
+import { CalendarPicker } from "@/components/add-lesson/ScheduleSection";
 
 function showToast(msg: string, _color: string = "#16a34a") {
   if (Platform.OS === "android") {
@@ -435,6 +436,8 @@ function VacationModal({ visible, onClose, onAdd }: { visible: boolean; onClose:
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [repeatAnnually, setRepeatAnnually] = useState<boolean>(false);
+  const [showStartDatePicker, setShowStartDatePicker] = useState<boolean>(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState<boolean>(false);
   const insets = useSafeAreaInsets();
 
   React.useEffect(() => {
@@ -466,6 +469,30 @@ function VacationModal({ visible, onClose, onAdd }: { visible: boolean; onClose:
     onClose();
   };
 
+  const parseDate = (iso: string) => {
+    const [y, m, d] = iso.split("-").map((v) => parseInt(v, 10));
+    const dt = new Date(Number.isFinite(y) ? y : new Date().getFullYear(), (Number.isFinite(m) ? m : 1) - 1, Number.isFinite(d) ? d : new Date().getDate());
+    return dt;
+  };
+
+  const onStartDatePicked = (dateObj: Date | null) => {
+    if (!dateObj) return;
+    const y = dateObj.getFullYear();
+    const m = String(dateObj.getMonth() + 1).padStart(2, "0");
+    const d = String(dateObj.getDate()).padStart(2, "0");
+    setStartDate(`${y}-${m}-${d}`);
+    setShowStartDatePicker(false);
+  };
+
+  const onEndDatePicked = (dateObj: Date | null) => {
+    if (!dateObj) return;
+    const y = dateObj.getFullYear();
+    const m = String(dateObj.getMonth() + 1).padStart(2, "0");
+    const d = String(dateObj.getDate()).padStart(2, "0");
+    setEndDate(`${y}-${m}-${d}`);
+    setShowEndDatePicker(false);
+  };
+
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose as any}>
       <Pressable style={styles.vacationModalBackdrop} onPress={onClose} />
@@ -479,24 +506,72 @@ function VacationModal({ visible, onClose, onAdd }: { visible: boolean; onClose:
 
         <View style={styles.vacationModalBody}>
           <Text style={styles.vacationModalLabel}>Vanaf datum</Text>
-          <TextInput
-            style={styles.vacationModalInput}
-            value={startDate}
-            onChangeText={setStartDate}
-            placeholder="YYYY-MM-DD"
+          <TouchableOpacity
+            accessibilityRole="button"
             testID="vacation-start-date"
-          />
+            onPress={() => setShowStartDatePicker(true)}
+            activeOpacity={0.8}
+            style={styles.vacationDateInput}
+          >
+            <CalendarDays size={16} color="#2563eb" />
+            <Text style={styles.vacationDateText}>{startDate}</Text>
+          </TouchableOpacity>
+          {showStartDatePicker && (
+            <Modal visible animationType="fade" transparent>
+              <View style={styles.datePickerBackdrop} testID="start-date-picker-modal">
+                <View style={styles.datePickerCard}>
+                  <View style={styles.datePickerHeader}>
+                    <Text style={styles.datePickerTitle}>Kies startdatum</Text>
+                    <TouchableOpacity accessibilityRole="button" onPress={() => setShowStartDatePicker(false)}>
+                      <X size={20} color="#111827" />
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.datePickerWrap}>
+                    <CalendarPicker
+                      initialDate={parseDate(startDate)}
+                      onSelectDate={onStartDatePicked}
+                      testID="start-date-picker"
+                    />
+                  </View>
+                </View>
+              </View>
+            </Modal>
+          )}
 
           <View style={{ height: 16 }} />
 
           <Text style={styles.vacationModalLabel}>Tot en met datum</Text>
-          <TextInput
-            style={styles.vacationModalInput}
-            value={endDate}
-            onChangeText={setEndDate}
-            placeholder="YYYY-MM-DD"
+          <TouchableOpacity
+            accessibilityRole="button"
             testID="vacation-end-date"
-          />
+            onPress={() => setShowEndDatePicker(true)}
+            activeOpacity={0.8}
+            style={styles.vacationDateInput}
+          >
+            <CalendarDays size={16} color="#2563eb" />
+            <Text style={styles.vacationDateText}>{endDate}</Text>
+          </TouchableOpacity>
+          {showEndDatePicker && (
+            <Modal visible animationType="fade" transparent>
+              <View style={styles.datePickerBackdrop} testID="end-date-picker-modal">
+                <View style={styles.datePickerCard}>
+                  <View style={styles.datePickerHeader}>
+                    <Text style={styles.datePickerTitle}>Kies einddatum</Text>
+                    <TouchableOpacity accessibilityRole="button" onPress={() => setShowEndDatePicker(false)}>
+                      <X size={20} color="#111827" />
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.datePickerWrap}>
+                    <CalendarPicker
+                      initialDate={parseDate(endDate)}
+                      onSelectDate={onEndDatePicked}
+                      testID="end-date-picker"
+                    />
+                  </View>
+                </View>
+              </View>
+            </Modal>
+          )}
 
           <View style={{ height: 16 }} />
 
@@ -740,11 +815,7 @@ const styles = StyleSheet.create({
   vacationDates: {
     flex: 1,
   },
-  vacationDateText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#111827",
-  },
+
   vacationRepeat: {
     fontSize: 12,
     color: "#0ea5e9",
@@ -818,5 +889,56 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "700",
+  },
+  vacationDateInput: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    backgroundColor: "#fff",
+  },
+  vacationDateText: {
+    flex: 1,
+    color: "#111827",
+    fontSize: 16,
+  },
+  datePickerBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 16,
+  },
+  datePickerCard: {
+    width: "100%",
+    maxWidth: 420,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+  },
+  datePickerHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 4,
+    paddingHorizontal: 8,
+  },
+  datePickerTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  datePickerWrap: {
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: "#fff",
   },
 });
