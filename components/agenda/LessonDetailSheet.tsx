@@ -1,7 +1,7 @@
 import React, { memo, useMemo } from "react";
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { X, Clock, History as HistoryIcon } from "lucide-react-native";
+import { X, History as HistoryIcon } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import type { LessonCardLesson } from "./LessonCard";
 import { useAgenda } from "./AgendaStore";
@@ -133,6 +133,8 @@ function LessonDetailSheetComponent({ lesson, onClose, onEdit, onCancel }: Lesso
     let plannedMin = 0;
     let drivenMin = 0;
     const productNames = new Set(products.map(p => p.name));
+    const prodPlanned: Record<string, boolean> = {};
+    const prodDriven: Record<string, boolean> = {};
 
     studentLessons.forEach((l) => {
       const mins = minutesBetween(l.startTime, l.endTime);
@@ -146,9 +148,15 @@ function LessonDetailSheetComponent({ lesson, onClose, onEdit, onCancel }: Lesso
         if (!isProduct) {
           plannedMin += mins;
         }
+        if (l.lessonType) {
+          prodPlanned[l.lessonType] = true;
+        }
       } else {
         if (!isProduct) {
           drivenMin += mins;
+        }
+        if (l.lessonType) {
+          prodDriven[l.lessonType] = true;
         }
       }
     });
@@ -202,9 +210,20 @@ function LessonDetailSheetComponent({ lesson, onClose, onEdit, onCancel }: Lesso
       else aggregatePaymentStatus = "unpaid";
     }
 
-    const noneAdded = totalAddedHours === 0;
+    const productRows = products.map((prod) => {
+      const direct = studentPackages.filter((sp) => sp.packageId === prod.id);
+      const included = studentPackages.filter((sp) => (sp.includedProductIds ?? []).includes(prod.id));
+      const count = direct.length + included.length;
+      const allPaid = [...direct, ...included].every((sp) => sp.installments.length === 0 ? sp.paymentStatus === "paid" : sp.installments.every((i: any) => i.paid));
+      const planned = Boolean(prodPlanned[prod.name]);
+      const driven = Boolean(prodDriven[prod.name]);
+      const isPaid = allPaid && count > 0;
+      return { name: prod.name, count, paid: isPaid, planned, driven };
+    });
 
-    return { drivenHours, plannedHours, hoursPaid, hoursOver: hoursOverPositive, aggregatePaymentStatus, noneAdded };
+    const noneAdded = totalAddedHours === 0 && !productRows.some((pr) => pr.count > 0);
+
+    return { drivenHours, plannedHours, hoursPaid, hoursOver: hoursOverPositive, aggregatePaymentStatus, noneAdded, productRows };
   }, [lessonsByDate, studentName, studentPackages, baseItems, products]);
 
   return (
@@ -272,48 +291,35 @@ function LessonDetailSheetComponent({ lesson, onClose, onEdit, onCancel }: Lesso
                   <Text style={{ color: "#2f95dc", fontWeight: "600" }}>Bekijk profiel</Text>
                 </Pressable>
               </View>
-              <View style={styles.row}>
-                <View style={styles.progressItem}>
-                  <Clock size={20} color={studentStats.drivenHours <= 0 ? "#6b7280" : (studentStats.drivenHours > studentStats.hoursPaid ? "#ef4444" : "#22c55e")} />
-                  <Text style={[styles.progressValue, { color: studentStats.drivenHours <= 0 ? "#6b7280" : (studentStats.drivenHours > studentStats.hoursPaid ? "#ef4444" : "#22c55e") }]}>{`${round1(studentStats.drivenHours)} u`}</Text>
-                  <Text style={styles.progressLabel}>Uren gereden</Text>
-                </View>
-                <View style={styles.progressItem}>
-                  <Clock size={20} color={(() => {
-                    const remainingPaid = Math.max(0, studentStats.hoursPaid - studentStats.drivenHours);
-                    return studentStats.plannedHours <= 0
-                      ? "#6b7280"
-                      : (studentStats.drivenHours > studentStats.hoursPaid
-                          ? "#ef4444"
-                          : (studentStats.noneAdded
-                              ? "#6b7280"
-                              : (remainingPaid >= studentStats.plannedHours
-                                  ? "#16a34a"
-                                  : (remainingPaid > 0 ? "#f59e0b" : "#2563eb"))));
-                  })()} />
-                  <Text style={[styles.progressValue, { color: (() => {
-                    const remainingPaid = Math.max(0, studentStats.hoursPaid - studentStats.drivenHours);
-                    return studentStats.plannedHours <= 0
-                      ? "#6b7280"
-                      : (studentStats.drivenHours > studentStats.hoursPaid
-                          ? "#ef4444"
-                          : (studentStats.noneAdded
-                              ? "#6b7280"
-                              : (remainingPaid >= studentStats.plannedHours
-                                  ? "#16a34a"
-                                  : (remainingPaid > 0 ? "#f59e0b" : "#2563eb"))));
-                  })() }]}>{`${round1(studentStats.plannedHours)} u`}</Text>
-                  <Text style={styles.progressLabel}>Uren gepland</Text>
-                </View>
-              </View>
-              <View style={styles.row}>
-                <View style={styles.progressItem}>
-                  <Clock size={20} color={studentStats.hoursPaid > 0 ? "#16a34a" : "#6b7280"} />
-                  <Text style={[styles.progressValue, { color: studentStats.hoursPaid > 0 ? "#16a34a" : "#6b7280" }]}>{`${round1(studentStats.hoursPaid)} u`}</Text>
-                  <Text style={styles.progressLabel}>Uren betaald</Text>
-                </View>
-                <View style={styles.progressItem}>
-                  <Clock size={20} color={
+              <View style={{ gap: 10 }}>
+                {(() => {
+                  return (
+                    <>
+                      <ProgressRow label="Uren gereden" value={`${round1(studentStats.drivenHours)} u`} valueColor={studentStats.drivenHours <= 0 ? "#6b7280" : (studentStats.drivenHours > studentStats.hoursPaid ? "#ef4444" : "#22c55e")} />
+                      {(() => {
+                        const remainingPaid = Math.max(0, studentStats.hoursPaid - studentStats.drivenHours);
+                        const plannedColor = studentStats.plannedHours <= 0
+                          ? "#6b7280"
+                          : (studentStats.drivenHours > studentStats.hoursPaid
+                              ? "#ef4444"
+                              : (studentStats.noneAdded
+                                  ? "#6b7280"
+                                  : (remainingPaid >= studentStats.plannedHours
+                                      ? "#16a34a"
+                                      : (remainingPaid > 0 ? "#f59e0b" : "#2563eb"))));
+                        return (
+                          <ProgressRow label="Uren gepland" value={`${round1(studentStats.plannedHours)} u`} valueColor={plannedColor} />
+                        );
+                      })()}
+                      <ProgressRow label="Uren betaald" value={`${round1(studentStats.hoursPaid)} u`} valueColor={studentStats.hoursPaid > 0 ? "#16a34a" : "#6b7280"} />
+                    </>
+                  );
+                })()}
+
+                <ProgressRow
+                  label="Uren over"
+                  value={`${round1(studentStats.hoursOver)} u`}
+                  valueColor={
                     studentStats.noneAdded
                       ? "#6b7280"
                       : studentStats.aggregatePaymentStatus === "unpaid" && studentStats.drivenHours === 0
@@ -323,20 +329,20 @@ function LessonDetailSheetComponent({ lesson, onClose, onEdit, onCancel }: Lesso
                       : studentStats.aggregatePaymentStatus === "paid"
                       ? "#16a34a"
                       : (studentStats.hoursOver > 0 ? "#16a34a" : "#ef4444")
-                  } />
-                  <Text style={[styles.progressValue, { color: 
-                    studentStats.noneAdded
-                      ? "#6b7280"
-                      : studentStats.aggregatePaymentStatus === "unpaid" && studentStats.drivenHours === 0
-                      ? "#6b7280"
-                      : studentStats.aggregatePaymentStatus === "partial"
-                      ? "#f59e0b"
-                      : studentStats.aggregatePaymentStatus === "paid"
-                      ? "#16a34a"
-                      : (studentStats.hoursOver > 0 ? "#16a34a" : "#ef4444")
-                  }]}>{`${round1(studentStats.hoursOver)} u`}</Text>
-                  <Text style={styles.progressLabel}>Uren over</Text>
-                </View>
+                  }
+                />
+                <View style={{ height: 8 }} />
+                {studentStats.productRows.map((pr) => (
+                  <View key={pr.name} style={styles.overviewRow}>
+                    <Text style={styles.overviewLabel}>{pr.name}</Text>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      {pr.planned && <View style={styles.plannedBadge}><Text style={styles.plannedBadgeText}>Gepland</Text></View>}
+                      {pr.driven && !pr.paid && <View style={styles.drivenUnpaidBadge}><Text style={styles.drivenUnpaidBadgeText}>Gereden</Text></View>}
+                      {pr.driven && pr.paid && <View style={styles.drivenBadge}><Text style={styles.drivenBadgeText}>Gereden</Text></View>}
+                      <Text style={[styles.overviewValue, { color: pr.count > 0 ? (pr.paid ? "#16a34a" : "#ef4444") : "#6b7280" }]}>{`${pr.count} st`}</Text>
+                    </View>
+                  </View>
+                ))}
               </View>
             </View>
           )}
@@ -427,6 +433,15 @@ function LessonDetailSheetComponent({ lesson, onClose, onEdit, onCancel }: Lesso
   );
 }
 
+function ProgressRow({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) {
+  return (
+    <View style={styles.overviewRow}>
+      <Text style={styles.overviewLabel}>{label}</Text>
+      <Text style={[styles.overviewValue, valueColor ? { color: valueColor } : null]}>{value}</Text>
+    </View>
+  );
+}
+
 export const LessonDetailSheet = memo(LessonDetailSheetComponent);
 
 const styles = StyleSheet.create({
@@ -469,9 +484,15 @@ const styles = StyleSheet.create({
   col: { flex: 1 },
   label: { color: "#6b7280", fontWeight: "500", marginBottom: 4 },
   value: { fontWeight: "600" },
-  progressItem: { flex: 1, alignItems: "center", paddingVertical: 8, gap: 8 },
-  progressValue: { fontWeight: "700" },
-  progressLabel: { color: "#6b7280", textAlign: "center", fontSize: 12 },
+  overviewRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  overviewLabel: { color: "#6b7280", fontWeight: "600" },
+  overviewValue: { fontWeight: "800", color: "#111827" },
+  plannedBadge: { backgroundColor: "#e0e7ff", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
+  plannedBadgeText: { color: "#3730a3", fontWeight: "700" },
+  drivenBadge: { backgroundColor: "#dcfce7", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
+  drivenBadgeText: { color: "#166534", fontWeight: "700" },
+  drivenUnpaidBadge: { backgroundColor: "#fee2e2", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
+  drivenUnpaidBadgeText: { color: "#991b1b", fontWeight: "700" },
   emptyState: { color: "#6b7280" },
   historyItem: { flexDirection: "row", gap: 12, paddingVertical: 8 },
   historyIcon: { padding: 8, backgroundColor: "#e6f2fb", borderRadius: 8 },
