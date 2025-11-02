@@ -1,7 +1,7 @@
 import React, { memo, useRef, useEffect } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View, Animated, PanResponder } from "react-native";
 import { useAgenda } from "@/components/agenda/AgendaStore";
-import { useWorkingHours, type DayKey } from "@/components/settings/WorkingHoursStore";
+import { useWorkingHours, type DayKey, type VacationPeriod } from "@/components/settings/WorkingHoursStore";
 import { useFocusEffect } from "expo-router";
 import { MapPin } from "lucide-react-native";
 
@@ -44,6 +44,8 @@ function colorForType(type?: string): string {
       return "#3b82f6";
     case "Verlof":
       return "#ef4444";
+    case "Product":
+      return "#3b82f6";
     case "Theorieles":
       return "#8b5cf6";
     case "Praktijkexamen":
@@ -149,14 +151,33 @@ function AnimatedLessonItem({ lesson, index, onPress, startHour }: AnimatedLesso
   );
 }
 
+function isDateInVacation(date: Date, vacationPeriods: VacationPeriod[]): boolean {
+  const currentYear = date.getFullYear();
+  
+  return vacationPeriods.some((vacation) => {
+    const startDate = new Date(vacation.startDate);
+    const endDate = new Date(vacation.endDate);
+    
+    if (vacation.repeatAnnually) {
+      const vacationStartInCurrentYear = new Date(currentYear, startDate.getMonth(), startDate.getDate());
+      const vacationEndInCurrentYear = new Date(currentYear, endDate.getMonth(), endDate.getDate());
+      
+      return date >= vacationStartInCurrentYear && date <= vacationEndInCurrentYear;
+    } else {
+      return date >= startDate && date <= endDate;
+    }
+  });
+}
+
 function Inner({ date, onLessonPress, onSwipeLeft, onSwipeRight }: TimeGridProps) {
   const { getLessonsForDate } = useAgenda();
   const lessons = getLessonsForDate(date);
-  const { workingHours } = useWorkingHours();
+  const { workingHours, vacationPeriods } = useWorkingHours();
 
   const dayKey = dutchDayName(date);
   const conf = workingHours?.[dayKey];
   const enabled = conf?.enabled ?? false;
+  const isVacation = isDateInVacation(date, vacationPeriods);
 
   const startHour = 0;
   const endHour = 23;
@@ -286,7 +307,13 @@ function Inner({ date, onLessonPress, onSwipeLeft, onSwipeRight }: TimeGridProps
           </View>
         )}
         
-        <View style={styles.gridContainer}>
+        {isVacation && (
+          <View style={styles.vacationBanner}>
+            <Text style={styles.vacationText}>🏖️ Vakantie</Text>
+          </View>
+        )}
+        
+        <View style={[styles.gridContainer, isVacation && styles.vacationBorder]}>
           <View style={styles.gridBackground}>
             {hours.map((h) => {
               const hStr = h.toString().padStart(2, "0");
@@ -334,6 +361,16 @@ function Inner({ date, onLessonPress, onSwipeLeft, onSwipeRight }: TimeGridProps
                   onPress={() => onLessonPress?.(String(lesson.id))}
                 />
               ))}
+            </View>
+          )}
+          
+          {isVacation && (
+            <View style={styles.vacationOverlay}>
+              <View style={[styles.lessonCardPositioned, { top: ((12 * 60 - startHour * 60) / 60) * 80, height: 60 }]}>
+                <View style={[styles.vacationCard]}>
+                  <Text style={styles.vacationCardText}>🏖️ Vakantie</Text>
+                </View>
+              </View>
             </View>
           )}
         </View>
@@ -501,5 +538,48 @@ const styles = StyleSheet.create({
   emptyCardText: {
     color: "#9ca3af",
     fontSize: 16,
+  },
+  vacationBanner: {
+    backgroundColor: "#fee2e2",
+    padding: 12,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: "#ef4444",
+  },
+  vacationText: {
+    color: "#991b1b",
+    fontWeight: "700",
+    fontSize: 14,
+  },
+  vacationBorder: {
+    borderWidth: 2,
+    borderColor: "#ef4444",
+    borderRadius: 12,
+    padding: 8,
+  },
+  vacationOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 60,
+    right: 0,
+    bottom: 16,
+    pointerEvents: "none",
+  },
+  vacationCard: {
+    borderRadius: 12,
+    padding: 12,
+    backgroundColor: "#fee2e2",
+    borderWidth: 2,
+    borderColor: "#ef4444",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  vacationCardText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#991b1b",
   },
 });

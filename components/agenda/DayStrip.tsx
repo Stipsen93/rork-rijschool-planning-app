@@ -1,11 +1,30 @@
 import React, { memo } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { useWorkingHours, type VacationPeriod } from "@/components/settings/WorkingHoursStore";
 
 export interface DayStripProps {
   currentWeekStart: Date;
   selectedDate: Date;
   onDateSelected: (d: Date) => void;
-  lessonCounts: Record<string, number>; // key: YYYY-MM-DD
+  lessonCounts: Record<string, number>;
+}
+
+function isDateInVacation(date: Date, vacationPeriods: VacationPeriod[]): boolean {
+  const currentYear = date.getFullYear();
+  
+  return vacationPeriods.some((vacation) => {
+    const startDate = new Date(vacation.startDate);
+    const endDate = new Date(vacation.endDate);
+    
+    if (vacation.repeatAnnually) {
+      const vacationStartInCurrentYear = new Date(currentYear, startDate.getMonth(), startDate.getDate());
+      const vacationEndInCurrentYear = new Date(currentYear, endDate.getMonth(), endDate.getDate());
+      
+      return date >= vacationStartInCurrentYear && date <= vacationEndInCurrentYear;
+    } else {
+      return date >= startDate && date <= endDate;
+    }
+  });
 }
 
 function keyFor(date: Date): string {
@@ -27,6 +46,7 @@ function dayName(weekday: number): string {
 function DayStripComponent({ currentWeekStart, selectedDate, onDateSelected, lessonCounts }: DayStripProps) {
   const data = Array.from({ length: 7 }, (_, i) => new Date(currentWeekStart.getFullYear(), currentWeekStart.getMonth(), currentWeekStart.getDate() + i));
   const today = new Date();
+  const { vacationPeriods } = useWorkingHours();
 
   return (
     <View style={styles.wrapContainer} testID="day-strip">
@@ -34,6 +54,7 @@ function DayStripComponent({ currentWeekStart, selectedDate, onDateSelected, les
         const selected = isSameDay(date, selectedDate);
         const isToday = isSameDay(date, today);
         const count = lessonCounts[keyFor(date)] ?? 0;
+        const isVacation = isDateInVacation(date, vacationPeriods);
         return (
           <Pressable
             key={keyFor(date)}
@@ -44,6 +65,7 @@ function DayStripComponent({ currentWeekStart, selectedDate, onDateSelected, les
               styles.dayGrid,
               selected && styles.daySelected,
               isToday && !selected && styles.dayToday,
+              isVacation && !selected && styles.dayVacation,
               pressed && { opacity: 0.95 },
             ]}
           >
@@ -94,4 +116,5 @@ const styles = StyleSheet.create({
   dayNum: { fontSize: 15, fontWeight: "700", marginTop: 2 },
   countBadge: { marginTop: 3, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 },
   countText: { color: "#fff", fontWeight: "700", fontSize: 10 },
+  dayVacation: { borderColor: "#ef4444", borderWidth: 2 },
 });
