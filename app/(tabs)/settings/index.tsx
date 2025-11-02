@@ -77,7 +77,7 @@ export default function SettingsScreen() {
           <Clock color="#0ea5e9" size={22} />
         </View>
         <View style={styles.itemTextWrap}>
-          <Text style={styles.itemTitle}>Werkuren</Text>
+          <Text style={styles.itemTitle}>Werkuren & Vakanties</Text>
           <Text style={styles.itemSubtitle}>Werkdagen, tijden en pauzes</Text>
         </View>
         <ChevronRight color="#9ca3af" />

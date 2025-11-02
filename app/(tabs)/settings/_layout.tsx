@@ -6,7 +6,7 @@ export default function SettingsStackLayout() {
     <Stack>
       <Stack.Screen name="index" options={{ title: "Instellingen" }} />
       <Stack.Screen name="profile" options={{ title: "Profiel" }} />
-      <Stack.Screen name="working-hours" options={{ title: "Werkuren" }} />
+      <Stack.Screen name="working-hours" options={{ title: "Werkuren & Vakanties" }} />
       <Stack.Screen name="lesson-configuration" options={{ title: "Les configuratie" }} />
       <Stack.Screen name="packages-hours" options={{ title: "Pakketten/Uren" }} />
       <Stack.Screen name="student-configuration" options={{ title: "Leerling Configuratie" }} />

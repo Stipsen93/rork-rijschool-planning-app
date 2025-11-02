@@ -203,7 +203,7 @@ export default function WorkingHoursScreen() {
       <View style={styles.root} testID="working-hours-screen">
         <Stack.Screen
           options={{
-            title: "Werkuren",
+            title: "Werkuren & Vakanties",
             headerRight: () => (
               <View style={{ flexDirection: "row", alignItems: "center" }}>
                 <TouchableOpacity
