@@ -9,7 +9,7 @@ import { StudentActivityDashboard } from "@/components/overview/StudentActivityD
 import { Settings } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { useAgenda } from "@/components/agenda/AgendaStore";
-import { useStudentActivity } from "@/components/students/StudentsStore";
+import { useStudents } from "@/components/students/StudentsStore";
 
 function computeNextAppointment(lessonsByDate: Record<string, Array<{id: string, studentName?: string, lessonType?: string, startTime: string, endTime: string, date: Date}>>): Appointment | null {
   const now = new Date();
@@ -40,7 +40,7 @@ export default function InstructorOverview() {
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const router = useRouter();
   const { lessonsByDate } = useAgenda();
-  const studentActivity = useStudentActivity();
+  const { studentActivity } = useStudents();
 
   const nextAppointment = useMemo(() => computeNextAppointment(lessonsByDate), [lessonsByDate]);
   const metrics: PerformanceMetrics = useMemo(

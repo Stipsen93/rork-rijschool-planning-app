@@ -11,7 +11,7 @@ import { PersonalInformation, PersonalInfo } from "@/components/students/add/Per
 import { NotesSection } from "@/components/students/add/NotesSection";
 
 import { router, useFocusEffect } from "expo-router";
-import { useStudents, useStudentActivity } from "@/components/students/StudentsStore";
+import { useStudents } from "@/components/students/StudentsStore";
 
 function AnimatedListItem({ children, index, delay = 0 }: { children: React.ReactNode; index: number; delay?: number }) {
   const scaleAnim = useRef(new Animated.Value(0.7)).current;
@@ -64,8 +64,8 @@ export default function StudentsScreen() {
   const [filterModalOpen, setFilterModalOpen] = useState<boolean>(false);
   const [addOpen, setAddOpen] = useState<boolean>(false);
   const insets = useSafeAreaInsets();
-  const { students: allStudents, addStudent, updateStudent } = useStudents();
-  const { activeStudents, irregularStudents, nonActiveStudents } = useStudentActivity();
+  const { students: allStudents, addStudent, updateStudent, studentActivity } = useStudents();
+  const { activeStudents, irregularStudents, nonActiveStudents } = studentActivity;
   const [personalInfoCache, setPersonalInfoCache] = useState<Record<string, { firstName: string; lastName: string }>>({});
 
   const getStudentStatus = useCallback((studentName: string): "active" | "irregular" | "inactive" => {
