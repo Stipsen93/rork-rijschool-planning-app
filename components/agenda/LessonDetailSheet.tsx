@@ -179,7 +179,10 @@ function LessonDetailSheetComponent({ lesson, onClose, onEdit, onCancel }: Lesso
       const baseHours = sp.customHours ?? (baseItem?.hours ?? 0);
       const total = baseHours || 0;
       const terms = sp.installments.length;
-      if (terms === 0) return sum;
+      if (terms === 0) {
+        if (sp.paymentStatus === "paid") return sum + total;
+        return sum;
+      }
       const paidCount = sp.installments.filter((i: any) => i.paid).length;
       const fraction = total * (paidCount / terms);
       return sum + fraction;
