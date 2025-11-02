@@ -178,7 +178,7 @@ function LessonDetailSheetComponent({ lesson, onClose, onEdit, onCancel }: Lesso
       if (isProduct) return sum;
       const baseHours = sp.customHours ?? (baseItem?.hours ?? 0);
       const total = baseHours || 0;
-      const terms = sp.installments?.length ?? 0;
+      const terms = sp.installments.length;
       if (terms === 0) return sum;
       const paidCount = sp.installments.filter((i: any) => i.paid).length;
       const fraction = total * (paidCount / terms);
@@ -199,7 +199,7 @@ function LessonDetailSheetComponent({ lesson, onClose, onEdit, onCancel }: Lesso
       let anyPaid = false;
       let allPaid = true;
       for (const sp of hoursPackages) {
-        const terms = sp.installments?.length ?? 0;
+        const terms = sp.installments.length;
         const spAllPaid = terms > 0 ? sp.installments.every((i: any) => i.paid) : sp.paymentStatus === "paid";
         const spAnyPaid = terms > 0 ? sp.installments.some((i: any) => i.paid) : sp.paymentStatus === "paid";
         if (spAnyPaid) anyPaid = true;
