@@ -603,11 +603,11 @@ function StudentOverviewTable({ studentName, baseItems, products, studentPackage
     return arr.filter((l) => (l.studentName ?? "") === studentName);
   }, [lessonsByDate, studentName]);
 
-  const { plannedHours, drivenHours, productPlannedMap, productDrivenMap } = useMemo(() => {
+  const { plannedHours, drivenHours, productPlannedCount, productDrivenCount } = useMemo(() => {
     let plannedMin = 0;
     let drivenMin = 0;
-    const prodPlanned: Record<string, boolean> = {};
-    const prodDriven: Record<string, boolean> = {};
+    const prodPlannedCount: Record<string, number> = {};
+    const prodDrivenCount: Record<string, number> = {};
     const productNames = new Set(products.map(p => p.name));
     
     lessons.forEach((l) => {
@@ -622,19 +622,19 @@ function StudentOverviewTable({ studentName, baseItems, products, studentPackage
         if (!isProduct) {
           plannedMin += mins;
         }
-        if (l.lessonType) {
-          prodPlanned[l.lessonType] = true;
+        if (l.lessonType && isProduct) {
+          prodPlannedCount[l.lessonType] = (prodPlannedCount[l.lessonType] || 0) + 1;
         }
       } else {
         if (!isProduct) {
           drivenMin += mins;
         }
-        if (l.lessonType) {
-          prodDriven[l.lessonType] = true;
+        if (l.lessonType && isProduct) {
+          prodDrivenCount[l.lessonType] = (prodDrivenCount[l.lessonType] || 0) + 1;
         }
       }
     });
-    return { plannedHours: plannedMin / 60, drivenHours: drivenMin / 60, productPlannedMap: prodPlanned, productDrivenMap: prodDriven };
+    return { plannedHours: plannedMin / 60, drivenHours: drivenMin / 60, productPlannedCount: prodPlannedCount, productDrivenCount: prodDrivenCount };
   }, [lessons, now, products]);
 
   const totalAddedHours = useMemo(() => {
@@ -696,24 +696,28 @@ function StudentOverviewTable({ studentName, baseItems, products, studentPackage
       
       const allRelated = [...direct, ...included];
       
-      const planned = Boolean(productPlannedMap[prod.name]);
-      const driven = Boolean(productDrivenMap[prod.name]);
+      const plannedCountInAgenda = productPlannedCount[prod.name] || 0;
+      const drivenCountInAgenda = productDrivenCount[prod.name] || 0;
       
       let drivenPaidCount = 0;
       let drivenUnpaidCount = 0;
       let notDrivenPaidCount = 0;
       let notDrivenUnpaidCount = 0;
       
-      allRelated.forEach((sp) => {
+      const totalAdded = allRelated.length;
+      const totalPlannedAndDriven = plannedCountInAgenda + drivenCountInAgenda;
+      
+      allRelated.forEach((sp, index) => {
         const terms = sp.installments.length;
         const isPaid = terms === 0 ? sp.paymentStatus === "paid" : sp.installments.every((i) => i.paid);
         
-        if (driven) {
+        if (index < drivenCountInAgenda) {
           if (isPaid) {
             drivenPaidCount++;
           } else {
             drivenUnpaidCount++;
           }
+        } else if (index < totalPlannedAndDriven) {
         } else {
           if (isPaid) {
             notDrivenPaidCount++;
@@ -727,13 +731,13 @@ function StudentOverviewTable({ studentName, baseItems, products, studentPackage
         name: prod.name, 
         notDrivenPaidCount,
         notDrivenUnpaidCount,
-        planned, 
-        driven,
+        plannedCountInAgenda, 
+        drivenCountInAgenda,
         drivenPaidCount,
         drivenUnpaidCount
       };
     });
-  }, [products, studentPackages, productPlannedMap, productDrivenMap]);
+  }, [products, studentPackages, productPlannedCount, productDrivenCount]);
 
   const noneAdded = useMemo(() => {
     const hasHours = totalAddedHours > 0;
@@ -794,7 +798,7 @@ function StudentOverviewTable({ studentName, baseItems, products, studentPackage
             <View key={pr.name} style={styles.overviewRow}>
               <Text style={styles.overviewLabel}>{pr.name}</Text>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                {pr.planned && <View style={styles.plannedBadge}><Text style={styles.plannedBadgeText}>Gepland</Text></View>}
+                {pr.plannedCountInAgenda > 0 && <View style={styles.plannedBadge}><Text style={styles.plannedBadgeText}>Gepland {pr.plannedCountInAgenda}x</Text></View>}
                 {pr.drivenPaidCount > 0 && (
                   <View style={styles.drivenBadge}>
                     <Text style={styles.drivenBadgeText}>Gereden {pr.drivenPaidCount}x</Text>
