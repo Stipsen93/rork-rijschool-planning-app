@@ -64,8 +64,8 @@ function DayStripComponent({ currentWeekStart, selectedDate, onDateSelected, les
               styles.day,
               styles.dayGrid,
               selected && styles.daySelected,
-              isToday && !selected && styles.dayToday,
-              isVacation && !selected && styles.dayVacation,
+              isToday && !selected && !isVacation && styles.dayToday,
+              isVacation && styles.dayVacation,
               pressed && { opacity: 0.95 },
             ]}
           >
