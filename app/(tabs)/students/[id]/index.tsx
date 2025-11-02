@@ -22,6 +22,7 @@ type PackageItem = {
   price: number;
   vatStatus?: "incl" | "excl";
   isProduct?: boolean;
+  selectedProducts?: string[];
 };
 
 type StudentPackage = {
@@ -112,9 +113,9 @@ export default function StudentProfileScreen() {
           AsyncStorage.getItem("instructor_products"),
           AsyncStorage.getItem("instructor_hourly_rates"),
         ]);
-        const pkgs = (pkgStr ? JSON.parse(pkgStr) : []) as { id: string; name: string; hours: number; price: number; vatStatus: "incl" | "excl" }[];
+        const pkgs = (pkgStr ? JSON.parse(pkgStr) : []) as { id: string; name: string; hours: number; price: number; vatStatus: "incl" | "excl"; selectedProducts?: string[] }[];
         const prods = (prodStr ? JSON.parse(prodStr) : []) as { id: string; name: string; price: number; vatStatus: "incl" | "excl" }[];
-        const mappedPkgs: PackageItem[] = pkgs.map((p) => ({ id: p.id, name: p.name, hours: p.hours, price: p.price, vatStatus: p.vatStatus, isProduct: false }));
+        const mappedPkgs: PackageItem[] = pkgs.map((p) => ({ id: p.id, name: p.name, hours: p.hours, price: p.price, vatStatus: p.vatStatus, isProduct: false, selectedProducts: p.selectedProducts ?? [] }));
         const mappedProds: PackageItem[] = prods.map((p) => ({ id: p.id, name: p.name, hours: 0, price: p.price, vatStatus: p.vatStatus, isProduct: true }));
         setSettingsPackages(mappedPkgs);
         setSettingsProducts(mappedProds);
@@ -177,6 +178,7 @@ export default function StudentProfileScreen() {
   const onAddConfirm = useCallback(() => {
     if (selectedPackageId) {
       const pkg = availablePackages.find(p => p.id === selectedPackageId);
+      const settingsPkg = settingsPackages.find(p => p.id === selectedPackageId);
       const terms = paymentTerm === "custom" ? customTerms : paymentTerm === "1x" ? 1 : parseInt(paymentTerm.replace("x", ""), 10);
       const totalPrice = pkg?.price ?? 0;
       const installmentAmount = terms > 0 ? totalPrice / terms : totalPrice;
@@ -188,6 +190,7 @@ export default function StudentProfileScreen() {
         installments,
         paymentStatus: terms === 1 ? "unpaid" : "unpaid",
         addedDate: new Date().toISOString(),
+        includedProductIds: settingsPkg?.selectedProducts ?? [],
       };
       setStudentPackages(prev => [...prev, sp]);
       console.log("Added package", sp);
@@ -218,7 +221,7 @@ export default function StudentProfileScreen() {
     setStudentPackages(prev => [...prev, sp]);
     console.log("Added loose hours", { hoursNum, totalPrice });
     closeAdd();
-  }, [availablePackages, closeAdd, customTerms, looseHours, paymentTerm, selectedPackageId]);
+  }, [availablePackages, closeAdd, customTerms, looseHours, paymentTerm, selectedPackageId, settingsPackages]);
 
   const markInstallmentPaid = useCallback((pkgIndex: number, installmentIndex: number) => {
     setStudentPackages(prev => {
