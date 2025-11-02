@@ -1,4 +1,4 @@
-import React, { memo, useRef, useEffect } from "react";
+import React, { memo, useRef, useEffect, useMemo } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View, Animated, PanResponder } from "react-native";
 import { useAgenda } from "@/components/agenda/AgendaStore";
 import { useWorkingHours, type DayKey, type VacationPeriod } from "@/components/settings/WorkingHoursStore";
@@ -64,9 +64,11 @@ type AnimatedLessonItemProps = {
   index: number;
   onPress: () => void;
   startHour: number;
+  columnIndex: number;
+  totalColumns: number;
 };
 
-function AnimatedLessonItem({ lesson, index, onPress, startHour }: AnimatedLessonItemProps) {
+function AnimatedLessonItem({ lesson, index, onPress, startHour, columnIndex, totalColumns }: AnimatedLessonItemProps) {
   const animatedValue = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -95,6 +97,9 @@ function AnimatedLessonItem({ lesson, index, onPress, startHour }: AnimatedLesso
   const topOffset = ((startMinutes - gridStartMinutes) / 60) * 80;
   const height = (durationMinutes / 60) * 80 - 4;
 
+  const widthPercentage = totalColumns > 1 ? (100 / totalColumns) : 100;
+  const leftPercentage = totalColumns > 1 ? (columnIndex * widthPercentage) : 0;
+
   return (
     <Animated.View 
       style={[
@@ -104,6 +109,8 @@ function AnimatedLessonItem({ lesson, index, onPress, startHour }: AnimatedLesso
           height: Math.max(height, 50),
           opacity,
           transform: [{ scale }],
+          left: `${leftPercentage}%`,
+          width: `${widthPercentage}%`,
         },
       ]}
     >
@@ -169,9 +176,43 @@ function isDateInVacation(date: Date, vacationPeriods: VacationPeriod[]): boolea
   });
 }
 
+type LessonWithLayout = {
+  lesson: any;
+  columnIndex: number;
+  totalColumns: number;
+};
+
+function groupOverlappingLessons(lessons: any[]): LessonWithLayout[] {
+  const result: LessonWithLayout[] = [];
+  const timeSlots = new Map<string, any[]>();
+  
+  lessons.forEach(lesson => {
+    const key = lesson.startTime;
+    if (!timeSlots.has(key)) {
+      timeSlots.set(key, []);
+    }
+    timeSlots.get(key)!.push(lesson);
+  });
+  
+  lessons.forEach(lesson => {
+    const overlappingLessons = timeSlots.get(lesson.startTime) || [];
+    const totalColumns = overlappingLessons.length;
+    const columnIndex = overlappingLessons.findIndex(l => l.id === lesson.id);
+    
+    result.push({
+      lesson,
+      columnIndex,
+      totalColumns,
+    });
+  });
+  
+  return result;
+}
+
 function Inner({ date, onLessonPress, onSwipeLeft, onSwipeRight }: TimeGridProps) {
   const { getLessonsForDate } = useAgenda();
   const lessons = getLessonsForDate(date);
+  const lessonsWithLayout = useMemo(() => groupOverlappingLessons(lessons), [lessons]);
   const { workingHours, vacationPeriods } = useWorkingHours();
 
   const dayKey = dutchDayName(date);
@@ -352,13 +393,15 @@ function Inner({ date, onLessonPress, onSwipeLeft, onSwipeRight }: TimeGridProps
 
           {lessons.length > 0 && (
             <View style={styles.lessonsOverlay}>
-              {lessons.map((lesson, index) => (
+              {lessonsWithLayout.map((item: LessonWithLayout, index: number) => (
                 <AnimatedLessonItem
-                  key={String(lesson.id)}
-                  lesson={lesson}
+                  key={String(item.lesson.id)}
+                  lesson={item.lesson}
                   index={index}
                   startHour={startHour}
-                  onPress={() => onLessonPress?.(String(lesson.id))}
+                  columnIndex={item.columnIndex}
+                  totalColumns={item.totalColumns}
+                  onPress={() => onLessonPress?.(String(item.lesson.id))}
                 />
               ))}
             </View>
@@ -437,8 +480,7 @@ const styles = StyleSheet.create({
   },
   lessonCardPositioned: {
     position: "absolute",
-    left: 12,
-    right: 12,
+    paddingHorizontal: 6,
   },
   lessonCard: {
     borderRadius: 12,

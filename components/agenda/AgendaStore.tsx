@@ -49,7 +49,7 @@ export const [AgendaProvider, useAgenda] = createContextHook(() => {
     return (lessonsByDate[key] ?? []).slice().sort(byStartTimeAsc);
   }, [lessonsByDate]);
 
-  const addLesson = useCallback((lesson: Omit<AgendaLesson, "id"> & { id?: string }) => {
+  const addLesson = useCallback((lesson: Omit<AgendaLesson, "id"> & { id?: string }, skipDuplicateCheck?: boolean) => {
     setLessonsByDate((prev) => {
       const id = lesson.id && `${lesson.id}`.length > 0 ? `${lesson.id}` : uid();
       const key = keyFor(lesson.date);
@@ -67,15 +67,17 @@ export const [AgendaProvider, useAgenda] = createContextHook(() => {
       }
 
       // Prevent duplicates on same day with same time/student/type
-      const hasDuplicate = existing.some((l) =>
-        l.startTime === lesson.startTime &&
-        l.endTime === lesson.endTime &&
-        (l.studentName ?? "") === (lesson.studentName ?? "") &&
-        (l.lessonType ?? "") === (lesson.lessonType ?? "")
-      );
-      if (hasDuplicate) {
-        console.log("AgendaStore: addLesson skipped duplicate", { key, id });
-        return prev;
+      if (!skipDuplicateCheck) {
+        const hasDuplicate = existing.some((l) =>
+          l.startTime === lesson.startTime &&
+          l.endTime === lesson.endTime &&
+          (l.studentName ?? "") === (lesson.studentName ?? "") &&
+          (l.lessonType ?? "") === (lesson.lessonType ?? "")
+        );
+        if (hasDuplicate) {
+          console.log("AgendaStore: addLesson skipped duplicate", { key, id });
+          return prev;
+        }
       }
 
       const nextArr = [...existing, { ...lesson, id }].sort(byStartTimeAsc);
@@ -117,6 +119,16 @@ export const [AgendaProvider, useAgenda] = createContextHook(() => {
     });
   }, []);
 
+  const checkForDuplicateStudent = useCallback((date: Date, startTime: string, studentName?: string): boolean => {
+    if (!studentName) return false;
+    const key = keyFor(date);
+    const existing = lessonsByDate[key] ?? [];
+    return existing.some((l) => 
+      l.startTime === startTime && 
+      (l.studentName ?? "") === studentName
+    );
+  }, [lessonsByDate]);
+
   const value = useMemo(() => ({
     lessonsByDate,
     getLessonsForDate,
@@ -124,7 +136,8 @@ export const [AgendaProvider, useAgenda] = createContextHook(() => {
     removeLessonById,
     removeLessonsByRecurringId,
     keyFor,
-  }), [lessonsByDate, getLessonsForDate, addLesson, removeLessonById, removeLessonsByRecurringId]);
+    checkForDuplicateStudent,
+  }), [lessonsByDate, getLessonsForDate, addLesson, removeLessonById, removeLessonsByRecurringId, checkForDuplicateStudent]);
 
   return value;
 });

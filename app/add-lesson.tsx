@@ -20,7 +20,7 @@ export type Option = { label: string; value: string };
 export default function AddLessonScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { addLesson, removeLessonById, lessonsByDate } = useAgenda();
+  const { addLesson, removeLessonById, lessonsByDate, checkForDuplicateStudent } = useAgenda();
   const { workingHours } = useWorkingHours();
   const { products, getDurationForType } = useSettings();
   const { students: allStudents } = useStudents();
@@ -213,6 +213,15 @@ export default function AddLessonScreen() {
 
       const studentName = mockStudents.find((s) => s.id === selectedStudentId)?.name ?? "Leerling";
       
+      if (!isPauseOrLeave && !editingId) {
+        const isDuplicate = checkForDuplicateStudent(baseDate, startTime, studentName);
+        if (isDuplicate) {
+          Alert.alert("Fout", `Er is al een afspraak voor ${studentName} om ${startTime} op deze datum. Kies een ander tijdstip.`);
+          setIsLoading(false);
+          return;
+        }
+      }
+      
       const shouldRecur = !isPauseOrLeave && recurrenceType !== "none" && type === "Rijles";
       const recurringId = shouldRecur ? Math.random().toString(36).slice(2, 10) : undefined;
 
@@ -374,7 +383,7 @@ export default function AddLessonScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [addLesson, removeLessonById, editingId, category, type, selectedStudentId, selectedVehicleId, date, time, durationHours, durationMinutes, location, notes, isPauseOrLeave, isFullDay, workingHours, router, mockStudents, recurrenceType, recurrenceLimit, lessonsByDate]);
+  }, [addLesson, removeLessonById, editingId, category, type, selectedStudentId, selectedVehicleId, date, time, durationHours, durationMinutes, location, notes, isPauseOrLeave, isFullDay, workingHours, router, mockStudents, recurrenceType, recurrenceLimit, lessonsByDate, checkForDuplicateStudent]);
 
   return (
     <ErrorBoundary>
