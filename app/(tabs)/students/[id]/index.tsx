@@ -685,14 +685,24 @@ function StudentOverviewTable({ studentName, baseItems, products, studentPackage
   }, [baseItems, studentPackages]);
 
   const productRows = useMemo(() => {
+    const allPackages = [...studentPackages];
+    
     return products.map((prod) => {
-      const direct = studentPackages.filter((sp) => sp.packageId === prod.id);
-      const included = studentPackages.filter((sp) => (sp.includedProductIds ?? []).includes(prod.id));
-      const count = direct.length + included.length;
-      const allPaid = [...direct, ...included].every((sp) => sp.installments.length === 0 ? sp.paymentStatus === "paid" : sp.installments.every((i) => i.paid));
+      const direct = allPackages.filter((sp) => sp.packageId === prod.id);
+      const included = allPackages.filter((sp) => (sp.includedProductIds ?? []).includes(prod.id));
+      
+      const allRelated = [...direct, ...included];
+      const count = allRelated.length;
+      
+      const allPaid = allRelated.every((sp) => {
+        const terms = sp.installments.length;
+        return terms === 0 ? sp.paymentStatus === "paid" : sp.installments.every((i) => i.paid);
+      });
+      
       const planned = Boolean(productPlannedMap[prod.name]);
       const driven = Boolean(productDrivenMap[prod.name]);
       const isPaid = allPaid && count > 0;
+      
       return { name: prod.name, count, paid: isPaid, planned, driven };
     });
   }, [products, studentPackages, productPlannedMap, productDrivenMap]);

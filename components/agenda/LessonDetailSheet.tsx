@@ -216,11 +216,19 @@ function LessonDetailSheetComponent({ lesson, onClose, onEdit, onCancel }: Lesso
     const productRows = products.map((prod) => {
       const direct = studentPackages.filter((sp) => sp.packageId === prod.id);
       const included = studentPackages.filter((sp) => (sp.includedProductIds ?? []).includes(prod.id));
-      const count = direct.length + included.length;
-      const allPaid = [...direct, ...included].every((sp) => sp.installments.length === 0 ? sp.paymentStatus === "paid" : sp.installments.every((i: any) => i.paid));
+      
+      const allRelated = [...direct, ...included];
+      const count = allRelated.length;
+      
+      const allPaid = allRelated.every((sp) => {
+        const terms = sp.installments.length;
+        return terms === 0 ? sp.paymentStatus === "paid" : sp.installments.every((i: any) => i.paid);
+      });
+      
       const planned = Boolean(prodPlanned[prod.name]);
       const driven = Boolean(prodDriven[prod.name]);
       const isPaid = allPaid && count > 0;
+      
       return { name: prod.name, count, paid: isPaid, planned, driven };
     });
 
