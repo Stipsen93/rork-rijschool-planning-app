@@ -12,6 +12,7 @@ export interface LessonDetailSheetProps {
     duration?: number;
     lessonHistory?: { date: string | Date; notes?: string }[];
     recurringId?: string;
+    studentId?: string;
   };
   onClose: () => void;
   onEdit?: () => void;
@@ -67,7 +68,7 @@ function LessonDetailSheetComponent({ lesson, onClose, onEdit, onCancel }: Lesso
   React.useEffect(() => {
     (async () => {
       try {
-        const studentId = lesson.studentName;
+        const studentId = lesson.studentId || lesson.studentName;
         if (!studentId) return;
 
         const [pkgStr, prodStr, studentPkgStr] = await Promise.all([
@@ -92,7 +93,7 @@ function LessonDetailSheetComponent({ lesson, onClose, onEdit, onCancel }: Lesso
         console.log("[LessonDetailSheet] Failed to load data", e);
       }
     })();
-  }, [lesson.studentName]);
+  }, [lesson.studentName, lesson.studentId]);
 
   const hasRecurringId = !!lesson.recurringId;
   const [showDeleteModal, setShowDeleteModal] = React.useState(false);
@@ -292,10 +293,11 @@ function LessonDetailSheetComponent({ lesson, onClose, onEdit, onCancel }: Lesso
               <View style={styles.rowBetween}>
                 <Text style={styles.cardTitle}>Student voortgang</Text>
                 <Pressable accessibilityRole="button" onPress={() => {
-                  if (studentName) {
+                  const studentId = lesson.studentId || lesson.studentName;
+                  if (studentId) {
                     router.push({
                       pathname: "/(tabs)/students/[id]",
-                      params: { id: studentName, name: studentName },
+                      params: { id: studentId, name: studentName },
                     });
                   }
                 }} testID="view-student-profile">

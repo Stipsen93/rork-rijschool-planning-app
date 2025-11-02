@@ -4,6 +4,7 @@ import createContextHook from "@nkzw/create-context-hook";
 export type AgendaLesson = {
   id: string;
   studentName?: string;
+  studentId?: string;
   lessonType?: string;
   startTime: string;
   endTime: string;
