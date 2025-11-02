@@ -699,24 +699,34 @@ function StudentOverviewTable({ studentName, baseItems, products, studentPackage
       const planned = Boolean(productPlannedMap[prod.name]);
       const driven = Boolean(productDrivenMap[prod.name]);
       
-      const paidCount = allRelated.filter((sp) => {
+      let drivenPaidCount = 0;
+      let drivenUnpaidCount = 0;
+      let notDrivenPaidCount = 0;
+      let notDrivenUnpaidCount = 0;
+      
+      allRelated.forEach((sp) => {
         const terms = sp.installments.length;
-        return terms === 0 ? sp.paymentStatus === "paid" : sp.installments.every((i) => i.paid);
-      }).length;
-      
-      const unpaidCount = allRelated.filter((sp) => {
-        const terms = sp.installments.length;
-        return terms === 0 ? sp.paymentStatus !== "paid" : !sp.installments.every((i) => i.paid);
-      }).length;
-      
-      const drivenPaidCount = driven ? paidCount : 0;
-      const drivenUnpaidCount = driven ? unpaidCount : 0;
-      
-      const remainingCount = driven ? 0 : allRelated.length;
+        const isPaid = terms === 0 ? sp.paymentStatus === "paid" : sp.installments.every((i) => i.paid);
+        
+        if (driven) {
+          if (isPaid) {
+            drivenPaidCount++;
+          } else {
+            drivenUnpaidCount++;
+          }
+        } else {
+          if (isPaid) {
+            notDrivenPaidCount++;
+          } else {
+            notDrivenUnpaidCount++;
+          }
+        }
+      });
       
       return { 
         name: prod.name, 
-        remainingCount, 
+        notDrivenPaidCount,
+        notDrivenUnpaidCount,
         planned, 
         driven,
         drivenPaidCount,
@@ -727,7 +737,7 @@ function StudentOverviewTable({ studentName, baseItems, products, studentPackage
 
   const noneAdded = useMemo(() => {
     const hasHours = totalAddedHours > 0;
-    const hasProducts = productRows.some((pr) => pr.remainingCount > 0 || pr.drivenPaidCount > 0 || pr.drivenUnpaidCount > 0);
+    const hasProducts = productRows.some((pr) => pr.notDrivenPaidCount > 0 || pr.notDrivenUnpaidCount > 0 || pr.drivenPaidCount > 0 || pr.drivenUnpaidCount > 0);
     return !hasHours && !hasProducts;
   }, [totalAddedHours, productRows]);
 
@@ -776,25 +786,30 @@ function StudentOverviewTable({ studentName, baseItems, products, studentPackage
           }
         />
         <View style={{ height: 8 }} />
-        {productRows.map((pr) => (
-          <View key={pr.name} style={styles.overviewRow}>
-            <Text style={styles.overviewLabel}>{pr.name}</Text>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              {pr.planned && <View style={styles.plannedBadge}><Text style={styles.plannedBadgeText}>Gepland</Text></View>}
-              {pr.drivenPaidCount > 0 && (
-                <View style={styles.drivenBadge}>
-                  <Text style={styles.drivenBadgeText}>Gereden {pr.drivenPaidCount}x</Text>
-                </View>
-              )}
-              {pr.drivenUnpaidCount > 0 && (
-                <View style={styles.drivenUnpaidBadge}>
-                  <Text style={styles.drivenUnpaidBadgeText}>Gereden {pr.drivenUnpaidCount}x</Text>
-                </View>
-              )}
-              <Text style={[styles.overviewValue, { color: pr.remainingCount > 0 ? "#ef4444" : "#6b7280" }]}>{`${pr.remainingCount} st`}</Text>
+        {productRows.map((pr) => {
+          const totalNotDriven = pr.notDrivenPaidCount + pr.notDrivenUnpaidCount;
+          const stucsColor = totalNotDriven > 0 ? (pr.notDrivenPaidCount > 0 && pr.notDrivenUnpaidCount === 0 ? "#22c55e" : "#ef4444") : "#6b7280";
+          
+          return (
+            <View key={pr.name} style={styles.overviewRow}>
+              <Text style={styles.overviewLabel}>{pr.name}</Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                {pr.planned && <View style={styles.plannedBadge}><Text style={styles.plannedBadgeText}>Gepland</Text></View>}
+                {pr.drivenPaidCount > 0 && (
+                  <View style={styles.drivenBadge}>
+                    <Text style={styles.drivenBadgeText}>Gereden {pr.drivenPaidCount}x</Text>
+                  </View>
+                )}
+                {pr.drivenUnpaidCount > 0 && (
+                  <View style={styles.drivenUnpaidBadge}>
+                    <Text style={styles.drivenUnpaidBadgeText}>Gereden {pr.drivenUnpaidCount}x</Text>
+                  </View>
+                )}
+                <Text style={[styles.overviewValue, { color: stucsColor }]}>{`${totalNotDriven} st`}</Text>
+              </View>
             </View>
-          </View>
-        ))}
+          );
+        })}
       </View>
     </View>
   );
