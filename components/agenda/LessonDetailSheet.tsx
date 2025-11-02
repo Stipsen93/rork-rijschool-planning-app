@@ -177,7 +177,8 @@ function LessonDetailSheetComponent({ lesson, onClose, onEdit, onCancel }: Lesso
       return sum + fraction;
     }, 0);
 
-    const hoursOver = Math.max(0, totalAddedHours - drivenHours - plannedHours);
+    const hoursOver = totalAddedHours - drivenHours - plannedHours;
+    const hoursOverPositive = hoursOver < 0 ? 0 : hoursOver;
 
     const hoursPackages = studentPackages.filter((sp) => {
       const baseItem = baseItems.find((p) => p.id === sp.packageId);
@@ -203,7 +204,7 @@ function LessonDetailSheetComponent({ lesson, onClose, onEdit, onCancel }: Lesso
 
     const noneAdded = totalAddedHours === 0;
 
-    return { drivenHours, plannedHours, hoursPaid, hoursOver, aggregatePaymentStatus, noneAdded };
+    return { drivenHours, plannedHours, hoursPaid, hoursOver: hoursOverPositive, aggregatePaymentStatus, noneAdded };
   }, [lessonsByDate, studentName, studentPackages, baseItems, products]);
 
   return (
