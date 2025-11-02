@@ -195,6 +195,11 @@ function Slider({ value, min, max, step, onChange }: { value: number; min: numbe
   const pct = Math.round(((value - min) / (max - min)) * 100);
   const trackWidthRef = React.useRef<number>(0);
   const [isDragging, setIsDragging] = React.useState<boolean>(false);
+  const onChangeRef = React.useRef(onChange);
+
+  React.useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
 
   const calculateValue = React.useCallback((x: number) => {
     if (trackWidthRef.current === 0) return value;
@@ -204,18 +209,18 @@ function Slider({ value, min, max, step, onChange }: { value: number; min: numbe
     return Math.min(max, Math.max(min, steppedValue));
   }, [min, max, step, value]);
 
-  const panResponder = React.useRef(
-    PanResponder.create({
+  const panResponder = React.useMemo(
+    () => PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
       onPanResponderGrant: (evt) => {
         setIsDragging(true);
         const newValue = calculateValue(evt.nativeEvent.locationX);
-        onChange(newValue);
+        onChangeRef.current(newValue);
       },
       onPanResponderMove: (evt) => {
         const newValue = calculateValue(evt.nativeEvent.locationX);
-        onChange(newValue);
+        onChangeRef.current(newValue);
       },
       onPanResponderRelease: () => {
         setIsDragging(false);
@@ -223,8 +228,9 @@ function Slider({ value, min, max, step, onChange }: { value: number; min: numbe
       onPanResponderTerminate: () => {
         setIsDragging(false);
       },
-    })
-  ).current;
+    }),
+    [calculateValue]
+  );
 
   return (
     <View style={styles.sliderRoot}>
