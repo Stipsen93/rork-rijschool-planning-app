@@ -21,6 +21,13 @@ export type DayConfig = {
 
 export type WorkingHours = Record<DayKey, DayConfig>;
 
+export type VacationPeriod = {
+  id: string;
+  startDate: string;
+  endDate: string;
+  repeatAnnually: boolean;
+};
+
 const STORAGE_KEY = "instructor_working_hours" as const;
 
 const defaultDay = (enabled: boolean): DayConfig => ({
@@ -112,6 +119,7 @@ function migrateAny(input: unknown): WorkingHours | null {
 
 export const [WorkingHoursProvider, useWorkingHours] = createContextHook(() => {
   const [workingHours, setWorkingHours] = useState<WorkingHours>(defaultWorkingHours);
+  const [vacationPeriods, setVacationPeriods] = useState<VacationPeriod[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
@@ -129,6 +137,18 @@ export const [WorkingHoursProvider, useWorkingHours] = createContextHook(() => {
           console.log("WorkingHoursStore: Failed to parse working hours", e);
         }
       }
+
+      const vacationsStr = await storageGetString("instructor_vacation_periods");
+      if (vacationsStr) {
+        try {
+          const parsed = JSON.parse(vacationsStr) as VacationPeriod[];
+          setVacationPeriods(Array.isArray(parsed) ? parsed : []);
+          console.log("WorkingHoursStore: Loaded vacation periods", parsed);
+        } catch (e) {
+          console.log("WorkingHoursStore: Failed to parse vacation periods", e);
+        }
+      }
+
       setLoading(false);
     })();
   }, []);
@@ -139,6 +159,23 @@ export const [WorkingHoursProvider, useWorkingHours] = createContextHook(() => {
     await storageSetString(STORAGE_KEY, JSON.stringify(hours));
   }, []);
 
+  const updateVacationPeriods = React.useCallback(async (periods: VacationPeriod[]) => {
+    console.log("WorkingHoursStore: Updating vacation periods", periods);
+    setVacationPeriods(periods);
+    await storageSetString("instructor_vacation_periods", JSON.stringify(periods));
+  }, []);
+
+  const addVacationPeriod = React.useCallback(async (period: Omit<VacationPeriod, "id">) => {
+    const newPeriod: VacationPeriod = { ...period, id: Date.now().toString() };
+    const updated = [...vacationPeriods, newPeriod];
+    await updateVacationPeriods(updated);
+  }, [vacationPeriods, updateVacationPeriods]);
+
+  const removeVacationPeriod = React.useCallback(async (id: string) => {
+    const updated = vacationPeriods.filter((p) => p.id !== id);
+    await updateVacationPeriods(updated);
+  }, [vacationPeriods, updateVacationPeriods]);
+
   const enabledDays = useMemo(
     () => Object.entries(workingHours).filter(([, v]) => v.enabled) as [DayKey, DayConfig][],
     [workingHours]
@@ -148,10 +185,14 @@ export const [WorkingHoursProvider, useWorkingHours] = createContextHook(() => {
     () => ({
       workingHours,
       updateWorkingHours,
+      vacationPeriods,
+      updateVacationPeriods,
+      addVacationPeriod,
+      removeVacationPeriod,
       loading,
       enabledDays,
     }),
-    [workingHours, updateWorkingHours, loading, enabledDays]
+    [workingHours, updateWorkingHours, vacationPeriods, updateVacationPeriods, addVacationPeriod, removeVacationPeriod, loading, enabledDays]
   );
 
   return value;

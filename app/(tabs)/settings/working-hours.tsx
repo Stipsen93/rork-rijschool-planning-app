@@ -1,11 +1,11 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { Stack } from "expo-router";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
-import { Clock, ChevronRight, MoreVertical, Copy, RefreshCcw, Plus, Trash2 } from "lucide-react-native";
+import { Clock, ChevronRight, MoreVertical, Copy, RefreshCcw, Plus, Trash2, Calendar } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useWorkingHours, defaultWorkingHours, type DayKey, type DayConfig, type WorkingHours } from "@/components/settings/WorkingHoursStore";
+import { useWorkingHours, defaultWorkingHours, type DayKey, type DayConfig, type WorkingHours, type VacationPeriod } from "@/components/settings/WorkingHoursStore";
 
 function showToast(msg: string, _color: string = "#16a34a") {
   if (Platform.OS === "android") {
@@ -17,11 +17,12 @@ function showToast(msg: string, _color: string = "#16a34a") {
 }
 
 export default function WorkingHoursScreen() {
-  const { workingHours: storedHours, updateWorkingHours, loading } = useWorkingHours();
+  const { workingHours: storedHours, updateWorkingHours, vacationPeriods, addVacationPeriod, removeVacationPeriod, loading } = useWorkingHours();
   const [workingHours, setWorkingHours] = useState<WorkingHours>(storedHours ?? defaultWorkingHours);
   const [expandedDay, setExpandedDay] = useState<DayKey | null>(null);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [timePickerFor, setTimePickerFor] = useState<null | { day: DayKey; group: "ranges" | "pauses"; index: number; part: "start" | "end"; current: string }>(null);
+  const [showVacationModal, setShowVacationModal] = useState<boolean>(false);
   const insets = useSafeAreaInsets();
 
   React.useEffect(() => {
@@ -298,6 +299,38 @@ export default function WorkingHoursScreen() {
             </View>
           ))}
 
+          <View style={{ height: 32 }} />
+
+          <View style={styles.card}>
+            <View style={styles.vacationHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.vacationTitle}>Vakanties</Text>
+                <Text style={styles.vacationSubtitle}>Plan vakantieperiodes voor de agenda</Text>
+              </View>
+              <TouchableOpacity
+                testID="add-vacation"
+                onPress={() => setShowVacationModal(true)}
+                style={styles.addVacationBtn}
+                accessibilityRole="button"
+              >
+                <Plus color="#fff" size={20} />
+              </TouchableOpacity>
+            </View>
+
+            {vacationPeriods.length === 0 ? (
+              <View style={styles.emptyVacation}>
+                <Calendar color="#9ca3af" size={32} />
+                <Text style={styles.emptyVacationText}>Geen vakanties gepland</Text>
+              </View>
+            ) : (
+              <View style={styles.vacationList}>
+                {vacationPeriods.map((period) => (
+                  <VacationRow key={period.id} period={period} onRemove={() => removeVacationPeriod(period.id)} />
+                ))}
+              </View>
+            )}
+          </View>
+
           <View style={{ height: 24 + insets.bottom }} />
         </ScrollView>
 
@@ -306,6 +339,12 @@ export default function WorkingHoursScreen() {
           initial={timePickerFor?.current ?? "09:00"}
           onClose={() => setTimePickerFor(null)}
           onSelect={applyTime}
+        />
+
+        <VacationModal
+          visible={showVacationModal}
+          onClose={() => setShowVacationModal(false)}
+          onAdd={addVacationPeriod}
         />
       </View>
     </ErrorBoundary>
@@ -358,6 +397,132 @@ function TimeField({ label, value, onPress }: { label: string; value: string; on
       </View>
       <Clock color="#9ca3af" size={18} />
     </TouchableOpacity>
+  );
+}
+
+function VacationRow({ period, onRemove }: { period: VacationPeriod; onRemove: () => void }) {
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const day = date.getDate();
+    const month = date.getMonth() + 1;
+    const year = date.getFullYear();
+    return `${day}-${month}-${year}`;
+  };
+
+  return (
+    <View style={styles.vacationRow}>
+      <View style={styles.vacationDates}>
+        <Text style={styles.vacationDateText}>
+          {formatDate(period.startDate)} tot {formatDate(period.endDate)}
+        </Text>
+        {period.repeatAnnually && (
+          <Text style={styles.vacationRepeat}>Herhaalt elk jaar</Text>
+        )}
+      </View>
+      <TouchableOpacity
+        onPress={onRemove}
+        style={styles.vacationActions}
+        accessibilityRole="button"
+        testID="remove-vacation"
+      >
+        <Trash2 color="#ef4444" size={18} />
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+function VacationModal({ visible, onClose, onAdd }: { visible: boolean; onClose: () => void; onAdd: (period: Omit<VacationPeriod, "id">) => Promise<void> }) {
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
+  const [repeatAnnually, setRepeatAnnually] = useState<boolean>(false);
+  const insets = useSafeAreaInsets();
+
+  React.useEffect(() => {
+    if (visible) {
+      const today = new Date();
+      const formatted = today.toISOString().split("T")[0] ?? "";
+      setStartDate(formatted);
+      setEndDate(formatted);
+      setRepeatAnnually(false);
+    }
+  }, [visible]);
+
+  const handleAdd = async () => {
+    if (!startDate || !endDate) {
+      showToast("Vul beide datums in", "#dc2626");
+      return;
+    }
+
+    if (new Date(startDate) > new Date(endDate)) {
+      showToast("Einddatum moet na startdatum zijn", "#dc2626");
+      return;
+    }
+
+    await onAdd({ startDate, endDate, repeatAnnually });
+    if (Platform.OS !== "web") {
+      try { await Haptics.selectionAsync(); } catch {}
+    }
+    showToast("Vakantie toegevoegd");
+    onClose();
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose as any}>
+      <Pressable style={styles.vacationModalBackdrop} onPress={onClose} />
+      <View style={[styles.vacationModalSheet, { paddingBottom: insets.bottom + 20 }]}>
+        <View style={styles.vacationModalHeader}>
+          <Text style={styles.vacationModalTitle}>Vakantie toevoegen</Text>
+          <TouchableOpacity onPress={onClose} accessibilityRole="button">
+            <Text style={{ color: "#0ea5e9", fontWeight: "600" }}>Sluiten</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.vacationModalBody}>
+          <Text style={styles.vacationModalLabel}>Vanaf datum</Text>
+          <TextInput
+            style={styles.vacationModalInput}
+            value={startDate}
+            onChangeText={setStartDate}
+            placeholder="YYYY-MM-DD"
+            testID="vacation-start-date"
+          />
+
+          <View style={{ height: 16 }} />
+
+          <Text style={styles.vacationModalLabel}>Tot en met datum</Text>
+          <TextInput
+            style={styles.vacationModalInput}
+            value={endDate}
+            onChangeText={setEndDate}
+            placeholder="YYYY-MM-DD"
+            testID="vacation-end-date"
+          />
+
+          <View style={{ height: 16 }} />
+
+          <TouchableOpacity
+            style={styles.vacationModalToggle}
+            onPress={() => setRepeatAnnually((p) => !p)}
+            accessibilityRole="button"
+            testID="vacation-repeat-toggle"
+          >
+            <Text style={{ fontSize: 14, fontWeight: "600", color: "#374151" }}>Herhaal elk jaar</Text>
+            <View style={[styles.switchPill, { backgroundColor: repeatAnnually ? "#e0f2fe" : "#f3f4f6" }]}>
+              <View style={[styles.switchDot, { backgroundColor: repeatAnnually ? "#0ea5e9" : "#9ca3af", alignSelf: repeatAnnually ? "flex-end" : "flex-start" }]} />
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.vacationModalSave}
+            onPress={handleAdd}
+            accessibilityRole="button"
+            testID="save-vacation"
+          >
+            <Text style={styles.vacationModalSaveText}>Toevoegen</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -522,6 +687,136 @@ const styles = StyleSheet.create({
   },
   timeRollTextSelected: {
     color: "#0ea5e9",
+    fontWeight: "700",
+  },
+
+  vacationHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
+  },
+  vacationTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#111827",
+  },
+  vacationSubtitle: {
+    fontSize: 13,
+    color: "#6b7280",
+    marginTop: 2,
+  },
+  addVacationBtn: {
+    backgroundColor: "#0ea5e9",
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyVacation: {
+    alignItems: "center",
+    padding: 32,
+  },
+  emptyVacationText: {
+    color: "#9ca3af",
+    fontSize: 14,
+    marginTop: 8,
+  },
+  vacationList: {
+    padding: 16,
+  },
+  vacationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    backgroundColor: "#f9fafb",
+    borderRadius: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+  },
+  vacationDates: {
+    flex: 1,
+  },
+  vacationDateText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#111827",
+  },
+  vacationRepeat: {
+    fontSize: 12,
+    color: "#0ea5e9",
+    marginTop: 2,
+  },
+  vacationActions: {
+    padding: 4,
+  },
+
+  vacationModalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+  },
+  vacationModalSheet: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingBottom: 20,
+  },
+  vacationModalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
+  },
+  vacationModalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  vacationModalBody: {
+    padding: 16,
+  },
+  vacationModalLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#374151",
+    marginBottom: 8,
+  },
+  vacationModalInput: {
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    backgroundColor: "#f9fafb",
+  },
+  vacationModalToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: "#f9fafb",
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+  },
+  vacationModalSave: {
+    backgroundColor: "#0ea5e9",
+    padding: 16,
+    borderRadius: 8,
+    alignItems: "center",
+    marginTop: 16,
+  },
+  vacationModalSaveText: {
+    color: "#fff",
+    fontSize: 16,
     fontWeight: "700",
   },
 });
