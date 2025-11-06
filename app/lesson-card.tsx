@@ -7,6 +7,12 @@ import { useLessonCard } from "@/components/settings/LessonCardStore";
 import { useLessonCardData, ItemStatus } from "@/components/lesson-card/LessonCardDataStore";
 import { useAgenda } from "@/components/agenda/AgendaStore";
 
+const categoryColors = ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ef4444", "#14b8a6", "#ec4899", "#06b6d4"];
+
+function getCategoryColor(index: number): string {
+  return categoryColors[index % categoryColors.length];
+}
+
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr);
   const day = d.getDate().toString().padStart(2, "0");
@@ -99,7 +105,7 @@ function LessonCardPageComponent() {
         <Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.closeBtn}>
           <X size={24} color="#111827" />
         </Pressable>
-        <Text style={styles.headerTitle}>Leskaart</Text>
+        <Text style={styles.headerTitle}>{studentName}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -124,10 +130,12 @@ function LessonCardPageComponent() {
       </View>
 
       <ScrollView style={styles.content} contentContainerStyle={{ padding: 16 }}>
-        {categories.map((category) => (
-          <View key={category.id} style={styles.categorySection}>
-            <Text style={styles.categoryTitle}>{category.name}</Text>
-            <View style={styles.table}>
+        {categories.map((category, idx) => {
+          const categoryColor = getCategoryColor(idx);
+          return (
+            <View key={category.id} style={styles.categorySection}>
+              <Text style={[styles.categoryTitle, { backgroundColor: categoryColor }]}>{category.name}</Text>
+              <View style={styles.table}>
               {category.items.map((item, idx) => {
                 const status = getItemStatus(item.id);
                 return (
@@ -147,9 +155,10 @@ function LessonCardPageComponent() {
                   </Pressable>
                 );
               })}
+              </View>
             </View>
-          </View>
-        ))}
+          );
+        })}
       </ScrollView>
 
       {selectedItemId && (
@@ -254,8 +263,12 @@ const styles = StyleSheet.create({
   categoryTitle: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#111827",
+    color: "#fff",
     marginBottom: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
   },
   table: {
     backgroundColor: "#fff",
