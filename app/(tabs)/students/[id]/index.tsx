@@ -295,6 +295,25 @@ export default function StudentProfileScreen() {
 
         <StudentOverviewTable studentName={params.name ?? ""} baseItems={availablePackages} products={settingsProducts} studentPackages={studentPackages} />
 
+        <TouchableOpacity
+          accessibilityRole="button"
+          onPress={() => {
+            router.push({
+              pathname: "/lesson-card",
+              params: {
+                studentId: params.id ?? "",
+                studentName: params.name ?? "",
+                lessonId: "",
+                lessonDate: new Date().toISOString(),
+              },
+            });
+          }}
+          style={styles.lessonCardButton}
+          testID="open-lesson-card-profile"
+        >
+          <Text style={styles.lessonCardButtonText}>Leskaart</Text>
+        </TouchableOpacity>
+
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Pakketten/Producten/Uren</Text>
           {studentPackages.length === 0 ? (
@@ -1749,4 +1768,19 @@ const styles = StyleSheet.create({
   archiveBtnText: { color: "#fff", fontWeight: "700", fontSize: 16 },
   deleteBtn: { backgroundColor: "#ef4444", paddingVertical: 14, borderRadius: 12, alignItems: "center", marginTop: 12 },
   deleteBtnText: { color: "#fff", fontWeight: "700", fontSize: 16 },
+  lessonCardButton: {
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: "#2f95dc",
+    borderWidth: 1,
+    borderColor: "#2f95dc",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
+  },
+  lessonCardButtonText: { color: "#fff", fontWeight: "700", fontSize: 16 },
 });
