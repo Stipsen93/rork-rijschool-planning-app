@@ -1,5 +1,5 @@
 import React, { memo, useMemo, useState } from "react";
-import { Modal, Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View, FlatList } from "react-native";
+import { Modal, Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View, ScrollView } from "react-native";
 import { CalendarDays, Clock, ChevronLeft, ChevronRight, Timer, X, Repeat } from "lucide-react-native";
 
 export type RecurrenceType = "none" | "daily" | "weekly" | "monthly";
@@ -188,28 +188,24 @@ function ScheduleSectionComponent({ selectedDate, selectedTime, lessonDurationHo
                   <X size={20} color="#111827" />
                 </TouchableOpacity>
               </View>
-              <View style={styles.pickerWrap}>
-                <FlatList
-                  data={durationOptions}
-                  keyExtractor={(item) => item.label}
-                  contentContainerStyle={styles.durationListContent}
-                  renderItem={({ item }) => {
-                    const selected = item.h === lessonDurationHours && item.m === lessonDurationMinutes;
-                    return (
-                      <Pressable
-                        onPress={() => {
-                          onDurationChanged(item.h, item.m);
-                          setShowDuration(false);
-                        }}
-                        style={[styles.durationItem, selected && styles.durationItemSelected]}
-                        testID={`duration-${item.label}`}
-                      >
-                        <Text style={[styles.durationText, selected && styles.durationTextSelected]}>{item.label}</Text>
-                      </Pressable>
-                    );
-                  }}
-                />
-              </View>
+              <ScrollView style={styles.pickerWrap} contentContainerStyle={styles.durationListContent}>
+                {durationOptions.map((item) => {
+                  const selected = item.h === lessonDurationHours && item.m === lessonDurationMinutes;
+                  return (
+                    <Pressable
+                      key={item.label}
+                      onPress={() => {
+                        onDurationChanged(item.h, item.m);
+                        setShowDuration(false);
+                      }}
+                      style={[styles.durationItem, selected && styles.durationItemSelected]}
+                      testID={`duration-${item.label}`}
+                    >
+                      <Text style={[styles.durationText, selected && styles.durationTextSelected]}>{item.label}</Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
             </View>
           </View>
         </Modal>
@@ -447,17 +443,12 @@ export function CalendarPicker({ initialDate, onSelectDate, testID }: CalendarPi
                   <X size={20} color="#111827" />
                 </TouchableOpacity>
               </View>
-              <FlatList
-                data={yearRange}
-                keyExtractor={(item) => `year-${item}`}
-                style={styles.yearList}
-                contentContainerStyle={styles.yearListContent}
-                initialScrollIndex={yearRange.indexOf(cursor.getFullYear())}
-                getItemLayout={(data, index) => ({ length: 48, offset: 48 * index, index })}
-                renderItem={({ item }) => {
+              <ScrollView style={styles.yearList} contentContainerStyle={styles.yearListContent}>
+                {yearRange.map((item) => {
                   const isSelected = item === cursor.getFullYear();
                   return (
                     <Pressable
+                      key={`year-${item}`}
                       onPress={() => {
                         setCursor(new Date(item, cursor.getMonth(), 1));
                         setShowYearPicker(false);
@@ -468,8 +459,8 @@ export function CalendarPicker({ initialDate, onSelectDate, testID }: CalendarPi
                       <Text style={[styles.yearText, isSelected && styles.yearTextSelected]}>{item}</Text>
                     </Pressable>
                   );
-                }}
-              />
+                })}
+              </ScrollView>
             </View>
           </View>
         </Modal>
@@ -495,37 +486,31 @@ function TimePicker24h({ initialTime, onSelectTime, testID }: TimePicker24hProps
     <View testID={testID} style={styles.timePickerWrap}>
       <Text style={styles.timePickerTitle}>Kies tijd</Text>
       <View style={styles.timeColumns}>
-        <FlatList
-          data={hours}
-          keyExtractor={(i) => `h-${i}`}
-          style={styles.timeColumn}
-          contentContainerStyle={styles.timeColumnContent}
-          renderItem={({ item }) => (
+        <ScrollView style={styles.timeColumn} contentContainerStyle={styles.timeColumnContent}>
+          {hours.map((item) => (
             <Pressable
+              key={`h-${item}`}
               onPress={() => setHour(item)}
               style={[styles.timeItem, item === hour && styles.timeItemSelected]}
               testID={`hour-${item}`}
             >
               <Text style={[styles.timeText, item === hour && styles.timeTextSelected]}>{pad(item)}</Text>
             </Pressable>
-          )}
-        />
+          ))}
+        </ScrollView>
         <Text style={styles.timeSeparator}>:</Text>
-        <FlatList
-          data={minutes}
-          keyExtractor={(i) => `m-${i}`}
-          style={styles.timeColumn}
-          contentContainerStyle={styles.timeColumnContent}
-          renderItem={({ item }) => (
+        <ScrollView style={styles.timeColumn} contentContainerStyle={styles.timeColumnContent}>
+          {minutes.map((item) => (
             <Pressable
+              key={`m-${item}`}
               onPress={() => setMinute(item)}
               style={[styles.timeItem, item === minute && styles.timeItemSelected]}
               testID={`minute-${item}`}
             >
               <Text style={[styles.timeText, item === minute && styles.timeTextSelected]}>{pad(item)}</Text>
             </Pressable>
-          )}
-        />
+          ))}
+        </ScrollView>
       </View>
       <View style={styles.iosToolbar}>
         <TouchableOpacity onPress={() => onSelectTime(hour, minute)} style={styles.toolbarBtn}>
