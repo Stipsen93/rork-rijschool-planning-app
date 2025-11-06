@@ -2,7 +2,7 @@ import React from "react";
 import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, Stack } from "expo-router";
-import { User, ChevronRight, Clock, Boxes, Cog, CalendarRange, ArrowLeft, FileText, Bell } from "lucide-react-native";
+import { User, ChevronRight, Clock, Boxes, Cog, CalendarRange, ArrowLeft, FileText, Bell, LogOut } from "lucide-react-native";
 
 export default function SettingsScreen() {
   const [refreshing, setRefreshing] = React.useState<boolean>(false);
@@ -197,6 +197,22 @@ export default function SettingsScreen() {
         <ChevronRight color="#9ca3af" />
       </TouchableOpacity>
 
+      <TouchableOpacity
+        testID="settings-logout"
+        style={styles.logoutButton}
+        onPress={() => {
+          console.log("Logging out...");
+        }}
+        accessibilityRole="button"
+      >
+        <View style={styles.itemIconWrap}>
+          <LogOut color="#ef4444" size={22} />
+        </View>
+        <View style={styles.itemTextWrap}>
+          <Text style={styles.logoutTitle}>Uitloggen</Text>
+        </View>
+      </TouchableOpacity>
+
       <View style={styles.versionContainer}>
         <Text style={styles.versionText}>Versie 1.0</Text>
       </View>
@@ -278,5 +294,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#9ca3af",
     fontWeight: "500",
+  },
+  logoutButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: "#fff",
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+    gap: 12,
+    marginTop: 12,
+  },
+  logoutTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#ef4444",
   },
 });
