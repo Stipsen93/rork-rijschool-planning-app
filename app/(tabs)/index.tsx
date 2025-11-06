@@ -4,7 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { NextAppointment, Appointment } from "@/components/overview/NextAppointment";
 import { OverviewHeader } from "@/components/overview/OverviewHeader";
-import { PerformanceMetricsCard, PerformanceMetrics } from "@/components/overview/PerformanceMetrics";
+
 import { StudentActivityDashboard } from "@/components/overview/StudentActivityDashboard";
 import { Settings } from "lucide-react-native";
 import { useRouter } from "expo-router";
@@ -43,10 +43,7 @@ export default function InstructorOverview() {
   const { studentActivity } = useStudents();
 
   const nextAppointment = useMemo(() => computeNextAppointment(lessonsByDate), [lessonsByDate]);
-  const metrics: PerformanceMetrics = useMemo(
-    () => ({ completionRate: 96.5, studentSatisfaction: 4.8, averageLessonDuration: 52.5 }),
-    [],
-  );
+
 
   const onRefresh = useCallback(() => {
     console.log("Refreshing overview data...");
@@ -87,8 +84,6 @@ export default function InstructorOverview() {
           <NextAppointment appointment={nextAppointment} />
 
           <StudentActivityDashboard studentActivity={studentActivity} />
-
-          <PerformanceMetricsCard metrics={metrics} />
 
           <View style={{ height: 32 }} />
         </ScrollView>
