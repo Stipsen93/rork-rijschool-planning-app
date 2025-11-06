@@ -27,7 +27,7 @@ function StudentActivityDashboardComponent({ studentActivity }: Props) {
   const { workingHours, loading: whLoading } = useWorkingHours();
   const { lessonConfig, loading: lcLoading } = useSettings();
 
-  const { weeklyHours, weeklyMinutes, lessonDurationMinutes, maxLessons, maxActive, capacityDiff } = useMemo(() => {
+  const { weeklyHours, lessonDurationMinutes, capacityDiff } = useMemo(() => {
     const toMinutes = (time: string): number => {
       const [h, m] = time.split(":").map(Number);
       return h * 60 + m;
@@ -47,15 +47,13 @@ function StudentActivityDashboardComponent({ studentActivity }: Props) {
     const hours = totalMinutes / 60;
     const lessonDur = lessonConfig.baseLessonDuration || 60;
     const maxLessonsPerWeek = Math.floor(totalMinutes / lessonDur);
-    const maxActiveStudents = Math.floor(maxLessonsPerWeek / 1.5);
-    const diff = maxActiveStudents - studentActivity.activeStudents.length;
+    const diff = maxLessonsPerWeek - studentActivity.activeStudents.length;
 
     return {
       weeklyHours: hours,
       weeklyMinutes: totalMinutes,
       lessonDurationMinutes: lessonDur,
       maxLessons: maxLessonsPerWeek,
-      maxActive: maxActiveStudents,
       capacityDiff: diff,
     };
   }, [workingHours, lessonConfig.baseLessonDuration, studentActivity.activeStudents.length]);
