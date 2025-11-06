@@ -25,6 +25,7 @@ export default function WorkingHoursScreen() {
   const [timePickerFor, setTimePickerFor] = useState<null | { day: DayKey; group: "ranges" | "pauses"; index: number; part: "start" | "end"; current: string }>(null);
   const [showVacationModal, setShowVacationModal] = useState<boolean>(false);
   const [editingVacation, setEditingVacation] = useState<VacationPeriod | null>(null);
+  const [deletingVacation, setDeletingVacation] = useState<VacationPeriod | null>(null);
   const insets = useSafeAreaInsets();
 
   React.useEffect(() => {
@@ -330,7 +331,7 @@ export default function WorkingHoursScreen() {
                   <VacationRow
                     key={period.id}
                     period={period}
-                    onRemove={() => removeVacationPeriod(period.id)}
+                    onRemove={() => setDeletingVacation(period)}
                     onPress={() => {
                       setEditingVacation(period);
                       setShowVacationModal(true);
@@ -360,6 +361,22 @@ export default function WorkingHoursScreen() {
           onAdd={addVacationPeriod}
           onUpdate={updateVacationPeriod}
           editingVacation={editingVacation}
+        />
+
+        <DeleteConfirmationModal
+          visible={!!deletingVacation}
+          onClose={() => setDeletingVacation(null)}
+          onConfirm={async () => {
+            if (deletingVacation) {
+              await removeVacationPeriod(deletingVacation.id);
+              showToast("Vakantie verwijderd");
+              if (Platform.OS !== "web") {
+                try { await Haptics.selectionAsync(); } catch {}
+              }
+            }
+            setDeletingVacation(null);
+          }}
+          vacation={deletingVacation}
         />
       </View>
     </ErrorBoundary>
@@ -634,6 +651,50 @@ function VacationModal({ visible, onClose, onAdd, onUpdate, editingVacation }: {
           >
             <Text style={styles.vacationModalSaveText}>{editingVacation ? "Opslaan" : "Toevoegen"}</Text>
           </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function DeleteConfirmationModal({ visible, onClose, onConfirm, vacation }: { visible: boolean; onClose: () => void; onConfirm: () => void; vacation: VacationPeriod | null }) {
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
+  return (
+    <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose as any}>
+      <View style={styles.confirmModalBackdrop}>
+        <View style={styles.confirmModalCard}>
+          <Text style={styles.confirmModalTitle}>Vakantie verwijderen</Text>
+          <Text style={styles.confirmModalText}>
+            Weet je zeker dat je deze vakantie wilt verwijderen?
+            {vacation && (
+              `\n\n${formatDate(vacation.startDate)} tot ${formatDate(vacation.endDate)}`
+            )}
+          </Text>
+          <View style={styles.confirmModalActions}>
+            <TouchableOpacity
+              accessibilityRole="button"
+              testID="cancel-delete-vacation"
+              style={[styles.confirmModalBtn, styles.confirmModalBtnCancel]}
+              onPress={onClose}
+            >
+              <Text style={[styles.confirmModalBtnText, styles.confirmModalBtnTextCancel]}>Annuleren</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              accessibilityRole="button"
+              testID="confirm-delete-vacation"
+              style={[styles.confirmModalBtn, styles.confirmModalBtnDelete]}
+              onPress={onConfirm}
+            >
+              <Text style={[styles.confirmModalBtnText, styles.confirmModalBtnTextDelete]}>Verwijderen</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     </Modal>
@@ -979,5 +1040,58 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: "hidden",
     backgroundColor: "#fff",
+  },
+
+  confirmModalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 16,
+  },
+  confirmModalCard: {
+    width: "100%",
+    maxWidth: 400,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 20,
+  },
+  confirmModalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#111827",
+    marginBottom: 8,
+  },
+  confirmModalText: {
+    fontSize: 14,
+    color: "#6b7280",
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  confirmModalActions: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  confirmModalBtn: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  confirmModalBtnCancel: {
+    backgroundColor: "#f3f4f6",
+  },
+  confirmModalBtnDelete: {
+    backgroundColor: "#ef4444",
+  },
+  confirmModalBtnText: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  confirmModalBtnTextCancel: {
+    color: "#374151",
+  },
+  confirmModalBtnTextDelete: {
+    color: "#fff",
   },
 });
