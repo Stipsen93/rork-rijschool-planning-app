@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { useAuth } from "@/components/auth/AuthStore";
 import { Car, Mail, Lock, Eye, EyeOff, Touchpad } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -49,6 +50,17 @@ export default function LoginScreen() {
 
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { login, isAuthenticated, profile, isLoading: authLoading } = useAuth();
+
+  useEffect(() => {
+    if (isAuthenticated && profile) {
+      if (profile.role === 'student') {
+        router.replace('/(student-tabs)/student-overview');
+      } else {
+        router.replace('/(tabs)/overview');
+      }
+    }
+  }, [isAuthenticated, profile, router]);
 
   const validateEmail = (email: string): boolean => {
     if (!email) {
@@ -86,27 +98,23 @@ export default function LoginScreen() {
     setIsLoading(true);
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const result = await login(email.trim(), password.trim());
 
-      const trimmedEmail = email.trim().toLowerCase();
-      const isStudent = trimmedEmail.includes("student");
-
-      console.log(
-        "Login successful, navigating to",
-        isStudent ? "student" : "instructor",
-        "dashboard"
-      );
-
-      if (isStudent) {
-        router.replace("/(student-tabs)/student-overview");
-      } else {
-        router.replace("/(tabs)/overview");
+      if (!result.success) {
+        Alert.alert(
+          "Inloggen mislukt",
+          result.error || "Controleer uw e-mailadres en wachtwoord.",
+          [{ text: "OK" }]
+        );
+        return;
       }
+
+      console.log("Login successful");
     } catch (error) {
       console.error("Login error:", error);
       Alert.alert(
         "Inloggen mislukt",
-        "Controleer uw e-mailadres en wachtwoord.",
+        "Er is een fout opgetreden. Probeer het opnieuw.",
         [{ text: "OK" }]
       );
     } finally {

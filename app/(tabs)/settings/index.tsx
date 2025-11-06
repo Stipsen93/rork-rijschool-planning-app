@@ -1,13 +1,47 @@
-import React from "react";
-import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import React, { useState } from "react";
+import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View, Alert, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, Stack } from "expo-router";
 import { User, ChevronRight, Clock, Boxes, Cog, CalendarRange, ArrowLeft, FileText, Bell, LogOut } from "lucide-react-native";
+import { useAuth } from "@/components/auth/AuthStore";
 
 export default function SettingsScreen() {
-  const [refreshing, setRefreshing] = React.useState<boolean>(false);
+  const [refreshing, setRefreshing] = useState<boolean>(false);
+  const [isLoggingOut, setIsLoggingOut] = useState<boolean>(false);
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { logout } = useAuth();
+
+  const handleLogout = async () => {
+    Alert.alert(
+      "Uitloggen",
+      "Weet je zeker dat je wilt uitloggen?",
+      [
+        {
+          text: "Annuleren",
+          style: "cancel",
+        },
+        {
+          text: "Uitloggen",
+          style: "destructive",
+          onPress: async () => {
+            setIsLoggingOut(true);
+            const result = await logout();
+            setIsLoggingOut(false);
+
+            if (result.success) {
+              router.replace("/login");
+            } else {
+              Alert.alert(
+                "Fout",
+                result.error || "Er is een fout opgetreden bij het uitloggen"
+              );
+            }
+          },
+        },
+      ]
+    );
+  };
 
   return (
     <>
@@ -200,10 +234,8 @@ export default function SettingsScreen() {
       <TouchableOpacity
         testID="settings-logout"
         style={styles.logoutButton}
-        onPress={() => {
-          console.log("Logging out...");
-          router.replace("/login");
-        }}
+        onPress={handleLogout}
+        disabled={isLoggingOut}
         accessibilityRole="button"
       >
         <View style={styles.itemIconWrap}>
@@ -212,6 +244,9 @@ export default function SettingsScreen() {
         <View style={styles.itemTextWrap}>
           <Text style={styles.logoutTitle}>Uitloggen</Text>
         </View>
+        {isLoggingOut && (
+          <ActivityIndicator color="#ef4444" size="small" />
+        )}
       </TouchableOpacity>
 
       <View style={styles.versionContainer}>

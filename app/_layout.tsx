@@ -14,6 +14,7 @@ import { LessonCardProvider } from "@/components/settings/LessonCardStore";
 import { LessonCardDataProvider } from "@/components/lesson-card/LessonCardDataStore";
 import { NotificationsProvider } from "@/components/settings/NotificationsStore";
 import { StudentProvider } from "@/components/student/StudentStore";
+import { AuthProvider } from "@/components/auth/AuthStore";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -42,7 +43,8 @@ export default function RootLayout() {
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
         <GestureHandlerRootView style={{ flex: 1 }}>
-          <ProfileProvider>
+          <AuthProvider>
+            <ProfileProvider>
             <SettingsProvider>
               <NotificationsProvider>
                 <LessonCardProvider>
@@ -60,7 +62,8 @@ export default function RootLayout() {
                 </LessonCardProvider>
               </NotificationsProvider>
             </SettingsProvider>
-          </ProfileProvider>
+            </ProfileProvider>
+          </AuthProvider>
         </GestureHandlerRootView>
       </QueryClientProvider>
     </trpc.Provider>
