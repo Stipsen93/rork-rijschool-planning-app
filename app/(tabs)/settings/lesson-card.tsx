@@ -13,31 +13,35 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChevronRight, Plus, Pencil, Trash2, X } from "lucide-react-native";
-import { useLessonCard, LessonCardItem } from "@/components/settings/LessonCardStore";
+import { useLessonCard, LessonCardItem, StatusConfig } from "@/components/settings/LessonCardStore";
 
 type EditMode =
   | { type: "none" }
   | { type: "add-category" }
   | { type: "edit-category"; categoryId: string; name: string }
   | { type: "add-item"; categoryId: string }
-  | { type: "edit-item"; categoryId: string; item: LessonCardItem };
+  | { type: "edit-item"; categoryId: string; item: LessonCardItem }
+  | { type: "edit-status"; statusIndex: number; status: StatusConfig };
 
 export default function LessonCardScreen() {
   const insets = useSafeAreaInsets();
   const {
     categories,
+    statusConfig,
     addCategory,
     updateCategory,
     deleteCategory,
     addItem,
     updateItem,
     deleteItem,
+    updateStatusConfig,
   } = useLessonCard();
 
   const [expandedCategoryId, setExpandedCategoryId] = useState<string | null>(null);
   const [editMode, setEditMode] = useState<EditMode>({ type: "none" });
   const [inputText, setInputText] = useState<string>("");
   const [descriptionText, setDescriptionText] = useState<string>("");
+  const [colorInput, setColorInput] = useState<string>("");
 
   const handleAddCategory = async () => {
     if (!inputText.trim()) return;
@@ -105,6 +109,20 @@ export default function LessonCardScreen() {
     );
   };
 
+  const handleEditStatus = async (statusIndex: number) => {
+    if (!inputText.trim() || !colorInput.trim()) return;
+    const updated = statusConfig.map((s, idx) =>
+      idx === statusIndex
+        ? { symbol: inputText.trim(), label: descriptionText.trim(), color: colorInput.trim() }
+        : s
+    );
+    await updateStatusConfig(updated);
+    setInputText("");
+    setDescriptionText("");
+    setColorInput("");
+    setEditMode({ type: "none" });
+  };
+
   const renderEditModal = () => {
     if (editMode.type === "none") return null;
 
@@ -115,7 +133,9 @@ export default function LessonCardScreen() {
         ? "Categorie bewerken"
         : editMode.type === "add-item"
         ? "Item toevoegen"
-        : "Item bewerken";
+        : editMode.type === "edit-item"
+        ? "Item bewerken"
+        : "Status bewerken";
 
     const onSave =
       editMode.type === "add-category"
@@ -124,9 +144,12 @@ export default function LessonCardScreen() {
         ? () => handleEditCategory(editMode.categoryId)
         : editMode.type === "add-item"
         ? () => handleAddItem(editMode.categoryId)
-        : () => handleEditItem(editMode.categoryId, editMode.item.id);
+        : editMode.type === "edit-item"
+        ? () => handleEditItem(editMode.categoryId, editMode.item.id)
+        : () => handleEditStatus(editMode.statusIndex);
 
-    const showDescription = editMode.type === "edit-item";
+    const showDescription = editMode.type === "edit-item" || editMode.type === "edit-status";
+    const showColor = editMode.type === "edit-status";
 
     return (
       <Modal visible transparent animationType="fade" onRequestClose={() => setEditMode({ type: "none" })}>
@@ -158,14 +181,29 @@ export default function LessonCardScreen() {
 
             {showDescription && (
               <TextInput
-                style={[styles.input, styles.textArea]}
-                placeholder="Beschrijving (optioneel)"
+                style={[styles.input, editMode.type === "edit-status" ? {} : styles.textArea]}
+                placeholder={editMode.type === "edit-status" ? "Label" : "Beschrijving (optioneel)"}
                 value={descriptionText}
                 onChangeText={setDescriptionText}
-                multiline
-                numberOfLines={4}
-                textAlignVertical="top"
+                multiline={editMode.type !== "edit-status"}
+                numberOfLines={editMode.type !== "edit-status" ? 4 : 1}
+                textAlignVertical={editMode.type !== "edit-status" ? "top" : "center"}
               />
+            )}
+
+            {showColor && (
+              <View>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Kleur (bijv. #3b82f6)"
+                  value={colorInput}
+                  onChangeText={setColorInput}
+                />
+                <View style={styles.colorPreview}>
+                  <View style={[styles.colorPreviewCircle, { backgroundColor: colorInput || "#d1d5db" }]} />
+                  <Text style={styles.colorPreviewText}>Voorbeeld kleur</Text>
+                </View>
+              </View>
             )}
 
             <View style={styles.modalActions}>
@@ -174,6 +212,7 @@ export default function LessonCardScreen() {
                 onPress={() => {
                   setInputText("");
                   setDescriptionText("");
+                  setColorInput("");
                   setEditMode({ type: "none" });
                 }}
               >
@@ -304,6 +343,35 @@ export default function LessonCardScreen() {
               </View>
             );
           })}
+
+          <View style={styles.statusConfigSection}>
+            <Text style={styles.sectionTitle}>Status Iconen</Text>
+            <Text style={styles.sectionSubtitle}>Pas de iconen, namen en kleuren van de statussen aan</Text>
+            <View style={styles.statusConfigList}>
+              {statusConfig.map((status, idx) => (
+                <View key={idx} style={styles.statusConfigItem}>
+                  <View style={[styles.statusIconCircle, { backgroundColor: status.color }]}>
+                    <Text style={styles.statusIconText}>{status.symbol}</Text>
+                  </View>
+                  <View style={styles.statusConfigInfo}>
+                    <Text style={styles.statusConfigLabel}>{status.label}</Text>
+                    <Text style={styles.statusConfigColor}>{status.color}</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.iconButton}
+                    onPress={() => {
+                      setInputText(status.symbol);
+                      setDescriptionText(status.label);
+                      setColorInput(status.color);
+                      setEditMode({ type: "edit-status", statusIndex: idx, status });
+                    }}
+                  >
+                    <Pencil size={18} color="#0ea5e9" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          </View>
 
           <TouchableOpacity
             style={styles.addCategoryButton}
@@ -509,5 +577,80 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: "#fff",
+  },
+  statusConfigSection: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#111827",
+    marginBottom: 4,
+  },
+  sectionSubtitle: {
+    fontSize: 13,
+    color: "#6b7280",
+    marginBottom: 16,
+  },
+  statusConfigList: {
+    gap: 12,
+  },
+  statusConfigItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    backgroundColor: "#f9fafb",
+    borderRadius: 8,
+    gap: 12,
+  },
+  statusIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  statusIconText: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#fff",
+  },
+  statusConfigInfo: {
+    flex: 1,
+  },
+  statusConfigLabel: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#111827",
+    marginBottom: 2,
+  },
+  statusConfigColor: {
+    fontSize: 12,
+    color: "#6b7280",
+  },
+  colorPreview: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 8,
+  },
+  colorPreviewCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+  },
+  colorPreviewText: {
+    fontSize: 13,
+    color: "#6b7280",
   },
 });

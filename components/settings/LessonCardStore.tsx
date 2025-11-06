@@ -14,7 +14,20 @@ export type LessonCardCategory = {
   items: LessonCardItem[];
 };
 
+export type StatusConfig = {
+  symbol: string;
+  label: string;
+  color: string;
+};
+
 const LESSON_CARD_KEY = "lesson_card_categories" as const;
+const STATUS_CONFIG_KEY = "lesson_card_status_config" as const;
+
+const defaultStatusConfig: StatusConfig[] = [
+  { symbol: "/", label: "Besproken", color: "#3b82f6" },
+  { symbol: "T", label: "In behandeling", color: "#f59e0b" },
+  { symbol: "X", label: "Goed", color: "#10b981" },
+];
 
 const defaultCategories: LessonCardCategory[] = [
   {
@@ -71,6 +84,7 @@ const defaultCategories: LessonCardCategory[] = [
 
 export const [LessonCardProvider, useLessonCard] = createContextHook(() => {
   const [categories, setCategories] = useState<LessonCardCategory[]>(defaultCategories);
+  const [statusConfig, setStatusConfig] = useState<StatusConfig[]>(defaultStatusConfig);
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
@@ -83,8 +97,15 @@ export const [LessonCardProvider, useLessonCard] = createContextHook(() => {
           setCategories(parsed);
           console.log("[LessonCardStore] Loaded categories", parsed.length);
         }
+        
+        const storedConfig = await AsyncStorage.getItem(STATUS_CONFIG_KEY);
+        if (storedConfig) {
+          const parsedConfig = JSON.parse(storedConfig) as StatusConfig[];
+          setStatusConfig(parsedConfig);
+          console.log("[LessonCardStore] Loaded status config", parsedConfig.length);
+        }
       } catch (e) {
-        console.error("[LessonCardStore] Failed to load categories", e);
+        console.error("[LessonCardStore] Failed to load data", e);
       } finally {
         setLoading(false);
       }
@@ -173,9 +194,19 @@ export const [LessonCardProvider, useLessonCard] = createContextHook(() => {
     [categories, updateCategories]
   );
 
+  const updateStatusConfig = useCallback(
+    async (config: StatusConfig[]) => {
+      console.log("[LessonCardStore] Updating status config", config.length);
+      setStatusConfig(config);
+      await AsyncStorage.setItem(STATUS_CONFIG_KEY, JSON.stringify(config));
+    },
+    []
+  );
+
   const value = useMemo(
     () => ({
       categories,
+      statusConfig,
       loading,
       addCategory,
       updateCategory,
@@ -183,8 +214,9 @@ export const [LessonCardProvider, useLessonCard] = createContextHook(() => {
       addItem,
       updateItem,
       deleteItem,
+      updateStatusConfig,
     }),
-    [categories, loading, addCategory, updateCategory, deleteCategory, addItem, updateItem, deleteItem]
+    [categories, statusConfig, loading, addCategory, updateCategory, deleteCategory, addItem, updateItem, deleteItem, updateStatusConfig]
   );
 
   return value;

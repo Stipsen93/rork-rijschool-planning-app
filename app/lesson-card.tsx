@@ -24,7 +24,7 @@ function formatDate(dateStr: string): string {
 function LessonCardPageComponent() {
   const params = useLocalSearchParams();
   const router = useRouter();
-  const { categories } = useLessonCard();
+  const { categories, statusConfig } = useLessonCard();
   const { getLessonCardData, updateItemStatus } = useLessonCardData();
   const { lessonsByDate } = useAgenda();
 
@@ -138,6 +138,8 @@ function LessonCardPageComponent() {
               <View style={styles.table}>
               {category.items.map((item, idx) => {
                 const status = getItemStatus(item.id);
+                const statusConfigItem = statusConfig.find((s) => s.symbol === status);
+                const statusColor = statusConfigItem?.color;
                 return (
                   <Pressable
                     key={item.id}
@@ -149,8 +151,11 @@ function LessonCardPageComponent() {
                     ]}
                   >
                     <Text style={styles.itemText}>{item.name}</Text>
-                    <View style={styles.statusBox}>
-                      {status && <Text style={styles.statusText}>{status}</Text>}
+                    <View style={[
+                      styles.statusBox,
+                      statusColor && { backgroundColor: statusColor + "15", borderColor: statusColor }
+                    ]}>
+                      {status && <Text style={[styles.statusText, statusColor && { color: statusColor }]}>{status}</Text>}
                     </View>
                   </Pressable>
                 );
@@ -166,6 +171,7 @@ function LessonCardPageComponent() {
           visible={true}
           onClose={() => setSelectedItemId(null)}
           currentStatus={getItemStatus(selectedItemId)}
+          statusConfig={statusConfig}
           onSelectStatus={(status) => {
             updateItemStatus(studentId, lessonId, lessonDate, selectedItemId, status);
             setSelectedItemId(null);
@@ -180,27 +186,22 @@ interface StatusSelectionModalProps {
   visible: boolean;
   onClose: () => void;
   currentStatus?: ItemStatus;
+  statusConfig: { symbol: string; label: string; color: string }[];
   onSelectStatus: (status?: ItemStatus) => void;
 }
 
-const statusOptions: { symbol: ItemStatus; label: string; color: string }[] = [
-  { symbol: "/", label: "Besproken", color: "#3b82f6" },
-  { symbol: "T", label: "In behandeling", color: "#f59e0b" },
-  { symbol: "X", label: "Goed", color: "#10b981" },
-];
-
-function StatusSelectionModal({ visible, onClose, currentStatus, onSelectStatus }: StatusSelectionModalProps) {
+function StatusSelectionModal({ visible, onClose, currentStatus, statusConfig, onSelectStatus }: StatusSelectionModalProps) {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.modalBackdrop} onPress={onClose} accessibilityRole="button">
         <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
           <Text style={styles.modalTitle}>Selecteer status</Text>
           <View style={styles.optionsContainer}>
-            {statusOptions.map((opt) => (
+            {statusConfig.map((opt) => (
               <Pressable
                 key={opt.symbol}
                 accessibilityRole="button"
-                onPress={() => onSelectStatus(opt.symbol)}
+                onPress={() => onSelectStatus(opt.symbol as ItemStatus)}
                 style={[
                   styles.optionBtn,
                   { borderColor: opt.color },
