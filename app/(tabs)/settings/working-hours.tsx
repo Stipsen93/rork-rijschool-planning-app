@@ -18,12 +18,13 @@ function showToast(msg: string, _color: string = "#16a34a") {
 }
 
 export default function WorkingHoursScreen() {
-  const { workingHours: storedHours, updateWorkingHours, vacationPeriods, addVacationPeriod, removeVacationPeriod, loading } = useWorkingHours();
+  const { workingHours: storedHours, updateWorkingHours, vacationPeriods, addVacationPeriod, updateVacationPeriod, removeVacationPeriod, loading } = useWorkingHours();
   const [workingHours, setWorkingHours] = useState<WorkingHours>(storedHours ?? defaultWorkingHours);
   const [expandedDay, setExpandedDay] = useState<DayKey | null>(null);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [timePickerFor, setTimePickerFor] = useState<null | { day: DayKey; group: "ranges" | "pauses"; index: number; part: "start" | "end"; current: string }>(null);
   const [showVacationModal, setShowVacationModal] = useState<boolean>(false);
+  const [editingVacation, setEditingVacation] = useState<VacationPeriod | null>(null);
   const insets = useSafeAreaInsets();
 
   React.useEffect(() => {
@@ -326,7 +327,15 @@ export default function WorkingHoursScreen() {
             ) : (
               <View style={styles.vacationList}>
                 {vacationPeriods.map((period) => (
-                  <VacationRow key={period.id} period={period} onRemove={() => removeVacationPeriod(period.id)} />
+                  <VacationRow
+                    key={period.id}
+                    period={period}
+                    onRemove={() => removeVacationPeriod(period.id)}
+                    onPress={() => {
+                      setEditingVacation(period);
+                      setShowVacationModal(true);
+                    }}
+                  />
                 ))}
               </View>
             )}
@@ -344,8 +353,13 @@ export default function WorkingHoursScreen() {
 
         <VacationModal
           visible={showVacationModal}
-          onClose={() => setShowVacationModal(false)}
+          onClose={() => {
+            setShowVacationModal(false);
+            setEditingVacation(null);
+          }}
           onAdd={addVacationPeriod}
+          onUpdate={updateVacationPeriod}
+          editingVacation={editingVacation}
         />
       </View>
     </ErrorBoundary>
@@ -401,17 +415,22 @@ function TimeField({ label, value, onPress }: { label: string; value: string; on
   );
 }
 
-function VacationRow({ period, onRemove }: { period: VacationPeriod; onRemove: () => void }) {
+function VacationRow({ period, onRemove, onPress }: { period: VacationPeriod; onRemove: () => void; onPress: () => void }) {
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
-    const day = date.getDate();
-    const month = date.getMonth() + 1;
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
     const year = date.getFullYear();
-    return `${day}-${month}-${year}`;
+    return `${day}/${month}/${year}`;
   };
 
   return (
-    <View style={styles.vacationRow}>
+    <TouchableOpacity
+      style={styles.vacationRow}
+      onPress={onPress}
+      activeOpacity={0.7}
+      accessibilityRole="button"
+    >
       <View style={styles.vacationDates}>
         <Text style={styles.vacationDateText}>
           {formatDate(period.startDate)} tot {formatDate(period.endDate)}
@@ -421,18 +440,21 @@ function VacationRow({ period, onRemove }: { period: VacationPeriod; onRemove: (
         )}
       </View>
       <TouchableOpacity
-        onPress={onRemove}
+        onPress={(e) => {
+          e.stopPropagation();
+          onRemove();
+        }}
         style={styles.vacationActions}
         accessibilityRole="button"
         testID="remove-vacation"
       >
         <Trash2 color="#ef4444" size={18} />
       </TouchableOpacity>
-    </View>
+    </TouchableOpacity>
   );
 }
 
-function VacationModal({ visible, onClose, onAdd }: { visible: boolean; onClose: () => void; onAdd: (period: Omit<VacationPeriod, "id">) => Promise<void> }) {
+function VacationModal({ visible, onClose, onAdd, onUpdate, editingVacation }: { visible: boolean; onClose: () => void; onAdd: (period: Omit<VacationPeriod, "id">) => Promise<void>; onUpdate: (id: string, period: Omit<VacationPeriod, "id">) => Promise<void>; editingVacation?: VacationPeriod | null }) {
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [repeatAnnually, setRepeatAnnually] = useState<boolean>(false);
@@ -440,15 +462,27 @@ function VacationModal({ visible, onClose, onAdd }: { visible: boolean; onClose:
   const [showEndDatePicker, setShowEndDatePicker] = useState<boolean>(false);
   const insets = useSafeAreaInsets();
 
+  const formatDateDDMMYYYY = (iso: string) => {
+    if (!iso) return "";
+    const [y, m, d] = iso.split("-");
+    return `${d}/${m}/${y}`;
+  };
+
   React.useEffect(() => {
     if (visible) {
-      const today = new Date();
-      const formatted = today.toISOString().split("T")[0] ?? "";
-      setStartDate(formatted);
-      setEndDate(formatted);
-      setRepeatAnnually(false);
+      if (editingVacation) {
+        setStartDate(editingVacation.startDate);
+        setEndDate(editingVacation.endDate);
+        setRepeatAnnually(editingVacation.repeatAnnually);
+      } else {
+        const today = new Date();
+        const formatted = today.toISOString().split("T")[0] ?? "";
+        setStartDate(formatted);
+        setEndDate(formatted);
+        setRepeatAnnually(false);
+      }
     }
-  }, [visible]);
+  }, [visible, editingVacation]);
 
   const handleAdd = async () => {
     if (!startDate || !endDate) {
@@ -461,11 +495,16 @@ function VacationModal({ visible, onClose, onAdd }: { visible: boolean; onClose:
       return;
     }
 
-    await onAdd({ startDate, endDate, repeatAnnually });
+    if (editingVacation) {
+      await onUpdate(editingVacation.id, { startDate, endDate, repeatAnnually });
+      showToast("Vakantie aangepast");
+    } else {
+      await onAdd({ startDate, endDate, repeatAnnually });
+      showToast("Vakantie toegevoegd");
+    }
     if (Platform.OS !== "web") {
       try { await Haptics.selectionAsync(); } catch {}
     }
-    showToast("Vakantie toegevoegd");
     onClose();
   };
 
@@ -498,7 +537,7 @@ function VacationModal({ visible, onClose, onAdd }: { visible: boolean; onClose:
       <Pressable style={styles.vacationModalBackdrop} onPress={onClose} />
       <View style={[styles.vacationModalSheet, { paddingBottom: insets.bottom + 20 }]}>
         <View style={styles.vacationModalHeader}>
-          <Text style={styles.vacationModalTitle}>Vakantie toevoegen</Text>
+          <Text style={styles.vacationModalTitle}>{editingVacation ? "Vakantie aanpassen" : "Vakantie toevoegen"}</Text>
           <TouchableOpacity onPress={onClose} accessibilityRole="button">
             <Text style={{ color: "#0ea5e9", fontWeight: "600" }}>Sluiten</Text>
           </TouchableOpacity>
@@ -514,7 +553,7 @@ function VacationModal({ visible, onClose, onAdd }: { visible: boolean; onClose:
             style={styles.vacationDateInput}
           >
             <CalendarDays size={16} color="#2563eb" />
-            <Text style={styles.vacationDateText}>{startDate}</Text>
+            <Text style={styles.vacationDateText}>{startDate ? formatDateDDMMYYYY(startDate) : ""}</Text>
           </TouchableOpacity>
           {showStartDatePicker && (
             <Modal visible animationType="fade" transparent>
@@ -549,7 +588,7 @@ function VacationModal({ visible, onClose, onAdd }: { visible: boolean; onClose:
             style={styles.vacationDateInput}
           >
             <CalendarDays size={16} color="#2563eb" />
-            <Text style={styles.vacationDateText}>{endDate}</Text>
+            <Text style={styles.vacationDateText}>{endDate ? formatDateDDMMYYYY(endDate) : ""}</Text>
           </TouchableOpacity>
           {showEndDatePicker && (
             <Modal visible animationType="fade" transparent>
@@ -593,7 +632,7 @@ function VacationModal({ visible, onClose, onAdd }: { visible: boolean; onClose:
             accessibilityRole="button"
             testID="save-vacation"
           >
-            <Text style={styles.vacationModalSaveText}>Toevoegen</Text>
+            <Text style={styles.vacationModalSaveText}>{editingVacation ? "Opslaan" : "Toevoegen"}</Text>
           </TouchableOpacity>
         </View>
       </View>

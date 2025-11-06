@@ -171,6 +171,11 @@ export const [WorkingHoursProvider, useWorkingHours] = createContextHook(() => {
     await updateVacationPeriods(updated);
   }, [vacationPeriods, updateVacationPeriods]);
 
+  const updateVacationPeriod = React.useCallback(async (id: string, period: Omit<VacationPeriod, "id">) => {
+    const updated = vacationPeriods.map(p => p.id === id ? { ...period, id } : p);
+    await updateVacationPeriods(updated);
+  }, [vacationPeriods, updateVacationPeriods]);
+
   const removeVacationPeriod = React.useCallback(async (id: string) => {
     const updated = vacationPeriods.filter((p) => p.id !== id);
     await updateVacationPeriods(updated);
@@ -188,11 +193,12 @@ export const [WorkingHoursProvider, useWorkingHours] = createContextHook(() => {
       vacationPeriods,
       updateVacationPeriods,
       addVacationPeriod,
+      updateVacationPeriod,
       removeVacationPeriod,
       loading,
       enabledDays,
     }),
-    [workingHours, updateWorkingHours, vacationPeriods, updateVacationPeriods, addVacationPeriod, removeVacationPeriod, loading, enabledDays]
+    [workingHours, updateWorkingHours, vacationPeriods, updateVacationPeriods, addVacationPeriod, updateVacationPeriod, removeVacationPeriod, loading, enabledDays]
   );
 
   return value;
