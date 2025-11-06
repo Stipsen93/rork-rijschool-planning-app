@@ -10,6 +10,7 @@ import { WorkingHoursProvider } from "@/components/settings/WorkingHoursStore";
 import { SettingsProvider } from "@/components/settings/SettingsStore";
 import { StudentsProvider } from "@/components/students/StudentsStore";
 import { ProfileProvider } from "@/components/settings/ProfileStore";
+import { LessonCardProvider } from "@/components/settings/LessonCardStore";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -37,13 +38,15 @@ export default function RootLayout() {
         <GestureHandlerRootView style={{ flex: 1 }}>
           <ProfileProvider>
             <SettingsProvider>
-              <WorkingHoursProvider>
-                <AgendaProvider>
-                  <StudentsProvider>
-                    <RootLayoutNav />
-                  </StudentsProvider>
-                </AgendaProvider>
-              </WorkingHoursProvider>
+              <LessonCardProvider>
+                <WorkingHoursProvider>
+                  <AgendaProvider>
+                    <StudentsProvider>
+                      <RootLayoutNav />
+                    </StudentsProvider>
+                  </AgendaProvider>
+                </WorkingHoursProvider>
+              </LessonCardProvider>
             </SettingsProvider>
           </ProfileProvider>
         </GestureHandlerRootView>

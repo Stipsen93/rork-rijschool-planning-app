@@ -11,6 +11,7 @@ export default function SettingsStackLayout() {
       <Stack.Screen name="packages-hours" options={{ title: "Pakketten/Uren" }} />
       <Stack.Screen name="student-configuration" options={{ title: "Leerling Configuratie" }} />
       <Stack.Screen name="availability-rules" options={{ title: "Beschikbaarheid regels" }} />
+      <Stack.Screen name="lesson-card" options={{ title: "Leskaart" }} />
     </Stack>
   );
 }
