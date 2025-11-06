@@ -2,7 +2,7 @@ import React from "react";
 import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, Stack } from "expo-router";
-import { User, ChevronRight, Clock, Boxes, Cog, CalendarRange, ArrowLeft, FileText } from "lucide-react-native";
+import { User, ChevronRight, Clock, Boxes, Cog, CalendarRange, ArrowLeft, FileText, Bell } from "lucide-react-native";
 
 export default function SettingsScreen() {
   const [refreshing, setRefreshing] = React.useState<boolean>(false);
@@ -174,6 +174,25 @@ export default function SettingsScreen() {
         <View style={styles.itemTextWrap}>
           <Text style={styles.itemTitle}>Leskaart</Text>
           <Text style={styles.itemSubtitle}>Categorieën en lesonderdelen</Text>
+        </View>
+        <ChevronRight color="#9ca3af" />
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        testID="settings-notifications"
+        style={styles.item}
+        onPress={() => {
+          console.log("Navigating to Meldingen");
+          router.push("/(tabs)/settings/notifications");
+        }}
+        accessibilityRole="button"
+      >
+        <View style={styles.itemIconWrap}>
+          <Bell color="#0ea5e9" size={22} />
+        </View>
+        <View style={styles.itemTextWrap}>
+          <Text style={styles.itemTitle}>Meldingen</Text>
+          <Text style={styles.itemSubtitle}>Apparaatmeldingen en herinneringen</Text>
         </View>
         <ChevronRight color="#9ca3af" />
       </TouchableOpacity>
