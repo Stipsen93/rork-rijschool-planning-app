@@ -203,7 +203,9 @@ function StatusSelectionModal({ visible, onClose, currentStatus, onSelectStatus 
                 onPress={() => onSelectStatus(opt.symbol)}
                 style={[
                   styles.optionBtn,
+                  { borderColor: opt.color },
                   currentStatus === opt.symbol && styles.optionBtnSelected,
+                  currentStatus === opt.symbol && { backgroundColor: opt.color + "15" },
                 ]}
               >
                 <View style={[styles.symbolCircle, { backgroundColor: opt.color }]}>
@@ -325,11 +327,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 12,
     borderRadius: 8,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: "#e5e7eb",
     gap: 12,
   },
-  optionBtnSelected: { borderColor: "#2f95dc", backgroundColor: "#eff6ff" },
+  optionBtnSelected: { borderWidth: 2 },
   symbolCircle: {
     width: 48,
     height: 48,
