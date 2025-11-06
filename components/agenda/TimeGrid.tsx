@@ -415,7 +415,7 @@ function Inner({ date, onLessonPress, onSwipeLeft, onSwipeRight }: TimeGridProps
           
           {isVacation && (
             <View style={styles.vacationOverlay}>
-              <View style={[styles.lessonCardPositioned, { top: ((12 * 60 - startHour * 60) / 60) * 80, height: 76, width: '100%' }]}>
+              <View style={[styles.lessonCardPositioned, { top: 0, height: ((24 * 60) / 60) * 80 - 4, width: '100%' }]}>
                 <View style={[styles.vacationCard]}>
                   <Text style={styles.vacationCardText}>🏖️ Vakantie</Text>
                 </View>
