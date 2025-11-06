@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -7,9 +7,10 @@ import {
   RefreshControl,
   Alert,
   TouchableOpacity,
+  Modal,
 } from "react-native";
 import { Stack, useRouter } from "expo-router";
-import { BookOpen, History, MessageCircle } from "lucide-react-native";
+import { BookOpen, History, MessageCircle, Settings, LogOut, X } from "lucide-react-native";
 import { useStudent } from "@/components/student/StudentStore";
 import StudentHeader from "@/components/student/overview/StudentHeader";
 import NextLessonCard from "@/components/student/overview/NextLessonCard";
@@ -28,6 +29,8 @@ export default function StudentOverviewScreen() {
     refreshData,
     toggleActivityExpansion,
   } = useStudent();
+
+  const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
 
   useEffect(() => {
     loadData();
@@ -102,10 +105,45 @@ export default function StudentOverviewScreen() {
     );
   };
 
+  const handleLogout = () => {
+    Alert.alert(
+      "Uitloggen",
+      "Weet je zeker dat je wilt uitloggen?",
+      [
+        {
+          text: "Annuleren",
+          style: "cancel",
+        },
+        {
+          text: "Uitloggen",
+          style: "destructive",
+          onPress: () => {
+            setShowSettingsModal(false);
+            router.replace("/login");
+          },
+        },
+      ]
+    );
+  };
+
   if (isLoading && !isRefreshing) {
     return (
       <View style={styles.loadingContainer}>
-        <Stack.Screen options={{ headerShown: false }} />
+        <Stack.Screen
+          options={{
+            headerShown: true,
+            headerTransparent: true,
+            headerTitle: "",
+            headerRight: () => (
+              <TouchableOpacity
+                style={styles.settingsButton}
+                onPress={() => setShowSettingsModal(true)}
+              >
+                <Settings color="#2563EB" size={24} />
+              </TouchableOpacity>
+            ),
+          }}
+        />
         <Text style={styles.loadingText}>Laden...</Text>
       </View>
     );
@@ -113,7 +151,21 @@ export default function StudentOverviewScreen() {
 
   return (
     <View style={styles.container}>
-      <Stack.Screen options={{ headerShown: false }} />
+      <Stack.Screen
+        options={{
+          headerShown: true,
+          headerTransparent: true,
+          headerTitle: "",
+          headerRight: () => (
+            <TouchableOpacity
+              style={styles.settingsButton}
+              onPress={() => setShowSettingsModal(true)}
+            >
+              <Settings color="#2563EB" size={24} />
+            </TouchableOpacity>
+          ),
+        }}
+      />
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -165,6 +217,38 @@ export default function StudentOverviewScreen() {
           </TouchableOpacity>
         </View>
       </View>
+
+      <Modal
+        visible={showSettingsModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowSettingsModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Instellingen</Text>
+              <TouchableOpacity
+                onPress={() => setShowSettingsModal(false)}
+                style={styles.closeButton}
+              >
+                <X color="#6b7280" size={24} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalBody}>
+              <TouchableOpacity
+                style={styles.logoutButton}
+                onPress={handleLogout}
+                activeOpacity={0.7}
+              >
+                <LogOut color="#EF4444" size={20} />
+                <Text style={styles.logoutButtonText}>Uitloggen</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -232,5 +316,58 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+  },
+  settingsButton: {
+    marginRight: 16,
+    padding: 8,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+  },
+  modalContent: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingBottom: 32,
+    minHeight: 200,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "700" as const,
+    color: "#1f2937",
+  },
+  closeButton: {
+    padding: 4,
+  },
+  modalBody: {
+    paddingHorizontal: 24,
+    paddingTop: 24,
+  },
+  logoutButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: "#FEE2E2",
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#FECACA",
+  },
+  logoutButtonText: {
+    fontSize: 16,
+    fontWeight: "600" as const,
+    color: "#EF4444",
   },
 });
