@@ -47,7 +47,7 @@ function StudentActivityDashboardComponent({ studentActivity }: Props) {
     const hours = totalMinutes / 60;
     const lessonDur = lessonConfig.baseLessonDuration || 60;
     const maxLessonsPerWeek = Math.floor(totalMinutes / lessonDur);
-    const diff = maxLessonsPerWeek - studentActivity.activeStudents.length;
+    const diff = maxLessonsPerWeek - studentActivity.nonActiveStudents.length;
 
     return {
       weeklyHours: hours,
@@ -56,7 +56,7 @@ function StudentActivityDashboardComponent({ studentActivity }: Props) {
       maxLessons: maxLessonsPerWeek,
       capacityDiff: diff,
     };
-  }, [workingHours, lessonConfig.baseLessonDuration, studentActivity.activeStudents.length]);
+  }, [workingHours, lessonConfig.baseLessonDuration, studentActivity.nonActiveStudents.length]);
 
   const toggle = useCallback((key: string) => {
     setExpanded((prev) => (prev === key ? null : key));
