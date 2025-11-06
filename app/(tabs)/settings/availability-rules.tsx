@@ -166,11 +166,6 @@ export default function AvailabilityRulesScreen() {
           </View>
         </SectionCard>
 
-        <TouchableOpacity onPress={save} style={styles.primaryBtn} testID="save-rules">
-          <Save size={20} color="#fff" strokeWidth={2.5} />
-          <Text style={styles.primaryBtnText}>Regels Opslaan</Text>
-        </TouchableOpacity>
-
         <View style={{ height: 40 }} />
       </ScrollView>
     </View>
