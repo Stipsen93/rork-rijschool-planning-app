@@ -1,5 +1,6 @@
 import React, { memo, useMemo } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { useWorkingHours, type VacationPeriod } from "@/components/settings/WorkingHoursStore";
 
 export interface MonthlyViewProps {
   focusedDay: Date;
@@ -16,6 +17,30 @@ function keyFor(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
+function isDateInVacation(date: Date, vacationPeriods: VacationPeriod[]): boolean {
+  const currentYear = date.getFullYear();
+  const currentMonth = date.getMonth();
+  const currentDay = date.getDate();
+  const dateKey = keyFor(date);
+  
+  return vacationPeriods.some((vacation) => {
+    const startDate = new Date(vacation.startDate);
+    const endDate = new Date(vacation.endDate);
+    
+    if (vacation.repeatAnnually) {
+      const vacationStartInCurrentYear = new Date(currentYear, startDate.getMonth(), startDate.getDate());
+      const vacationEndInCurrentYear = new Date(currentYear, endDate.getMonth(), endDate.getDate());
+      
+      const compareDate = new Date(currentYear, currentMonth, currentDay);
+      return compareDate >= vacationStartInCurrentYear && compareDate <= vacationEndInCurrentYear;
+    } else {
+      const startKey = keyFor(startDate);
+      const endKey = keyFor(endDate);
+      return dateKey >= startKey && dateKey <= endKey;
+    }
+  });
+}
+
 function getMonthMatrix(focused: Date): Date[] {
   const first = new Date(focused.getFullYear(), focused.getMonth(), 1);
   const start = new Date(first);
@@ -28,6 +53,7 @@ function MonthlyViewComponent({ focusedDay, selectedDay, onDaySelected, lessons,
   const days = useMemo(() => getMonthMatrix(focusedDay), [focusedDay.getFullYear(), focusedDay.getMonth()]);
   const sameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
   const inMonth = (d: Date) => d.getMonth() === focusedDay.getMonth();
+  const { vacationPeriods } = useWorkingHours();
 
   const legend = [
     { label: "Rijles", color: "#2f95dc" },
@@ -59,6 +85,7 @@ function MonthlyViewComponent({ focusedDay, selectedDay, onDaySelected, lessons,
             const events = lessons[keyFor(d)] ?? [];
             const selected = sameDay(d, selectedDay);
             const today = sameDay(d, new Date());
+            const isVacation = isDateInVacation(d, vacationPeriods);
             return (
               <Pressable
                 key={keyFor(d)}
@@ -67,7 +94,11 @@ function MonthlyViewComponent({ focusedDay, selectedDay, onDaySelected, lessons,
                 accessibilityRole="button"
               >
                 <View
-                  style={[styles.dayCircle, selected ? styles.selected : today ? styles.today : undefined]}
+                  style={[
+                    styles.dayCircle,
+                    selected ? styles.selected : today ? styles.today : undefined,
+                    isVacation && styles.dayVacation
+                  ]}
                 >
                   <Text style={[styles.dayText, selected ? { color: "#fff" } : undefined]}>{d.getDate()}</Text>
                 </View>
@@ -153,4 +184,5 @@ const styles = StyleSheet.create({
   marker: { width: 6, height: 6, borderRadius: 3 },
   legendItem: { flexDirection: "row", alignItems: "center", marginRight: 16, marginBottom: 8 },
   legendDot: { width: 12, height: 12, borderRadius: 6 },
+  dayVacation: { borderColor: "#ef4444", borderWidth: 2 },
 });
