@@ -11,6 +11,9 @@ export interface DayStripProps {
 
 function isDateInVacation(date: Date, vacationPeriods: VacationPeriod[]): boolean {
   const currentYear = date.getFullYear();
+  const currentMonth = date.getMonth();
+  const currentDay = date.getDate();
+  const dateKey = keyFor(date);
   
   return vacationPeriods.some((vacation) => {
     const startDate = new Date(vacation.startDate);
@@ -20,9 +23,12 @@ function isDateInVacation(date: Date, vacationPeriods: VacationPeriod[]): boolea
       const vacationStartInCurrentYear = new Date(currentYear, startDate.getMonth(), startDate.getDate());
       const vacationEndInCurrentYear = new Date(currentYear, endDate.getMonth(), endDate.getDate());
       
-      return date >= vacationStartInCurrentYear && date <= vacationEndInCurrentYear;
+      const compareDate = new Date(currentYear, currentMonth, currentDay);
+      return compareDate >= vacationStartInCurrentYear && compareDate <= vacationEndInCurrentYear;
     } else {
-      return date >= startDate && date <= endDate;
+      const startKey = keyFor(startDate);
+      const endKey = keyFor(endDate);
+      return dateKey >= startKey && dateKey <= endKey;
     }
   });
 }
