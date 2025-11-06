@@ -88,7 +88,7 @@ function StudentActivityDashboardComponent({ studentActivity }: Props) {
           style={[styles.capacityBadge, { backgroundColor: capacityDiff >= 0 ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)", borderColor: capacityDiff >= 0 ? "#22c55e66" : "#ef444466" }]}
         >
           <Text style={{ color: capacityDiff >= 0 ? "#22c55e" : "#ef4444", fontWeight: "800" }}>
-            {`Aantal leerlingen erbij ${Math.abs(capacityDiff)}`}
+            {capacityDiff >= 0 ? `Aantal leerlingen erbij ${capacityDiff}` : `Aantal leerlingen teveel ${Math.abs(capacityDiff)}`}
           </Text>
         </View>
       </View>
