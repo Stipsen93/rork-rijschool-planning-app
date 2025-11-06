@@ -13,6 +13,7 @@ import { ProfileProvider } from "@/components/settings/ProfileStore";
 import { LessonCardProvider } from "@/components/settings/LessonCardStore";
 import { LessonCardDataProvider } from "@/components/lesson-card/LessonCardDataStore";
 import { NotificationsProvider } from "@/components/settings/NotificationsStore";
+import { StudentProvider } from "@/components/student/StudentStore";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -24,6 +25,7 @@ function RootLayoutNav() {
     <Stack screenOptions={{ headerBackTitle: "Terug" }}>
       <Stack.Screen name="login" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="(student-tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="add-lesson" options={{ presentation: "modal", title: "Les toevoegen" }} />
       <Stack.Screen name="lesson-cancellation-screen" options={{ presentation: "modal", title: "Les annuleren" }} />
       <Stack.Screen name="lesson-card" options={{ presentation: "modal" }} />
@@ -48,7 +50,9 @@ export default function RootLayout() {
                     <WorkingHoursProvider>
                       <AgendaProvider>
                         <StudentsProvider>
-                          <RootLayoutNav />
+                          <StudentProvider>
+                            <RootLayoutNav />
+                          </StudentProvider>
                         </StudentsProvider>
                       </AgendaProvider>
                     </WorkingHoursProvider>

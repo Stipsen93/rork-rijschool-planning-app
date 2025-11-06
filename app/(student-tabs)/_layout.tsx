@@ -1,13 +1,9 @@
-// template
-import { Tabs, useRouter, useSegments } from "expo-router";
-import { Calendar, LayoutDashboard, Settings, Users } from "lucide-react-native";
+import { Tabs } from "expo-router";
+import { Calendar, LayoutDashboard, User } from "lucide-react-native";
 import React from "react";
 import { Platform } from "react-native";
 
-export default function TabLayout() {
-  const router = useRouter();
-  const segments = useSegments();
-
+export default function StudentTabLayout() {
   return (
     <Tabs
       screenOptions={{
@@ -33,15 +29,15 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
-        name="agenda"
+        name="planning"
         options={{
-          title: "Agenda",
-          tabBarLabel: "Agenda",
+          title: "Planning",
+          tabBarLabel: "Planning",
           tabBarIcon: ({ color }) => <Calendar color={color} size={25.2} />,
         }}
       />
       <Tabs.Screen
-        name="overview"
+        name="student-overview"
         options={{
           title: "Overzicht",
           tabBarLabel: "Overzicht",
@@ -49,27 +45,11 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="students"
+        name="profile"
         options={{
-          title: "Leerlingen",
-          tabBarLabel: "Leerlingen",
-          tabBarIcon: ({ color }) => <Users color={color} size={25.2} />,
-        }}
-        listeners={{
-          tabPress: (e) => {
-            if (segments.length > 0 && segments[0] === "students" && segments.length > 1) {
-              e.preventDefault();
-              router.push("/students");
-            }
-          },
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          title: "Instellingen",
-          href: null,
-          tabBarIcon: ({ color }) => <Settings color={color} size={25.2} />,
+          title: "Profiel",
+          tabBarLabel: "Profiel",
+          tabBarIcon: ({ color }) => <User color={color} size={25.2} />,
         }}
       />
     </Tabs>

@@ -88,8 +88,20 @@ export default function LoginScreen() {
     try {
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      console.log("Login successful, navigating to dashboard");
-      router.replace("/(tabs)/");
+      const trimmedEmail = email.trim().toLowerCase();
+      const isStudent = trimmedEmail.includes("student");
+
+      console.log(
+        "Login successful, navigating to",
+        isStudent ? "student" : "instructor",
+        "dashboard"
+      );
+
+      if (isStudent) {
+        router.replace("/(student-tabs)/student-overview");
+      } else {
+        router.replace("/(tabs)/overview");
+      }
     } catch (error) {
       console.error("Login error:", error);
       Alert.alert(
