@@ -575,12 +575,12 @@ const styles = StyleSheet.create({
   lessonCardButton: {
     paddingVertical: 14,
     borderRadius: 12,
-    backgroundColor: "#fff",
+    backgroundColor: "#2f95dc",
     borderWidth: 1,
-    borderColor: "#e5e7eb",
+    borderColor: "#2f95dc",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 12,
   },
-  lessonCardButtonText: { color: "#111827", fontWeight: "700", fontSize: 16 },
+  lessonCardButtonText: { color: "#fff", fontWeight: "700", fontSize: 16 },
 });
