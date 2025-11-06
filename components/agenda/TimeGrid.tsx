@@ -159,19 +159,25 @@ function AnimatedLessonItem({ lesson, index, onPress, startHour, columnIndex, to
 }
 
 function isDateInVacation(date: Date, vacationPeriods: VacationPeriod[]): boolean {
-  const currentYear = date.getFullYear();
+  const checkYear = date.getFullYear();
+  const checkMonth = date.getMonth();
+  const checkDay = date.getDate();
+  const checkDateOnly = new Date(checkYear, checkMonth, checkDay, 0, 0, 0, 0);
   
   return vacationPeriods.some((vacation) => {
     const startDate = new Date(vacation.startDate);
     const endDate = new Date(vacation.endDate);
     
     if (vacation.repeatAnnually) {
-      const vacationStartInCurrentYear = new Date(currentYear, startDate.getMonth(), startDate.getDate());
-      const vacationEndInCurrentYear = new Date(currentYear, endDate.getMonth(), endDate.getDate());
+      const vacationStartInCurrentYear = new Date(checkYear, startDate.getMonth(), startDate.getDate(), 0, 0, 0, 0);
+      const vacationEndInCurrentYear = new Date(checkYear, endDate.getMonth(), endDate.getDate(), 0, 0, 0, 0);
       
-      return date >= vacationStartInCurrentYear && date <= vacationEndInCurrentYear;
+      return checkDateOnly >= vacationStartInCurrentYear && checkDateOnly <= vacationEndInCurrentYear;
     } else {
-      return date >= startDate && date <= endDate;
+      const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate(), 0, 0, 0, 0);
+      const endDateOnly = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate(), 0, 0, 0, 0);
+      
+      return checkDateOnly >= startDateOnly && checkDateOnly <= endDateOnly;
     }
   });
 }
@@ -409,7 +415,7 @@ function Inner({ date, onLessonPress, onSwipeLeft, onSwipeRight }: TimeGridProps
           
           {isVacation && (
             <View style={styles.vacationOverlay}>
-              <View style={[styles.lessonCardPositioned, { top: ((12 * 60 - startHour * 60) / 60) * 80, height: 60 }]}>
+              <View style={[styles.lessonCardPositioned, { top: ((12 * 60 - startHour * 60) / 60) * 80, height: 76, width: '100%' }]}>
                 <View style={[styles.vacationCard]}>
                   <Text style={styles.vacationCardText}>🏖️ Vakantie</Text>
                 </View>
@@ -618,6 +624,7 @@ const styles = StyleSheet.create({
     borderColor: "#ef4444",
     alignItems: "center",
     justifyContent: "center",
+    flex: 1,
   },
   vacationCardText: {
     fontSize: 14,
