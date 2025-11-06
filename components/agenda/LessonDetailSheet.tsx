@@ -383,6 +383,30 @@ function LessonDetailSheetComponent({ lesson, onClose, onEdit, onCancel }: Lesso
             </View>
           )}
 
+          {lesson.lessonType !== "Pauze" && lesson.lessonType !== "Verlof" && (
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => {
+                const studentId = lesson.studentId || lesson.studentName;
+                if (studentId) {
+                  router.push({
+                    pathname: "/lesson-card",
+                    params: {
+                      studentId,
+                      studentName,
+                      lessonId: lesson.id,
+                      lessonDate: lesson.date.toISOString(),
+                    },
+                  });
+                }
+              }}
+              style={styles.lessonCardButton}
+              testID="open-lesson-card"
+            >
+              <Text style={styles.lessonCardButtonText}>Leskaart</Text>
+            </Pressable>
+          )}
+
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Recente lessen</Text>
             {recentLessons.length === 0 ? (
@@ -548,4 +572,15 @@ const styles = StyleSheet.create({
   deleteModalButtonText: { color: "#fff", fontWeight: "700" },
   deleteModalButtonCancel: { backgroundColor: "#f3f4f6" },
   deleteModalButtonCancelText: { color: "#111827" },
+  lessonCardButton: {
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+  },
+  lessonCardButtonText: { color: "#111827", fontWeight: "700", fontSize: 16 },
 });
