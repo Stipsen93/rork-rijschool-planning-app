@@ -37,6 +37,7 @@ export default function AgendaScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      setShowMonthly(false);
       return () => {
         setSelectedLesson(null);
       };
@@ -104,7 +105,7 @@ export default function AgendaScreen() {
                 currentDate={currentDate}
                 onPreviousWeek={onPrevWeek}
                 onNextWeek={onNextWeek}
-                onMonthlyView={() => setShowMonthly(true)}
+                onMonthlyView={() => setShowMonthly(prev => !prev)}
               />
             </View>
             <View style={styles.stickyHeaderInnerBottom}>
