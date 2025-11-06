@@ -17,7 +17,7 @@ export default function SettingsScreen() {
             <TouchableOpacity
               onPress={() => {
                 console.log("Navigating back to Overview");
-                router.push("/(tabs)/");
+                router.push("/");
               }}
               style={{ marginLeft: 8, padding: 8 }}
             >
