@@ -8,6 +8,8 @@ import {
   Alert,
   TouchableOpacity,
   Modal,
+  Animated,
+  TouchableWithoutFeedback,
 } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import { BookOpen, History, MessageCircle, Settings, LogOut, X } from "lucide-react-native";
@@ -30,7 +32,8 @@ export default function StudentOverviewScreen() {
     toggleActivityExpansion,
   } = useStudent();
 
-  const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
+  const [showSettingsMenu, setShowSettingsMenu] = useState<boolean>(false);
+  const slideAnim = useState(new Animated.Value(300))[0];
 
   useEffect(() => {
     loadData();
@@ -105,6 +108,26 @@ export default function StudentOverviewScreen() {
     );
   };
 
+  const openMenu = () => {
+    setShowSettingsMenu(true);
+    Animated.spring(slideAnim, {
+      toValue: 0,
+      useNativeDriver: true,
+      tension: 65,
+      friction: 10,
+    }).start();
+  };
+
+  const closeMenu = () => {
+    Animated.timing(slideAnim, {
+      toValue: 300,
+      duration: 250,
+      useNativeDriver: true,
+    }).start(() => {
+      setShowSettingsMenu(false);
+    });
+  };
+
   const handleLogout = () => {
     Alert.alert(
       "Uitloggen",
@@ -118,7 +141,7 @@ export default function StudentOverviewScreen() {
           text: "Uitloggen",
           style: "destructive",
           onPress: () => {
-            setShowSettingsModal(false);
+            closeMenu();
             router.replace("/login");
           },
         },
@@ -137,7 +160,7 @@ export default function StudentOverviewScreen() {
             headerRight: () => (
               <TouchableOpacity
                 style={styles.settingsButton}
-                onPress={() => setShowSettingsModal(true)}
+                onPress={openMenu}
               >
                 <Settings color="#2563EB" size={24} />
               </TouchableOpacity>
@@ -159,7 +182,7 @@ export default function StudentOverviewScreen() {
           headerRight: () => (
             <TouchableOpacity
               style={styles.settingsButton}
-              onPress={() => setShowSettingsModal(true)}
+              onPress={openMenu}
             >
               <Settings color="#2563EB" size={24} />
             </TouchableOpacity>
@@ -219,35 +242,43 @@ export default function StudentOverviewScreen() {
       </View>
 
       <Modal
-        visible={showSettingsModal}
-        animationType="slide"
+        visible={showSettingsMenu}
+        animationType="none"
         transparent
-        onRequestClose={() => setShowSettingsModal(false)}
+        onRequestClose={closeMenu}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Instellingen</Text>
-              <TouchableOpacity
-                onPress={() => setShowSettingsModal(false)}
-                style={styles.closeButton}
+        <TouchableWithoutFeedback onPress={closeMenu}>
+          <View style={styles.drawerOverlay}>
+            <TouchableWithoutFeedback>
+              <Animated.View
+                style={[
+                  styles.drawerMenu,
+                  {
+                    transform: [{ translateX: slideAnim }],
+                  },
+                ]}
               >
-                <X color="#6b7280" size={24} />
-              </TouchableOpacity>
-            </View>
+                <View style={styles.drawerHeader}>
+                  <Text style={styles.drawerTitle}>Instellingen</Text>
+                  <TouchableOpacity onPress={closeMenu} style={styles.closeButton}>
+                    <X color="#6b7280" size={24} />
+                  </TouchableOpacity>
+                </View>
 
-            <View style={styles.modalBody}>
-              <TouchableOpacity
-                style={styles.logoutButton}
-                onPress={handleLogout}
-                activeOpacity={0.7}
-              >
-                <LogOut color="#EF4444" size={20} />
-                <Text style={styles.logoutButtonText}>Uitloggen</Text>
-              </TouchableOpacity>
-            </View>
+                <View style={styles.drawerBody}>
+                  <TouchableOpacity
+                    style={styles.logoutButton}
+                    onPress={handleLogout}
+                    activeOpacity={0.7}
+                  >
+                    <LogOut color="#EF4444" size={20} />
+                    <Text style={styles.logoutButtonText}>Uitloggen</Text>
+                  </TouchableOpacity>
+                </View>
+              </Animated.View>
+            </TouchableWithoutFeedback>
           </View>
-        </View>
+        </TouchableWithoutFeedback>
       </Modal>
     </View>
   );
@@ -321,28 +352,33 @@ const styles = StyleSheet.create({
     marginRight: 16,
     padding: 8,
   },
-  modalOverlay: {
+  drawerOverlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "flex-end",
+    justifyContent: "flex-start",
+    alignItems: "flex-end",
   },
-  modalContent: {
+  drawerMenu: {
+    width: 300,
+    height: "100%",
     backgroundColor: "#fff",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingBottom: 32,
-    minHeight: 200,
+    shadowColor: "#000",
+    shadowOffset: { width: -2, height: 0 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 10,
   },
-  modalHeader: {
+  drawerHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 24,
-    paddingVertical: 20,
+    paddingTop: 60,
+    paddingBottom: 20,
     borderBottomWidth: 1,
     borderBottomColor: "#e5e7eb",
   },
-  modalTitle: {
+  drawerTitle: {
     fontSize: 20,
     fontWeight: "700" as const,
     color: "#1f2937",
@@ -350,7 +386,7 @@ const styles = StyleSheet.create({
   closeButton: {
     padding: 4,
   },
-  modalBody: {
+  drawerBody: {
     paddingHorizontal: 24,
     paddingTop: 24,
   },
