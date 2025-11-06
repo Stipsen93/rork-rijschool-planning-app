@@ -1,77 +1,256 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  ActivityIndicator,
+  Alert,
+} from "react-native";
 import { useRouter } from "expo-router";
-import { LogIn } from "lucide-react-native";
+import { Car, Mail, Lock, Eye, EyeOff, Touchpad } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+type DemoAccount = {
+  role: string;
+  email: string;
+  password: string;
+};
+
+const demoAccounts: DemoAccount[] = [
+  {
+    role: "Instructeur",
+    email: "instructor@example.com",
+    password: "password123",
+  },
+  {
+    role: "Leerling 1",
+    email: "student1@example.com",
+    password: "password123",
+  },
+  {
+    role: "Leerling 2",
+    email: "student2@example.com",
+    password: "password123",
+  },
+];
 
 export default function LoginScreen() {
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
+  const [obscurePassword, setObscurePassword] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [emailError, setEmailError] = useState<string>("");
+  const [passwordError, setPasswordError] = useState<string>("");
+
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const handleLogin = () => {
-    console.log("Logging in with:", email);
-    router.replace("/(tabs)/");
+  const validateEmail = (email: string): boolean => {
+    if (!email) {
+      setEmailError("E-mailadres is verplicht");
+      return false;
+    }
+    const emailRegex = /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/;
+    if (!emailRegex.test(email)) {
+      setEmailError("Voer een geldig e-mailadres in");
+      return false;
+    }
+    setEmailError("");
+    return true;
+  };
+
+  const validatePassword = (password: string): boolean => {
+    if (!password) {
+      setPasswordError("Wachtwoord is verplicht");
+      return false;
+    }
+    setPasswordError("");
+    return true;
+  };
+
+  const handleLogin = async () => {
+    console.log("Starting login process for:", email.trim());
+
+    const isEmailValid = validateEmail(email.trim());
+    const isPasswordValid = validatePassword(password.trim());
+
+    if (!isEmailValid || !isPasswordValid) {
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      console.log("Login successful, navigating to dashboard");
+      router.replace("/(tabs)/");
+    } catch (error) {
+      console.error("Login error:", error);
+      Alert.alert(
+        "Inloggen mislukt",
+        "Controleer uw e-mailadres en wachtwoord.",
+        [{ text: "OK" }]
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDemoAccountPress = (account: DemoAccount) => {
+    setEmail(account.email);
+    setPassword(account.password);
+    setEmailError("");
+    setPasswordError("");
   };
 
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.container}
     >
-      <View style={[styles.content, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingTop: insets.top + 32, paddingBottom: insets.bottom + 24 },
+        ]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.headerSection}>
           <View style={styles.iconContainer}>
-            <LogIn color="#2563EB" size={48} />
+            <Car color="#2563EB" size={56} strokeWidth={2} />
           </View>
+          <Text style={styles.appName}>DrivePlan</Text>
           <Text style={styles.title}>Welkom terug</Text>
-          <Text style={styles.subtitle}>Log in om door te gaan</Text>
         </View>
 
         <View style={styles.formSection}>
           <View style={styles.inputGroup}>
             <Text style={styles.label}>E-mailadres</Text>
-            <TextInput
-              style={styles.input}
-              value={email}
-              onChangeText={setEmail}
-              placeholder="voorbeeld@email.nl"
-              placeholderTextColor="#9ca3af"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoComplete="email"
-              testID="email-input"
-            />
+            <View
+              style={[
+                styles.inputContainer,
+                emailError ? styles.inputContainerError : null,
+              ]}
+            >
+              <Mail
+                color={emailError ? "#EF4444" : "#9ca3af"}
+                size={20}
+                style={styles.inputIcon}
+              />
+              <TextInput
+                style={styles.input}
+                value={email}
+                onChangeText={(text) => {
+                  setEmail(text);
+                  if (emailError) setEmailError("");
+                }}
+                placeholder="Voer E-mailadres in"
+                placeholderTextColor="#9ca3af"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
+                testID="email-input"
+              />
+            </View>
+            {emailError ? (
+              <Text style={styles.errorText}>{emailError}</Text>
+            ) : null}
           </View>
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Wachtwoord</Text>
-            <TextInput
-              style={styles.input}
-              value={password}
-              onChangeText={setPassword}
-              placeholder="••••••••"
-              placeholderTextColor="#9ca3af"
-              secureTextEntry
-              autoComplete="password"
-              testID="password-input"
-            />
+            <View
+              style={[
+                styles.inputContainer,
+                passwordError ? styles.inputContainerError : null,
+              ]}
+            >
+              <Lock
+                color={passwordError ? "#EF4444" : "#9ca3af"}
+                size={20}
+                style={styles.inputIcon}
+              />
+              <TextInput
+                style={styles.input}
+                value={password}
+                onChangeText={(text) => {
+                  setPassword(text);
+                  if (passwordError) setPasswordError("");
+                }}
+                placeholder="Voer Wachtwoord in"
+                placeholderTextColor="#9ca3af"
+                secureTextEntry={obscurePassword}
+                autoComplete="password"
+                testID="password-input"
+              />
+              <TouchableOpacity
+                onPress={() => setObscurePassword(!obscurePassword)}
+                style={styles.eyeIcon}
+              >
+                {obscurePassword ? (
+                  <Eye color="#9ca3af" size={20} />
+                ) : (
+                  <EyeOff color="#9ca3af" size={20} />
+                )}
+              </TouchableOpacity>
+            </View>
+            {passwordError ? (
+              <Text style={styles.errorText}>{passwordError}</Text>
+            ) : null}
           </View>
 
           <TouchableOpacity
-            style={styles.loginButton}
+            style={[
+              styles.loginButton,
+              isLoading ? styles.loginButtonDisabled : null,
+            ]}
             onPress={handleLogin}
+            disabled={isLoading}
             testID="login-button"
           >
-            <Text style={styles.loginButtonText}>Inloggen</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.forgotPassword}>
-            <Text style={styles.forgotPasswordText}>Wachtwoord vergeten?</Text>
+            {isLoading ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Text style={styles.loginButtonText}>Inloggen</Text>
+            )}
           </TouchableOpacity>
         </View>
-      </View>
+
+        <View style={styles.demoSection}>
+          <Text style={styles.demoTitle}>Demo Inloggegevens</Text>
+          {demoAccounts.map((account, index) => (
+            <TouchableOpacity
+              key={index}
+              style={styles.demoCard}
+              onPress={() => handleDemoAccountPress(account)}
+              testID={`demo-account-${index}`}
+            >
+              <View style={styles.demoContent}>
+                <Text style={styles.demoRole}>{account.role}</Text>
+                <Text style={styles.demoEmail}>{account.email}</Text>
+                <Text style={styles.demoPassword}>
+                  Wachtwoord: {account.password}
+                </Text>
+              </View>
+              <Touchpad color="#2563EB" size={24} />
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <View style={styles.registerSection}>
+          <Text style={styles.registerText}>Nog geen account? </Text>
+          <TouchableOpacity>
+            <Text style={styles.registerLink}>Registreren</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -81,33 +260,33 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#f9fafb",
   },
-  content: {
-    flex: 1,
-    justifyContent: "center",
+  scrollContent: {
     paddingHorizontal: 24,
-    gap: 48,
+    gap: 32,
   },
   headerSection: {
     alignItems: "center",
-    gap: 12,
+    gap: 8,
   },
   iconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 20,
+    width: 96,
+    height: 96,
+    borderRadius: 16,
     backgroundColor: "#dbeafe",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 8,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#111827",
+  appName: {
+    fontSize: 32,
+    fontWeight: "700" as const,
+    color: "#2563EB",
+    letterSpacing: -0.5,
   },
-  subtitle: {
-    fontSize: 16,
+  title: {
+    fontSize: 18,
     color: "#6b7280",
+    marginTop: 4,
   },
   formSection: {
     gap: 20,
@@ -117,19 +296,38 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    fontWeight: "600",
-    color: "#374151",
-    marginLeft: 4,
+    fontWeight: "500" as const,
+    color: "#1f2937",
   },
-  input: {
+  inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: "#fff",
     borderWidth: 1,
     borderColor: "#e5e7eb",
-    borderRadius: 12,
-    paddingHorizontal: 16,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+  },
+  inputContainerError: {
+    borderColor: "#EF4444",
+    borderWidth: 2,
+  },
+  inputIcon: {
+    marginRight: 8,
+  },
+  input: {
+    flex: 1,
     paddingVertical: 14,
     fontSize: 16,
     color: "#111827",
+  },
+  eyeIcon: {
+    padding: 8,
+  },
+  errorText: {
+    fontSize: 12,
+    color: "#EF4444",
+    marginLeft: 4,
   },
   loginButton: {
     backgroundColor: "#2563EB",
@@ -143,18 +341,62 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 4,
   },
+  loginButtonDisabled: {
+    opacity: 0.6,
+  },
   loginButtonText: {
     color: "#fff",
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "600" as const,
   },
-  forgotPassword: {
-    alignItems: "center",
-    paddingVertical: 8,
+  demoSection: {
+    gap: 12,
   },
-  forgotPasswordText: {
+  demoTitle: {
+    fontSize: 16,
+    fontWeight: "600" as const,
     color: "#2563EB",
+    marginBottom: 4,
+  },
+  demoCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderRadius: 8,
+    padding: 16,
+  },
+  demoContent: {
+    flex: 1,
+    gap: 4,
+  },
+  demoRole: {
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: "600" as const,
+    color: "#1f2937",
+  },
+  demoEmail: {
+    fontSize: 12,
+    color: "#6b7280",
+  },
+  demoPassword: {
+    fontSize: 12,
+    color: "#6b7280",
+  },
+  registerSection: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  registerText: {
+    fontSize: 14,
+    color: "#6b7280",
+  },
+  registerLink: {
+    fontSize: 14,
+    color: "#2563EB",
+    fontWeight: "600" as const,
   },
 });
