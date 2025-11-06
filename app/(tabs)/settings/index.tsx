@@ -202,6 +202,7 @@ export default function SettingsScreen() {
         style={styles.logoutButton}
         onPress={() => {
           console.log("Logging out...");
+          router.replace("/login");
         }}
         accessibilityRole="button"
       >
