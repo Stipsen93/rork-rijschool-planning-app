@@ -863,9 +863,6 @@ function EditStudentPackageModal({
   basePackages: PackageItem[];
   productsGroup: PackageItem[];
 }) {
-  const pkg = typeof pkgIndex === "number" ? studentPackages[pkgIndex] : undefined;
-  const base = pkg ? basePackages.find(p => p.id === pkg.packageId) : undefined;
-
   const [name, setName] = useState<string>("");
   const [price, setPrice] = useState<string>("0");
   const [hours, setHours] = useState<string>("0");
@@ -874,6 +871,9 @@ function EditStudentPackageModal({
   const [termSelection, setTermSelection] = useState<"1x" | "2x" | "3x" | "4x" | "custom">("1x");
   const [customTermCount, setCustomTermCount] = useState<number>(2);
   const [openPickerIndex, setOpenPickerIndex] = useState<number | null>(null);
+
+  const pkg = typeof pkgIndex === "number" ? studentPackages[pkgIndex] : undefined;
+  const base = pkg ? basePackages.find(p => p.id === pkg.packageId) : undefined;
 
   useEffect(() => {
     if (pkg) {
