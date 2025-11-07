@@ -423,12 +423,7 @@ export default function RegisterScreen() {
                   thumbColor={termsAccepted ? "#2563EB" : "#f3f4f6"}
                 />
                 <Text style={styles.termsText}>
-                  Ik accepteer de{" "}
-                  <Text style={styles.termsLink}>
-                    Algemene Voorwaarden
-                  </Text>{" "}
-                  en het{" "}
-                  <Text style={styles.termsLink}>Privacybeleid</Text>
+                  Ik accepteer de <Text style={styles.termsLink}>Algemene Voorwaarden</Text> en het <Text style={styles.termsLink}>Privacybeleid</Text>
                 </Text>
               </View>
             </View>
