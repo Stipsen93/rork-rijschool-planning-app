@@ -264,7 +264,7 @@ CREATE TRIGGER update_lessons_updated_at BEFORE UPDATE ON lessons
 
 -- Function to automatically create profile after user signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $
+RETURNS TRIGGER AS $$
 BEGIN
   INSERT INTO public.profiles (id, email, full_name, role, is_active)
   VALUES (
@@ -276,7 +276,7 @@ BEGIN
   );
   RETURN NEW;
 END;
-$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Trigger to automatically create profile for new users
 CREATE TRIGGER on_auth_user_created
