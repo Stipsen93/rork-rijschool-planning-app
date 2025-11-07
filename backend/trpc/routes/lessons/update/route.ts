@@ -1,6 +1,9 @@
 import { protectedProcedure } from '../../../create-context';
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
+import { Database } from '@/types/supabase';
+
+type Lesson = Database['public']['Tables']['lessons']['Row'];
 
 export const updateLessonProcedure = protectedProcedure
   .input(
@@ -24,18 +27,20 @@ export const updateLessonProcedure = protectedProcedure
     })
   )
   .mutation(async ({ ctx, input }) => {
-    const { data: lesson } = await ctx.supabase
+    const { data: lessonData } = await ctx.supabase
       .from('lessons')
       .select('*')
       .eq('id', input.id)
       .single();
 
-    if (!lesson) {
+    if (!lessonData) {
       throw new TRPCError({
         code: 'NOT_FOUND',
         message: 'Lesson not found',
       });
     }
+
+    const lesson = lessonData as Lesson;
 
     const isInstructor = ctx.profile.role === 'instructor';
     const isStudent = ctx.profile.role === 'student';
@@ -75,7 +80,7 @@ export const updateLessonProcedure = protectedProcedure
       updateData.cancelled_by = ctx.user.id;
     }
 
-    const { data, error } = await ctx.supabase
+    const { data, error } = await (ctx.supabase as any)
       .from('lessons')
       .update(updateData)
       .eq('id', input.id)

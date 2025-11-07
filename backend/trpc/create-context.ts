@@ -64,8 +64,8 @@ export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
   return next({
     ctx: {
       ...ctx,
-      user: ctx.user!,
-      profile: ctx.profile!,
+      user: ctx.user as User,
+      profile: ctx.profile as Profile,
     },
   });
 });

@@ -1,6 +1,11 @@
 import { publicProcedure } from '../../../create-context';
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
+import { Database } from '@/types/supabase';
+
+type ProfileInsert = Database['public']['Tables']['profiles']['Insert'];
+type InstructorProfileInsert = Database['public']['Tables']['instructor_profiles']['Insert'];
+type StudentProfileInsert = Database['public']['Tables']['student_profiles']['Insert'];
 
 export const signupProcedure = publicProcedure
   .input(
@@ -27,16 +32,18 @@ export const signupProcedure = publicProcedure
       });
     }
 
+    const profileData: ProfileInsert = {
+      id: authData.user.id,
+      email,
+      full_name: fullName,
+      role,
+      phone: phone || null,
+      is_active: true,
+    };
+
     const { error: profileError } = await ctx.supabase
       .from('profiles')
-      .insert({
-        id: authData.user.id,
-        email,
-        full_name: fullName,
-        role,
-        phone: phone || null,
-        is_active: true,
-      });
+      .insert(profileData as any);
 
     if (profileError) {
       await ctx.supabase.auth.admin.deleteUser(authData.user.id);
@@ -47,23 +54,25 @@ export const signupProcedure = publicProcedure
     }
 
     if (role === 'instructor') {
+      const instructorData: InstructorProfileInsert = {
+        user_id: authData.user.id,
+        rating: 0,
+        total_lessons: 0,
+      };
       await ctx.supabase
         .from('instructor_profiles')
-        .insert({
-          user_id: authData.user.id,
-          rating: 0,
-          total_lessons: 0,
-        });
+        .insert(instructorData as any);
     } else if (role === 'student') {
+      const studentData: StudentProfileInsert = {
+        user_id: authData.user.id,
+        lesson_streak: 0,
+        total_lessons_completed: 0,
+        hours_driven: 0,
+        overall_progress: 0,
+      };
       await ctx.supabase
         .from('student_profiles')
-        .insert({
-          user_id: authData.user.id,
-          lesson_streak: 0,
-          total_lessons_completed: 0,
-          hours_driven: 0,
-          overall_progress: 0,
-        });
+        .insert(studentData as any);
     }
 
     return {

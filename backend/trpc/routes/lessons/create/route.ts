@@ -1,6 +1,9 @@
 import { protectedProcedure } from '../../../create-context';
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
+import { Database } from '@/types/supabase';
+
+type LessonInsert = Database['public']['Tables']['lessons']['Insert'];
 
 export const createLessonProcedure = protectedProcedure
   .input(
@@ -36,22 +39,24 @@ export const createLessonProcedure = protectedProcedure
       });
     }
 
+    const lessonData: LessonInsert = {
+      instructor_id: input.instructorId,
+      student_id: input.studentId,
+      title: input.title,
+      lesson_type: input.lessonType,
+      start_time: input.startTime,
+      end_time: input.endTime,
+      duration: input.duration,
+      location: input.location || null,
+      pickup_location: input.pickupLocation || null,
+      vehicle_id: input.vehicleId || null,
+      notes: input.notes || null,
+      status: 'scheduled',
+    };
+
     const { data, error } = await ctx.supabase
       .from('lessons')
-      .insert({
-        instructor_id: input.instructorId,
-        student_id: input.studentId,
-        title: input.title,
-        lesson_type: input.lessonType,
-        start_time: input.startTime,
-        end_time: input.endTime,
-        duration: input.duration,
-        location: input.location || null,
-        pickup_location: input.pickupLocation || null,
-        vehicle_id: input.vehicleId || null,
-        notes: input.notes || null,
-        status: 'scheduled',
-      })
+      .insert(lessonData as any)
       .select()
       .single();
 

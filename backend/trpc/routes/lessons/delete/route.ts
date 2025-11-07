@@ -1,6 +1,9 @@
 import { protectedProcedure } from '../../../create-context';
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
+import { Database } from '@/types/supabase';
+
+type Lesson = Database['public']['Tables']['lessons']['Row'];
 
 export const deleteLessonProcedure = protectedProcedure
   .input(
@@ -9,18 +12,20 @@ export const deleteLessonProcedure = protectedProcedure
     })
   )
   .mutation(async ({ ctx, input }) => {
-    const { data: lesson } = await ctx.supabase
+    const { data: lessonData } = await ctx.supabase
       .from('lessons')
       .select('instructor_id, student_id')
       .eq('id', input.id)
       .single();
 
-    if (!lesson) {
+    if (!lessonData) {
       throw new TRPCError({
         code: 'NOT_FOUND',
         message: 'Lesson not found',
       });
     }
+
+    const lesson = lessonData as Pick<Lesson, 'instructor_id' | 'student_id'>;
 
     const isInstructor = ctx.profile.role === 'instructor';
     const isStudent = ctx.profile.role === 'student';

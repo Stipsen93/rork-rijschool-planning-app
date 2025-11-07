@@ -6,6 +6,9 @@ import { supabase } from '@/lib/supabase';
 import { Database } from '@/types/supabase';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
+type ProfileInsert = Database['public']['Tables']['profiles']['Insert'];
+type InstructorProfileInsert = Database['public']['Tables']['instructor_profiles']['Insert'];
+type StudentProfileInsert = Database['public']['Tables']['student_profiles']['Insert'];
 
 interface AuthState {
   user: User | null;
@@ -154,33 +157,37 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         throw authError || new Error('Signup failed');
       }
 
-      const { error: profileError } = await supabase.from('profiles').insert({
+      const profileData: ProfileInsert = {
         id: authData.user.id,
         email,
         full_name: fullName,
         role,
         phone: phone || null,
         is_active: true,
-      });
+      };
+
+      const { error: profileError } = await supabase.from('profiles').insert(profileData as any);
 
       if (profileError) {
         throw profileError;
       }
 
       if (role === 'instructor') {
-        await supabase.from('instructor_profiles').insert({
+        const instructorData: InstructorProfileInsert = {
           user_id: authData.user.id,
           rating: 0,
           total_lessons: 0,
-        });
+        };
+        await supabase.from('instructor_profiles').insert(instructorData as any);
       } else {
-        await supabase.from('student_profiles').insert({
+        const studentData: StudentProfileInsert = {
           user_id: authData.user.id,
           lesson_streak: 0,
           total_lessons_completed: 0,
           hours_driven: 0,
           overall_progress: 0,
-        });
+        };
+        await supabase.from('student_profiles').insert(studentData as any);
       }
 
       return {

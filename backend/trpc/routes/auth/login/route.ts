@@ -1,6 +1,9 @@
 import { publicProcedure } from '../../../create-context';
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
+import { Database } from '@/types/supabase';
+
+type Profile = Database['public']['Tables']['profiles']['Row'];
 
 export const loginProcedure = publicProcedure
   .input(
@@ -24,18 +27,20 @@ export const loginProcedure = publicProcedure
       });
     }
 
-    const { data: profile } = await ctx.supabase
+    const { data: profileData } = await ctx.supabase
       .from('profiles')
       .select('*')
       .eq('id', data.user.id)
       .single();
 
-    if (!profile) {
+    if (!profileData) {
       throw new TRPCError({
         code: 'NOT_FOUND',
         message: 'User profile not found',
       });
     }
+
+    const profile = profileData as Profile;
 
     if (!profile.is_active) {
       throw new TRPCError({
