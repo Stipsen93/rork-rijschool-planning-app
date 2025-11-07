@@ -1,13 +1,31 @@
 -- DrivePlan Supabase Database Schema
 -- Run this SQL in your Supabase SQL Editor
+-- This script is idempotent - it can be run multiple times safely
 
--- Create user role enum
-CREATE TYPE user_role AS ENUM ('instructor', 'student');
-CREATE TYPE lesson_status AS ENUM ('scheduled', 'completed', 'cancelled', 'no_show');
-CREATE TYPE transmission_type AS ENUM ('manual', 'automatic');
+-- Create user role enum (only if it doesn't exist)
+DO $$ 
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role') THEN
+    CREATE TYPE user_role AS ENUM ('instructor', 'student');
+  END IF;
+END $$;
+
+DO $$ 
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'lesson_status') THEN
+    CREATE TYPE lesson_status AS ENUM ('scheduled', 'completed', 'cancelled', 'no_show');
+  END IF;
+END $$;
+
+DO $$ 
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'transmission_type') THEN
+    CREATE TYPE transmission_type AS ENUM ('manual', 'automatic');
+  END IF;
+END $$;
 
 -- Profiles table (extends auth.users)
-CREATE TABLE profiles (
+CREATE TABLE IF NOT EXISTS profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT NOT NULL UNIQUE,
   full_name TEXT,
@@ -21,7 +39,7 @@ CREATE TABLE profiles (
 );
 
 -- Instructor profiles
-CREATE TABLE instructor_profiles (
+CREATE TABLE IF NOT EXISTS instructor_profiles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   company_name TEXT,
@@ -38,7 +56,7 @@ CREATE TABLE instructor_profiles (
 );
 
 -- Student profiles
-CREATE TABLE student_profiles (
+CREATE TABLE IF NOT EXISTS student_profiles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   lesson_streak INTEGER DEFAULT 0,
@@ -56,7 +74,7 @@ CREATE TABLE student_profiles (
 );
 
 -- Packages
-CREATE TABLE packages (
+CREATE TABLE IF NOT EXISTS packages (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   instructor_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
@@ -69,7 +87,7 @@ CREATE TABLE packages (
 );
 
 -- Vehicles
-CREATE TABLE vehicles (
+CREATE TABLE IF NOT EXISTS vehicles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   instructor_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   make TEXT NOT NULL,
@@ -85,7 +103,7 @@ CREATE TABLE vehicles (
 );
 
 -- Lessons (shared between instructors and students)
-CREATE TABLE lessons (
+CREATE TABLE IF NOT EXISTS lessons (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   instructor_id UUID NOT NULL REFERENCES profiles(id),
   student_id UUID NOT NULL REFERENCES profiles(id),
@@ -116,6 +134,32 @@ ALTER TABLE student_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE packages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE vehicles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE lessons ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist (to avoid conflicts)
+DO $$ 
+BEGIN
+  DROP POLICY IF EXISTS "Users can view their own profile" ON profiles;
+  DROP POLICY IF EXISTS "Users can update their own profile" ON profiles;
+  DROP POLICY IF EXISTS "Users can view other profiles (limited fields)" ON profiles;
+  DROP POLICY IF EXISTS "Instructors can view their own profile" ON instructor_profiles;
+  DROP POLICY IF EXISTS "Instructors can update their own profile" ON instructor_profiles;
+  DROP POLICY IF EXISTS "Students can view their instructor profile" ON instructor_profiles;
+  DROP POLICY IF EXISTS "Students can view their own profile" ON student_profiles;
+  DROP POLICY IF EXISTS "Students can update their own profile" ON student_profiles;
+  DROP POLICY IF EXISTS "Instructors can view their students profiles" ON student_profiles;
+  DROP POLICY IF EXISTS "Anyone can view active packages" ON packages;
+  DROP POLICY IF EXISTS "Instructors can manage their own packages" ON packages;
+  DROP POLICY IF EXISTS "Instructors can manage their own vehicles" ON vehicles;
+  DROP POLICY IF EXISTS "Students can view their instructor's vehicles" ON vehicles;
+  DROP POLICY IF EXISTS "Instructors can view their own lessons" ON lessons;
+  DROP POLICY IF EXISTS "Students can view their own lessons" ON lessons;
+  DROP POLICY IF EXISTS "Instructors can create lessons for themselves" ON lessons;
+  DROP POLICY IF EXISTS "Students can create lessons for themselves" ON lessons;
+  DROP POLICY IF EXISTS "Instructors can update their own lessons" ON lessons;
+  DROP POLICY IF EXISTS "Students can update their own lessons" ON lessons;
+  DROP POLICY IF EXISTS "Instructors can delete their own lessons" ON lessons;
+  DROP POLICY IF EXISTS "Students can delete their own lessons" ON lessons;
+END $$;
 
 -- Profiles policies
 CREATE POLICY "Users can view their own profile"
@@ -221,18 +265,53 @@ CREATE POLICY "Students can delete their own lessons"
   ON lessons FOR DELETE
   USING (student_id = auth.uid());
 
--- Create indexes for better performance
-CREATE INDEX idx_profiles_email ON profiles(email);
-CREATE INDEX idx_profiles_role ON profiles(role);
-CREATE INDEX idx_instructor_profiles_user_id ON instructor_profiles(user_id);
-CREATE INDEX idx_student_profiles_user_id ON student_profiles(user_id);
-CREATE INDEX idx_student_profiles_instructor_id ON student_profiles(instructor_id);
-CREATE INDEX idx_lessons_instructor_id ON lessons(instructor_id);
-CREATE INDEX idx_lessons_student_id ON lessons(student_id);
-CREATE INDEX idx_lessons_start_time ON lessons(start_time);
-CREATE INDEX idx_lessons_status ON lessons(status);
-CREATE INDEX idx_packages_instructor_id ON packages(instructor_id);
-CREATE INDEX idx_vehicles_instructor_id ON vehicles(instructor_id);
+-- Create indexes for better performance (if not exists)
+DO $$ 
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_profiles_email') THEN
+    CREATE INDEX idx_profiles_email ON profiles(email);
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_profiles_role') THEN
+    CREATE INDEX idx_profiles_role ON profiles(role);
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_instructor_profiles_user_id') THEN
+    CREATE INDEX idx_instructor_profiles_user_id ON instructor_profiles(user_id);
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_student_profiles_user_id') THEN
+    CREATE INDEX idx_student_profiles_user_id ON student_profiles(user_id);
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_student_profiles_instructor_id') THEN
+    CREATE INDEX idx_student_profiles_instructor_id ON student_profiles(instructor_id);
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_lessons_instructor_id') THEN
+    CREATE INDEX idx_lessons_instructor_id ON lessons(instructor_id);
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_lessons_student_id') THEN
+    CREATE INDEX idx_lessons_student_id ON lessons(student_id);
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_lessons_start_time') THEN
+    CREATE INDEX idx_lessons_start_time ON lessons(start_time);
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_lessons_status') THEN
+    CREATE INDEX idx_lessons_status ON lessons(status);
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_packages_instructor_id') THEN
+    CREATE INDEX idx_packages_instructor_id ON packages(instructor_id);
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_vehicles_instructor_id') THEN
+    CREATE INDEX idx_vehicles_instructor_id ON vehicles(instructor_id);
+  END IF;
+END $$;
 
 -- Create updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -242,6 +321,14 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+
+-- Drop existing triggers if they exist
+DROP TRIGGER IF EXISTS update_profiles_updated_at ON profiles;
+DROP TRIGGER IF EXISTS update_instructor_profiles_updated_at ON instructor_profiles;
+DROP TRIGGER IF EXISTS update_student_profiles_updated_at ON student_profiles;
+DROP TRIGGER IF EXISTS update_packages_updated_at ON packages;
+DROP TRIGGER IF EXISTS update_vehicles_updated_at ON vehicles;
+DROP TRIGGER IF EXISTS update_lessons_updated_at ON lessons;
 
 -- Add triggers to update updated_at
 CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON profiles
@@ -277,6 +364,9 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Drop existing trigger if exists
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 
 -- Trigger to automatically create profile for new users
 CREATE TRIGGER on_auth_user_created
