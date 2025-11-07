@@ -266,7 +266,7 @@ export default function LoginScreen() {
 
         <View style={styles.registerSection}>
           <Text style={styles.registerText}>Nog geen account? </Text>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push('/register')}>
             <Text style={styles.registerLink}>Registreren</Text>
           </TouchableOpacity>
         </View>
