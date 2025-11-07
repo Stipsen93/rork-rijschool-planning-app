@@ -1,216 +1,247 @@
-# Supabase Backend Setup voor DrivePlan
+# DrivePlan Supabase Setup Instructies
 
-Deze app gebruikt Supabase als backend voor authenticatie en database. Volg deze stappen om de backend volledig in te stellen.
+Deze handleiding helpt je om de Supabase database op te zetten voor je DrivePlan app.
 
-## 1. Database Schema Installeren
+## Stap 1: Supabase Project Configuratie
 
-1. Ga naar je Supabase project dashboard: https://supabase.com/dashboard
-2. Navigeer naar de **SQL Editor** in het linkermenu
-3. Klik op **New Query**
-4. Kopieer de volledige inhoud van het `supabase-schema.sql` bestand
-5. Plak het in de SQL Editor
-6. Klik op **Run** om het schema te installeren
+1. **Ga naar je Supabase project**: https://gqipssfphzysaehwefga.supabase.co
+2. **Klik op SQL Editor** in het linkermenu
 
-Dit creëert alle benodigde tabellen, policies, en indexes voor de app.
+## Stap 2: Database Schema Aanmaken
 
-## 2. Demo Accounts Aanmaken
+1. **Kopieer de volledige inhoud** van `supabase-schema.sql`
+2. **Plak deze in de SQL Editor** van Supabase
+3. **Klik op "Run"** om het schema aan te maken
 
-Na het installeren van het schema, moet je de demo accounts aanmaken:
+Dit maakt aan:
+- ✅ User roles (instructor/student)
+- ✅ Profiles tabel
+- ✅ Instructor profiles tabel
+- ✅ Student profiles tabel  
+- ✅ Lessons tabel (gedeeld tussen instructors en studenten)
+- ✅ Packages tabel
+- ✅ Vehicles tabel
+- ✅ Row Level Security (RLS) policies
+- ✅ Automatische triggers
+- ✅ Indexen voor performance
 
-### In Supabase Dashboard:
+## Stap 3: Demo Accounts Aanmaken (Optioneel)
 
-1. Ga naar **Authentication** → **Users** in het linkermenu
-2. Klik op **Add user** → **Create new user**
+### 3a. Maak Auth Users aan
 
-#### Instructeur Account
-- Email: `instructor@example.com`
-- Password: `password123`
-- Confirm password: `password123`
-- ✅ Auto Confirm User (aanvinken)
+1. **Ga naar Authentication → Users** in Supabase Dashboard
+2. **Klik op "Add user"** en maak deze accounts aan:
 
-#### Student 1 Account
-- Email: `student1@example.com`
-- Password: `password123`
-- Confirm password: `password123`
-- ✅ Auto Confirm User (aanvinken)
-
-#### Student 2 Account
-- Email: `student2@example.com`
-- Password: `password123`
-- Confirm password: `password123`
-- ✅ Auto Confirm User (aanvinken)
-
-### Profielen Aanmaken via SQL
-
-3. Ga terug naar de **SQL Editor**
-4. Voer de volgende SQL uit om de profielen aan te maken:
-
-\`\`\`sql
--- Vervang de UUIDs hieronder met de echte user IDs uit je Supabase Auth Users tabel
--- Je kunt deze vinden in Authentication → Users
-
--- Instructeur profiel
-INSERT INTO profiles (id, email, full_name, role, phone, is_active)
-VALUES (
-  'INSTRUCTOR_USER_ID_HIER',  -- Vervang met echte UUID
-  'instructor@example.com',
-  'Jan van der Berg',
-  'instructor',
-  '+31612345678',
-  true
-);
-
-INSERT INTO instructor_profiles (user_id, company_name, rating, total_lessons, years_experience)
-VALUES (
-  'INSTRUCTOR_USER_ID_HIER',  -- Vervang met echte UUID
-  'Rijschool Van der Berg',
-  4.8,
-  150,
-  10
-);
-
--- Student 1 profiel
-INSERT INTO profiles (id, email, full_name, role, phone, is_active)
-VALUES (
-  'STUDENT1_USER_ID_HIER',  -- Vervang met echte UUID
-  'student1@example.com',
-  'Emma Jansen',
-  'student',
-  '+31623456789',
-  true
-);
-
-INSERT INTO student_profiles (user_id, lesson_streak, level, total_lessons_completed, hours_driven, overall_progress, instructor_id)
-VALUES (
-  'STUDENT1_USER_ID_HIER',  -- Vervang met echte UUID
-  7,
-  'Gevorderd',
-  45,
-  67.5,
-  0.72,
-  'INSTRUCTOR_USER_ID_HIER'  -- Vervang met instructeur UUID
-);
-
--- Student 2 profiel
-INSERT INTO profiles (id, email, full_name, role, phone, is_active)
-VALUES (
-  'STUDENT2_USER_ID_HIER',  -- Vervang met echte UUID
-  'student2@example.com',
-  'Lucas de Vries',
-  'student',
-  '+31634567890',
-  true
-);
-
-INSERT INTO student_profiles (user_id, lesson_streak, level, total_lessons_completed, hours_driven, overall_progress, instructor_id)
-VALUES (
-  'STUDENT2_USER_ID_HIER',  -- Vervang met echte UUID
-  3,
-  'Beginner',
-  15,
-  22.5,
-  0.35,
-  'INSTRUCTOR_USER_ID_HIER'  -- Vervang met instructeur UUID
-);
-\`\`\`
-
-## 3. App Configuratie Controleren
-
-De app is al geconfigureerd met je Supabase credentials:
-- **Project URL**: `https://gqipssfphzysaehwefga.supabase.co`
-- **Anon Key**: (al ingesteld in de code)
-
-Deze zijn al ingesteld in:
-- `lib/supabase.ts`
-- `backend/trpc/create-context.ts`
-
-## 4. Testen
-
-Start de app en test het inloggen met de demo accounts:
-
-\`\`\`bash
-npm start
-# of
-bun start
-\`\`\`
-
-### Test Scenarios:
-
-1. **Instructeur login**:
+   **Instructeur Account:**
    - Email: `instructor@example.com`
    - Password: `password123`
-   - Verwacht: Navigeert naar instructeur dashboard
+   - Email Confirm: ✅ (vink aan)
+   - Auto Confirm User: ✅ (vink aan)
 
-2. **Student login**:
+   **Student 1 Account:**
    - Email: `student1@example.com`
    - Password: `password123`
-   - Verwacht: Navigeert naar student dashboard
+   - Email Confirm: ✅ (vink aan)
+   - Auto Confirm User: ✅ (vink aan)
 
-3. **Uitloggen**:
-   - Ga naar Instellingen/Profiel
-   - Klik op "Uitloggen"
-   - Verwacht: Terug naar login scherm
+   **Student 2 Account:**
+   - Email: `student2@example.com`
+   - Password: `password123`
+   - Email Confirm: ✅ (vink aan)
+   - Auto Confirm User: ✅ (vink aan)
 
-## Database Structuur
+### 3b. Voeg Demo Data Toe
 
-### Belangrijkste Tabellen:
+1. **Ga terug naar SQL Editor**
+2. **Kopieer het demo data script** (het staat als commentaar onderaan `supabase-schema.sql`, tussen `/*` en `*/`)
+3. **Plak en run het script** in SQL Editor
 
-- **profiles**: Basis gebruikersprofielen (extends auth.users)
-- **instructor_profiles**: Extra informatie voor instructeurs
-- **student_profiles**: Extra informatie voor studenten
-- **lessons**: Gedeelde lessen tussen instructeurs en studenten
-- **packages**: Lespakketten aangeboden door instructeurs
-- **vehicles**: Voertuigen van instructeurs
+Dit voegt toe:
+- ✅ Complete profielen voor instructor
+- ✅ Complete profielen voor studenten
+- ✅ Demo vehicle (Toyota Yaris)
+- ✅ Demo lessen (scheduled en completed)
+- ✅ Skills progress data
 
-### Row Level Security (RLS)
+## Stap 4: Verifieer de Setup
 
-De database gebruikt RLS policies om ervoor te zorgen dat:
-- Gebruikers alleen hun eigen data kunnen zien/bewerken
-- Studenten kunnen hun instructeur's informatie zien
-- Instructeurs kunnen hun studenten's informatie zien
-- Lessen zijn zichtbaar voor beide partijen (instructeur en student)
+### Check Tables
 
-## API Endpoints
+```sql
+-- Verifieer dat alle tabellen zijn aangemaakt
+SELECT table_name 
+FROM information_schema.tables 
+WHERE table_schema = 'public'
+ORDER BY table_name;
+```
 
-De app heeft de volgende tRPC endpoints:
+Je zou moeten zien:
+- ✅ profiles
+- ✅ instructor_profiles
+- ✅ student_profiles
+- ✅ lessons
+- ✅ packages
+- ✅ vehicles
 
-### Authenticatie:
-- `auth.signup` - Registreer nieuwe gebruiker
-- `auth.login` - Login gebruiker
-- `auth.logout` - Logout gebruiker
-- `auth.me` - Haal huidige gebruiker op
+### Check Demo Users
 
-### Lessen:
-- `lessons.create` - Maak nieuwe les
-- `lessons.list` - Haal lessen op
-- `lessons.update` - Update les
-- `lessons.delete` - Verwijder les
+```sql
+-- Verifieer demo profielen
+SELECT email, full_name, role, is_active 
+FROM profiles;
+```
+
+### Check Demo Lessons
+
+```sql
+-- Verifieer demo lessen
+SELECT 
+  l.title,
+  l.lesson_type,
+  l.start_time,
+  l.status,
+  i.full_name as instructor,
+  s.full_name as student
+FROM lessons l
+JOIN profiles i ON l.instructor_id = i.id
+JOIN profiles s ON l.student_id = s.id;
+```
+
+## Stap 5: Test de App
+
+### Test Instructeur Login
+
+1. Open de app
+2. Log in met: `instructor@example.com` / `password123`
+3. Je zou naar het **Instructeur Overview** moeten gaan
+4. Controleer of je:
+   - ✅ Lessen ziet in de agenda
+   - ✅ Student profielen kunt bekijken
+   - ✅ Nieuwe lessen kunt aanmaken
+
+### Test Student Login
+
+1. Log uit
+2. Log in met: `student1@example.com` / `password123`
+3. Je zou naar het **Student Overview** moeten gaan
+4. Controleer of je:
+   - ✅ Je volgende les ziet
+   - ✅ Progress stats ziet
+   - ✅ Recent activity ziet
+
+## Stap 6: Test Registratie
+
+### Test Nieuwe Instructeur
+
+1. Log uit
+2. Klik op "Registreren"
+3. Selecteer "Instructeur"
+4. Vul formulier in met:
+   - Naam
+   - Email
+   - Telefoon
+   - Geboortedatum
+   - WRM Pasnummer
+   - Rijschool naam
+   - Wachtwoord
+5. Accepteer voorwaarden
+6. Klik "Account aanmaken"
+7. ✅ Je zou een succesbericht moeten zien
+8. ✅ Je zou automatisch ingelogd moeten zijn
+
+### Test Nieuwe Student
+
+1. Log uit
+2. Klik op "Registreren"
+3. Selecteer "Student"
+4. Vul formulier in
+5. Accepteer voorwaarden
+6. Klik "Account aanmaken"
+7. ✅ Je zou een succesbericht moeten zien
+8. ✅ Je zou naar student dashboard moeten gaan
 
 ## Troubleshooting
 
-### "Profile not found" bij login
-- Controleer of je de profielen hebt aangemaakt in de `profiles` tabel
-- Controleer of de user IDs overeenkomen met die in `auth.users`
+### Error: "relation does not exist"
 
-### "Unauthorized" errors
-- Controleer of de RLS policies correct zijn geïnstalleerd
-- Ga naar Supabase → Authentication → Policies
+- ✅ Run het schema script opnieuw
+- ✅ Check of je in de juiste Supabase project zit
 
-### TypeScript errors in Supabase client
-- Dit is normaal - Supabase client genereert types dynamisch
-- De app werkt ondanks deze warnings
+### Error: "permission denied"
 
-## Volgende Stappen
+- ✅ Check RLS policies in SQL Editor:
+  ```sql
+  SELECT tablename, policyname 
+  FROM pg_policies 
+  WHERE schemaname = 'public';
+  ```
 
-Nu de backend is opgezet, kun je:
-1. Lessen aanmaken en beheren
-2. Studenten toevoegen aan instructeurs
-3. De agenda functionaliteit gebruiken
-4. De app verder uitbreiden met extra features
+### Demo users werken niet
+
+- ✅ Check of auth users zijn aangemaakt in Authentication → Users
+- ✅ Check of profiles zijn gekoppeld:
+  ```sql
+  SELECT 
+    u.email,
+    p.full_name,
+    p.role
+  FROM auth.users u
+  LEFT JOIN public.profiles p ON u.id = p.id;
+  ```
+
+### Lessons verschijnen niet
+
+- ✅ Check of de foreign keys correct zijn:
+  ```sql
+  SELECT 
+    l.id,
+    l.instructor_id,
+    l.student_id,
+    i.email as instructor_email,
+    s.email as student_email
+  FROM lessons l
+  LEFT JOIN profiles i ON l.instructor_id = i.id
+  LEFT JOIN profiles s ON l.student_id = s.id;
+  ```
+
+## Database Structuur Overzicht
+
+```
+auth.users (Supabase Auth)
+  └─> profiles (Base user info)
+       ├─> instructor_profiles (Instructor specific)
+       ├─> student_profiles (Student specific)
+       ├─> lessons (Shared between instructor & student)
+       ├─> packages (Instructor's packages)
+       └─> vehicles (Instructor's vehicles)
+```
+
+## Row Level Security (RLS) Overzicht
+
+- **Profiles**: Users kunnen hun eigen profiel zien en bewerken
+- **Instructor Profiles**: Instructors zien eigen profiel, students zien hun instructor
+- **Student Profiles**: Students zien eigen profiel, instructors zien hun students
+- **Lessons**: Beide partijen kunnen hun eigen lessen zien en bewerken
+- **Packages**: Iedereen kan actieve packages zien, instructors beheren eigen packages
+- **Vehicles**: Instructors beheren eigen voertuigen, students zien instructor's voertuigen
+
+## Belangrijke Notities
+
+1. **Automatische Profile Creatie**: Wanneer een nieuwe user zich registreert via Supabase Auth, wordt automatisch een profiel aangemaakt via de `handle_new_user()` trigger.
+
+2. **Role-based Access**: De app gebruikt het `role` veld in profiles om te bepalen welke omgeving te tonen (instructor vs student).
+
+3. **Shared Lessons**: Lessons worden gedeeld tussen instructors en students via foreign keys. Beide partijen kunnen de lesson data zien en bewerken binnen hun permissions.
+
+4. **Data Privacy**: RLS policies zorgen ervoor dat users alleen data kunnen zien die relevant is voor hun role.
 
 ## Support
 
-Voor vragen of problemen met de Supabase setup:
-1. Check de Supabase documentatie: https://supabase.com/docs
-2. Check de Row Level Security policies in je dashboard
-3. Check de browser console voor specifieke error messages
+Als je problemen ondervindt:
+1. Check de browser console voor errors
+2. Check Supabase logs in Dashboard → Logs
+3. Verifieer dat alle environment variabelen correct zijn ingesteld
+
+---
+
+✅ **Setup compleet!** Je app is nu klaar voor gebruik met Supabase backend.

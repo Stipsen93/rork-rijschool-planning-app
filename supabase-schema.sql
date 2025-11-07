@@ -13,6 +13,7 @@ CREATE TABLE profiles (
   full_name TEXT,
   role user_role NOT NULL,
   phone TEXT,
+  birth_date DATE,
   avatar_url TEXT,
   is_active BOOLEAN DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -261,9 +262,221 @@ CREATE TRIGGER update_vehicles_updated_at BEFORE UPDATE ON vehicles
 CREATE TRIGGER update_lessons_updated_at BEFORE UPDATE ON lessons
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- Insert demo accounts (optional)
--- Note: You'll need to create these users in Supabase Auth first, then run the profile inserts
+-- Function to automatically create profile after user signup
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $
+BEGIN
+  INSERT INTO public.profiles (id, email, full_name, role, is_active)
+  VALUES (
+    NEW.id,
+    NEW.email,
+    COALESCE(NEW.raw_user_meta_data->>'full_name', ''),
+    COALESCE((NEW.raw_user_meta_data->>'role')::user_role, 'student'),
+    true
+  );
+  RETURN NEW;
+END;
+$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Demo instructor: instructor@example.com / password123
--- Demo student 1: student1@example.com / password123
--- Demo student 2: student2@example.com / password123
+-- Trigger to automatically create profile for new users
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- Insert demo accounts (Run this AFTER creating the auth users manually)
+-- First, create these users in Supabase Dashboard -> Authentication -> Users:
+-- 1. instructor@example.com / password123
+-- 2. student1@example.com / password123  
+-- 3. student2@example.com / password123
+
+-- Then run this SQL to complete demo setup:
+/*
+-- Demo Instructor Profile
+INSERT INTO profiles (id, email, full_name, role, phone, is_active, birth_date)
+VALUES (
+  (SELECT id FROM auth.users WHERE email = 'instructor@example.com'),
+  'instructor@example.com',
+  'Jan van der Berg',
+  'instructor',
+  '+31612345678',
+  true,
+  '1985-03-15'
+) ON CONFLICT (id) DO UPDATE SET
+  full_name = EXCLUDED.full_name,
+  phone = EXCLUDED.phone,
+  birth_date = EXCLUDED.birth_date;
+
+-- Demo Instructor Extended Profile
+INSERT INTO instructor_profiles (user_id, company_name, license_number, rating, total_lessons, years_experience, bio)
+VALUES (
+  (SELECT id FROM auth.users WHERE email = 'instructor@example.com'),
+  'Rijschool Centrum',
+  'WRM123456',
+  4.8,
+  0,
+  10,
+  'Ervaren rijinstructeur met passie voor lesgeven'
+) ON CONFLICT (user_id) DO UPDATE SET
+  company_name = EXCLUDED.company_name,
+  license_number = EXCLUDED.license_number;
+
+-- Demo Student 1 Profile
+INSERT INTO profiles (id, email, full_name, role, phone, is_active, birth_date)
+VALUES (
+  (SELECT id FROM auth.users WHERE email = 'student1@example.com'),
+  'student1@example.com',
+  'Emma Jansen',
+  'student',
+  '+31698765432',
+  true,
+  '2003-07-22'
+) ON CONFLICT (id) DO UPDATE SET
+  full_name = EXCLUDED.full_name,
+  phone = EXCLUDED.phone,
+  birth_date = EXCLUDED.birth_date;
+
+-- Demo Student 1 Extended Profile
+INSERT INTO student_profiles (
+  user_id, 
+  lesson_streak, 
+  level, 
+  total_lessons_completed, 
+  hours_driven, 
+  overall_progress,
+  instructor_id,
+  skills_progress
+)
+VALUES (
+  (SELECT id FROM auth.users WHERE email = 'student1@example.com'),
+  7,
+  'Gevorderd',
+  45,
+  67.5,
+  0.72,
+  (SELECT id FROM auth.users WHERE email = 'instructor@example.com'),
+  '{
+    "parking": 0.85,
+    "highway": 0.72,
+    "cityDriving": 0.91,
+    "nightDriving": 0.43,
+    "weatherConditions": 0.67
+  }'::jsonb
+) ON CONFLICT (user_id) DO UPDATE SET
+  lesson_streak = EXCLUDED.lesson_streak,
+  level = EXCLUDED.level,
+  instructor_id = EXCLUDED.instructor_id;
+
+-- Demo Student 2 Profile
+INSERT INTO profiles (id, email, full_name, role, phone, is_active, birth_date)
+VALUES (
+  (SELECT id FROM auth.users WHERE email = 'student2@example.com'),
+  'student2@example.com',
+  'Tom de Vries',
+  'student',
+  '+31687654321',
+  true,
+  '2004-11-08'
+) ON CONFLICT (id) DO UPDATE SET
+  full_name = EXCLUDED.full_name,
+  phone = EXCLUDED.phone,
+  birth_date = EXCLUDED.birth_date;
+
+-- Demo Student 2 Extended Profile
+INSERT INTO student_profiles (
+  user_id,
+  lesson_streak,
+  level,
+  total_lessons_completed,
+  hours_driven,
+  overall_progress,
+  instructor_id,
+  skills_progress
+)
+VALUES (
+  (SELECT id FROM auth.users WHERE email = 'student2@example.com'),
+  3,
+  'Beginner',
+  12,
+  18.0,
+  0.35,
+  (SELECT id FROM auth.users WHERE email = 'instructor@example.com'),
+  '{
+    "parking": 0.45,
+    "highway": 0.20,
+    "cityDriving": 0.55,
+    "nightDriving": 0.10,
+    "weatherConditions": 0.30
+  }'::jsonb
+) ON CONFLICT (user_id) DO UPDATE SET
+  lesson_streak = EXCLUDED.lesson_streak,
+  level = EXCLUDED.level,
+  instructor_id = EXCLUDED.instructor_id;
+
+-- Demo Vehicle for Instructor
+INSERT INTO vehicles (instructor_id, make, model, year, license_plate, transmission, fuel_type, color, is_active)
+VALUES (
+  (SELECT id FROM auth.users WHERE email = 'instructor@example.com'),
+  'Toyota',
+  'Yaris',
+  2022,
+  'AB-123-CD',
+  'manual',
+  'Benzine',
+  'Zilver',
+  true
+);
+
+-- Demo Lessons
+INSERT INTO lessons (
+  instructor_id,
+  student_id,
+  title,
+  lesson_type,
+  start_time,
+  end_time,
+  duration,
+  location,
+  status,
+  notes
+)
+VALUES
+-- Upcoming lesson for student 1
+(
+  (SELECT id FROM auth.users WHERE email = 'instructor@example.com'),
+  (SELECT id FROM auth.users WHERE email = 'student1@example.com'),
+  'Stadsrijden',
+  'Stadsrijden',
+  NOW() + INTERVAL '2 days',
+  NOW() + INTERVAL '2 days' + INTERVAL '90 minutes',
+  90,
+  'Rijschool Centrum',
+  'scheduled',
+  'Focus op parkeren in krappe ruimtes'
+),
+-- Completed lesson for student 1
+(
+  (SELECT id FROM auth.users WHERE email = 'instructor@example.com'),
+  (SELECT id FROM auth.users WHERE email = 'student1@example.com'),
+  'Snelweg rijden',
+  'Snelweg',
+  NOW() - INTERVAL '4 days',
+  NOW() - INTERVAL '4 days' + INTERVAL '90 minutes',
+  90,
+  'A2 Snelweg',
+  'completed',
+  'Goede vooruitgang met invoegen'
+),
+-- Upcoming lesson for student 2
+(
+  (SELECT id FROM auth.users WHERE email = 'instructor@example.com'),
+  (SELECT id FROM auth.users WHERE email = 'student2@example.com'),
+  'Basis rijvaardigheden',
+  'Basis',
+  NOW() + INTERVAL '1 day',
+  NOW() + INTERVAL '1 day' + INTERVAL '90 minutes',
+  90,
+  'Rijschool Centrum',
+  'scheduled',
+  'Oefenen met schakelen'
+);
+*/
