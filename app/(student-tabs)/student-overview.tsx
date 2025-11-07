@@ -14,6 +14,7 @@ import {
 import { Stack, useRouter } from "expo-router";
 import { BookOpen, History, MessageCircle, Settings, LogOut, X } from "lucide-react-native";
 import { useStudent } from "@/components/student/StudentStore";
+import { useAuth } from "@/components/auth/AuthStore";
 import StudentHeader from "@/components/student/overview/StudentHeader";
 import NextLessonCard from "@/components/student/overview/NextLessonCard";
 import ProgressStats from "@/components/student/overview/ProgressStats";
@@ -21,6 +22,7 @@ import RecentActivity from "@/components/student/overview/RecentActivity";
 
 export default function StudentOverviewScreen() {
   const router = useRouter();
+  const { logout } = useAuth();
   const {
     isLoading,
     isRefreshing,
@@ -128,7 +130,7 @@ export default function StudentOverviewScreen() {
     });
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     Alert.alert(
       "Uitloggen",
       "Weet je zeker dat je wilt uitloggen?",
@@ -140,9 +142,16 @@ export default function StudentOverviewScreen() {
         {
           text: "Uitloggen",
           style: "destructive",
-          onPress: () => {
+          onPress: async () => {
             closeMenu();
-            router.replace("/login");
+            console.log("Logging out student...");
+            const result = await logout();
+            if (result.success) {
+              console.log("Logout successful, redirecting to login");
+              router.replace("/login");
+            } else {
+              Alert.alert("Fout", "Er is een probleem opgetreden bij het uitloggen");
+            }
           },
         },
       ]
