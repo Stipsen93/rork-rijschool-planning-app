@@ -24,17 +24,26 @@ export default function StudentProfileScreen() {
           text: "Uitloggen",
           style: "destructive",
           onPress: async () => {
-            setIsLoggingOut(true);
-            const result = await logout();
-            setIsLoggingOut(false);
-
-            if (result.success) {
-              router.replace("/login");
-            } else {
+            try {
+              setIsLoggingOut(true);
+              const result = await logout();
+              
+              if (result.success) {
+                router.replace("/login");
+              } else {
+                Alert.alert(
+                  "Fout",
+                  result.error || "Er is een fout opgetreden bij het uitloggen"
+                );
+              }
+            } catch (error) {
+              console.error("Logout error:", error);
               Alert.alert(
                 "Fout",
-                result.error || "Er is een fout opgetreden bij het uitloggen"
+                "Er is een fout opgetreden bij het uitloggen"
               );
+            } finally {
+              setIsLoggingOut(false);
             }
           },
         },

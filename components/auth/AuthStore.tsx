@@ -204,7 +204,15 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
   const logout = useCallback(async () => {
     try {
-      await supabase.auth.signOut();
+      console.log('Starting logout...');
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        console.error('Logout error from supabase:', error);
+        throw error;
+      }
+      
+      console.log('Logout successful');
       return { success: true };
     } catch (error) {
       console.error('Logout error:', error);
