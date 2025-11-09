@@ -7,6 +7,7 @@ export interface MonthlyViewProps {
   selectedDay: Date;
   onDaySelected: (selected: Date, focused: Date) => void;
   lessons: Record<string, { lessonType?: string }[]>; // key: YYYY-MM-DD
+  availabilityMap?: Record<string, boolean>;
   onClose: () => void;
 }
 
@@ -49,7 +50,7 @@ function getMonthMatrix(focused: Date): Date[] {
   return Array.from({ length: 42 }, (_, i) => new Date(start.getFullYear(), start.getMonth(), start.getDate() + i));
 }
 
-function MonthlyViewComponent({ focusedDay, selectedDay, onDaySelected, lessons, onClose }: MonthlyViewProps) {
+function MonthlyViewComponent({ focusedDay, selectedDay, onDaySelected, lessons, availabilityMap, onClose }: MonthlyViewProps) {
   const days = useMemo(() => getMonthMatrix(focusedDay), [focusedDay.getFullYear(), focusedDay.getMonth()]);
   const sameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
   const inMonth = (d: Date) => d.getMonth() === focusedDay.getMonth();
@@ -86,6 +87,7 @@ function MonthlyViewComponent({ focusedDay, selectedDay, onDaySelected, lessons,
             const selected = sameDay(d, selectedDay);
             const today = sameDay(d, new Date());
             const isVacation = isDateInVacation(d, vacationPeriods);
+            const hasAvailability = availabilityMap?.[keyFor(d)] ?? false;
             return (
               <Pressable
                 key={keyFor(d)}
@@ -103,12 +105,16 @@ function MonthlyViewComponent({ focusedDay, selectedDay, onDaySelected, lessons,
                   <Text style={[styles.dayText, selected ? { color: "#fff" } : undefined]}>{d.getDate()}</Text>
                 </View>
                 <View style={styles.markersRow}>
-                  {events.slice(0, 3).map((e, idx) => (
-                    <View
-                      key={`${keyFor(d)}-${idx}`}
-                      style={[styles.marker, { backgroundColor: colorForType(e.lessonType) }]}
-                    />
-                  ))}
+                  {events.length > 0 ? (
+                    events.slice(0, 3).map((e, idx) => (
+                      <View
+                        key={`${keyFor(d)}-${idx}`}
+                        style={[styles.marker, { backgroundColor: colorForType(e.lessonType) }]}
+                      />
+                    ))
+                  ) : hasAvailability ? (
+                    <View style={[styles.marker, styles.availabilityMarker]} />
+                  ) : null}
                 </View>
               </Pressable>
             );
@@ -182,6 +188,7 @@ const styles = StyleSheet.create({
   dayText: { fontWeight: "700" },
   markersRow: { flexDirection: "row", gap: 4, marginTop: 4 },
   marker: { width: 6, height: 6, borderRadius: 3 },
+  availabilityMarker: { backgroundColor: "#8b5cf6" },
   legendItem: { flexDirection: "row", alignItems: "center", marginRight: 16, marginBottom: 8 },
   legendDot: { width: 12, height: 12, borderRadius: 6 },
   dayVacation: { borderColor: "#ef4444", borderWidth: 2 },

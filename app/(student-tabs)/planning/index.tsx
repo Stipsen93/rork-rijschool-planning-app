@@ -48,6 +48,7 @@ export default function StudentPlanningScreen() {
   const { getLessonsForDate: getLessonsForDateFromStore, lessonsByDate } = useAgenda();
   const insets = useSafeAreaInsets();
   const availabilityMap = useWeekAvailability(currentDate);
+  const monthlyAvailabilityMap = useWeekAvailability(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1), 42);
 
   const lessonCounts: Record<string, number> = useMemo(() => {
     const map: Record<string, number> = {};
@@ -139,6 +140,7 @@ export default function StudentPlanningScreen() {
               setShowMonthly(false);
             }}
             lessons={lessonsByDate}
+            availabilityMap={monthlyAvailabilityMap}
             onClose={() => setShowMonthly(false)}
           />
         )}

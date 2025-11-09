@@ -23,18 +23,25 @@ function keyFor(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
-export function useWeekAvailability(currentWeekStart: Date): Record<string, boolean> {
+export function useWeekAvailability(currentWeekStart: Date, daysToCheck: number = 7): Record<string, boolean> {
   const { workingHours } = useWorkingHours();
   const { lessonConfig } = useSettings();
 
   return useMemo(() => {
     const availabilityMap: Record<string, boolean> = {};
     
-    for (let i = 0; i < 7; i++) {
+    const startDate = new Date(currentWeekStart);
+    if (daysToCheck > 7) {
+      const first = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+      const startWeekday = (first.getDay() || 7) - 1;
+      startDate.setDate(first.getDate() - startWeekday);
+    }
+    
+    for (let i = 0; i < daysToCheck; i++) {
       const date = new Date(
-        currentWeekStart.getFullYear(),
-        currentWeekStart.getMonth(),
-        currentWeekStart.getDate() + i
+        startDate.getFullYear(),
+        startDate.getMonth(),
+        startDate.getDate() + i
       );
       const dayKey = dutchDayName(date);
       const dayConfig = workingHours?.[dayKey];
@@ -57,5 +64,5 @@ export function useWeekAvailability(currentWeekStart: Date): Record<string, bool
     }
     
     return availabilityMap;
-  }, [currentWeekStart, workingHours, lessonConfig]);
+  }, [currentWeekStart, workingHours, lessonConfig, daysToCheck]);
 }
