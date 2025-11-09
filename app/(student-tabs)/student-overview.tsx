@@ -12,11 +12,9 @@ import {
   TouchableWithoutFeedback,
 } from "react-native";
 import { Stack, useRouter } from "expo-router";
-import { BookOpen, History, MessageCircle, Settings, LogOut, X } from "lucide-react-native";
+import { BookOpen, History, MessageCircle, Settings, LogOut, X, UserPlus } from "lucide-react-native";
 import { useStudent } from "@/components/student/StudentStore";
 import { useAuth } from "@/components/auth/AuthStore";
-import StudentHeader from "@/components/student/overview/StudentHeader";
-import NextLessonCard from "@/components/student/overview/NextLessonCard";
 import ProgressStats from "@/components/student/overview/ProgressStats";
 import RecentActivity from "@/components/student/overview/RecentActivity";
 
@@ -210,12 +208,10 @@ export default function StudentOverviewScreen() {
           />
         }
       >
-        <StudentHeader studentData={studentData} />
-        <NextLessonCard
-          nextLesson={studentData.nextLesson}
-          onCancel={handleCancelLesson}
-          onReschedule={handleRescheduleLesson}
-        />
+        <View style={styles.welcomeSection}>
+          <Text style={styles.welcomeTitle}>Welkom terug!</Text>
+          <Text style={styles.welcomeSubtitle}>Klaar voor je volgende rijles?</Text>
+        </View>
         <ProgressStats progressData={progressData} />
         <RecentActivity
           activities={recentActivity}
@@ -276,6 +272,18 @@ export default function StudentOverviewScreen() {
 
                 <View style={styles.drawerBody}>
                   <TouchableOpacity
+                    style={styles.menuButton}
+                    onPress={() => {
+                      closeMenu();
+                      router.push("/find-instructor");
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <UserPlus color="#2563EB" size={20} />
+                    <Text style={styles.menuButtonText}>Jouw instructeur</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
                     style={styles.logoutButton}
                     onPress={handleLogout}
                     activeOpacity={0.7}
@@ -313,6 +321,28 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: 120,
+  },
+  welcomeSection: {
+    backgroundColor: "#fff",
+    marginHorizontal: 16,
+    marginTop: 16,
+    borderRadius: 16,
+    padding: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  welcomeTitle: {
+    fontSize: 28,
+    fontWeight: "700" as const,
+    color: "#1f2937",
+    marginBottom: 8,
+  },
+  welcomeSubtitle: {
+    fontSize: 16,
+    color: "#6b7280",
   },
   fab: {
     position: "absolute",
@@ -398,6 +428,23 @@ const styles = StyleSheet.create({
   drawerBody: {
     paddingHorizontal: 24,
     paddingTop: 24,
+    gap: 12,
+  },
+  menuButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: "#EFF6FF",
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+  },
+  menuButtonText: {
+    fontSize: 16,
+    fontWeight: "600" as const,
+    color: "#2563EB",
   },
   logoutButton: {
     flexDirection: "row",
