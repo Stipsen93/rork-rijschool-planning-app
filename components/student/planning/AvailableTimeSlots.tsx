@@ -33,12 +33,12 @@ function minutesToTime(minutes: number): string {
   return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
 }
 
-interface TimeSlot {
+export interface TimeSlot {
   startTime: string;
   endTime: string;
 }
 
-function generateTimeSlots(
+export function generateTimeSlots(
   workRanges: Array<{ start: string; end: string }>,
   pauses: Array<{ start: string; end: string }>,
   lessonDuration: number,

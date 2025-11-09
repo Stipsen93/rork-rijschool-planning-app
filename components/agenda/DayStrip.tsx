@@ -7,6 +7,7 @@ export interface DayStripProps {
   selectedDate: Date;
   onDateSelected: (d: Date) => void;
   lessonCounts: Record<string, number>;
+  availabilityMap?: Record<string, boolean>;
 }
 
 function isDateInVacation(date: Date, vacationPeriods: VacationPeriod[]): boolean {
@@ -49,7 +50,7 @@ function dayName(weekday: number): string {
   return days[Math.max(0, weekday - 1)] ?? "";
 }
 
-function DayStripComponent({ currentWeekStart, selectedDate, onDateSelected, lessonCounts }: DayStripProps) {
+function DayStripComponent({ currentWeekStart, selectedDate, onDateSelected, lessonCounts, availabilityMap }: DayStripProps) {
   const data = Array.from({ length: 7 }, (_, i) => new Date(currentWeekStart.getFullYear(), currentWeekStart.getMonth(), currentWeekStart.getDate() + i));
   const today = new Date();
   const { vacationPeriods } = useWorkingHours();
@@ -61,6 +62,7 @@ function DayStripComponent({ currentWeekStart, selectedDate, onDateSelected, les
         const isToday = isSameDay(date, today);
         const count = lessonCounts[keyFor(date)] ?? 0;
         const isVacation = isDateInVacation(date, vacationPeriods);
+        const hasAvailability = availabilityMap?.[keyFor(date)] ?? false;
         return (
           <Pressable
             key={keyFor(date)}
@@ -81,6 +83,9 @@ function DayStripComponent({ currentWeekStart, selectedDate, onDateSelected, les
               <View style={[styles.countBadge, selected ? { backgroundColor: "rgba(255,255,255,0.22)" } : { backgroundColor: "#2f95dc" }]}>
                 <Text style={styles.countText}>{count}</Text>
               </View>
+            )}
+            {!count && hasAvailability && (
+              <View style={[styles.availabilityDot, selected && { backgroundColor: "rgba(255,255,255,0.9)" }]} />
             )}
           </Pressable>
         );
@@ -123,4 +128,11 @@ const styles = StyleSheet.create({
   countBadge: { marginTop: 3, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 },
   countText: { color: "#fff", fontWeight: "700", fontSize: 10 },
   dayVacation: { borderColor: "#ef4444", borderWidth: 2 },
+  availabilityDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#a855f7",
+    marginTop: 3,
+  },
 });

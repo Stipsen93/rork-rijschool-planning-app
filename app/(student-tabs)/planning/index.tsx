@@ -9,6 +9,7 @@ import { LessonDetailSheet } from "@/components/agenda/LessonDetailSheet";
 import { useRouter, useFocusEffect } from "expo-router";
 import { ArrowLeft } from "lucide-react-native";
 import { useAgenda } from "@/components/agenda/AgendaStore";
+import { useWeekAvailability } from "@/components/student/planning/useWeekAvailability";
 
 export type Lesson = { id?: string | number; studentName?: string; lessonType?: string; startTime: string; endTime: string; date: Date; status?: string; location?: string; notes?: string };
 
@@ -46,6 +47,7 @@ export default function StudentPlanningScreen() {
 
   const { getLessonsForDate: getLessonsForDateFromStore, lessonsByDate } = useAgenda();
   const insets = useSafeAreaInsets();
+  const availabilityMap = useWeekAvailability(currentDate);
 
   const lessonCounts: Record<string, number> = useMemo(() => {
     const map: Record<string, number> = {};
@@ -114,6 +116,7 @@ export default function StudentPlanningScreen() {
                 selectedDate={selectedDate}
                 onDateSelected={onDateSelected}
                 lessonCounts={lessonCounts}
+                availabilityMap={availabilityMap}
               />
             </View>
           </View>
