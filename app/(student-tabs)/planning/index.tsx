@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AgendaHeader } from "@/components/agenda/AgendaHeader";
 import { DayStrip } from "@/components/agenda/DayStrip";
 import { MonthlyView } from "@/components/agenda/MonthlyView";
-import { TimeGrid } from "@/components/agenda/TimeGrid";
+import { AvailableTimeSlots } from "@/components/student/planning/AvailableTimeSlots";
 import { LessonDetailSheet } from "@/components/agenda/LessonDetailSheet";
 import { useRouter, useFocusEffect } from "expo-router";
 import { ArrowLeft } from "lucide-react-native";
@@ -119,14 +119,11 @@ export default function StudentPlanningScreen() {
           </View>
         )}
 
-        <TimeGrid
+        <AvailableTimeSlots
           date={selectedDate}
-          onLessonPress={(id) => {
-            const l = getLessonsForDate(selectedDate).find((x) => String((x as any).id) === id);
-            if (l) setSelectedLesson(l);
+          onSlotPress={(startTime, endTime) => {
+            console.log("Tijdslot geselecteerd:", startTime, "-", endTime);
           }}
-          onSwipeLeft={onNextDay}
-          onSwipeRight={onPrevDay}
         />
 
         {showMonthly && (
