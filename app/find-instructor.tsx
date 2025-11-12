@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -8,103 +8,92 @@ import {
   TouchableOpacity,
   Image,
   Alert,
+  ActivityIndicator,
 } from "react-native";
-import { Stack, useRouter } from "expo-router";
-import { Search, Star, MapPin, X, Check } from "lucide-react-native";
+import { Stack } from "expo-router";
+import { Search, Star, X, Check } from "lucide-react-native";
+import { trpc } from "@/lib/trpc";
 
 interface Instructor {
   id: string;
+  instructorProfileId: string;
   name: string;
   photo: string;
   rating: number;
   reviewCount: number;
-  location: string;
   school: string;
   instructorNumber: string;
   specializations: string[];
+  bio: string;
   isRequested?: boolean;
 }
 
-const MOCK_INSTRUCTORS: Instructor[] = [
-  {
-    id: "1",
-    name: "Jan de Vries",
-    photo: "https://i.pravatar.cc/150?img=12",
-    rating: 4.8,
-    reviewCount: 124,
-    location: "Amsterdam",
-    school: "Rijschool Amsterdam",
-    instructorNumber: "1234567",
-    specializations: ["Autorijles", "Examentraining"],
-  },
-  {
-    id: "2",
-    name: "Maria van Dijk",
-    photo: "https://i.pravatar.cc/150?img=47",
-    rating: 4.9,
-    reviewCount: 98,
-    location: "Utrecht",
-    school: "VerkeersSmart",
-    instructorNumber: "2345678",
-    specializations: ["Autorijles", "Faalangst coaching"],
-  },
-  {
-    id: "3",
-    name: "Pieter Bakker",
-    photo: "https://i.pravatar.cc/150?img=33",
-    rating: 4.7,
-    reviewCount: 156,
-    location: "Rotterdam",
-    school: "De Rijschool Rotterdam",
-    instructorNumber: "3456789",
-    specializations: ["Autorijles", "Snelweg training"],
-  },
-  {
-    id: "4",
-    name: "Sophie Jansen",
-    photo: "https://i.pravatar.cc/150?img=45",
-    rating: 5.0,
-    reviewCount: 78,
-    location: "Den Haag",
-    school: "DriveAcademy",
-    instructorNumber: "4567890",
-    specializations: ["Autorijles", "Defensief rijden"],
-  },
-  {
-    id: "5",
-    name: "Luuk Vermeer",
-    photo: "https://i.pravatar.cc/150?img=52",
-    rating: 4.6,
-    reviewCount: 142,
-    location: "Eindhoven",
-    school: "Rijschool Zuid",
-    instructorNumber: "5678901",
-    specializations: ["Autorijles", "Spits training"],
-  },
-];
+
 
 export default function FindInstructorScreen() {
-  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [instructors, setInstructors] = useState<Instructor[]>(MOCK_INSTRUCTORS);
+
+  const instructorsQuery = trpc.instructors.search.useQuery(
+    { query: searchQuery },
+    {
+      refetchOnWindowFocus: false,
+      staleTime: 30000,
+    }
+  );
+
+  const myRequestsQuery = trpc.linkRequests.myRequests.useQuery(undefined, {
+    refetchOnWindowFocus: false,
+  });
+
+  const sendRequestMutation = trpc.linkRequests.send.useMutation({
+    onSuccess: () => {
+      myRequestsQuery.refetch();
+      Alert.alert(
+        "Verzoek verstuurd",
+        "Je koppelverzoek is verstuurd. Je ontvangt een melding wanneer de instructeur reageert."
+      );
+    },
+    onError: (error) => {
+      Alert.alert("Fout", error.message || "Kon verzoek niet versturen");
+    },
+  });
+
+  const cancelRequestMutation = trpc.linkRequests.cancel.useMutation({
+    onSuccess: () => {
+      myRequestsQuery.refetch();
+      Alert.alert("Verzoek ingetrokken", "Je koppelverzoek is ingetrokken.");
+    },
+    onError: (error) => {
+      Alert.alert("Fout", error.message || "Kon verzoek niet intrekken");
+    },
+  });
+
+  const instructorsWithRequestStatus = useMemo(() => {
+    if (!instructorsQuery.data) return [];
+    
+    const pendingRequests = myRequestsQuery.data?.filter(
+      (req) => req.status === "pending"
+    ) || [];
+
+    return instructorsQuery.data.map((instructor) => {
+      const hasRequest = pendingRequests.some(
+        (req) => req.instructor_id === instructor.id
+      );
+      return {
+        ...instructor,
+        isRequested: hasRequest,
+        requestId: pendingRequests.find((req) => req.instructor_id === instructor.id)?.id,
+      };
+    });
+  }, [instructorsQuery.data, myRequestsQuery.data]);
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
-    if (query.trim() === "") {
-      setInstructors(MOCK_INSTRUCTORS);
-    } else {
-      const filtered = MOCK_INSTRUCTORS.filter(
-        (instructor) =>
-          instructor.name.toLowerCase().includes(query.toLowerCase()) ||
-          instructor.location.toLowerCase().includes(query.toLowerCase()) ||
-          instructor.school.toLowerCase().includes(query.toLowerCase()) ||
-          instructor.instructorNumber.includes(query)
-      );
-      setInstructors(filtered);
-    }
   };
 
-  const handleSendRequest = (instructor: Instructor) => {
+  const handleSendRequest = (instructor: Instructor & { requestId?: string }) => {
+    if (sendRequestMutation.isPending) return;
+
     Alert.alert(
       "Koppelverzoek versturen",
       `Wil je een koppelverzoek sturen naar ${instructor.name}?`,
@@ -116,21 +105,18 @@ export default function FindInstructorScreen() {
         {
           text: "Versturen",
           onPress: () => {
-            const updatedInstructors = instructors.map((item) =>
-              item.id === instructor.id ? { ...item, isRequested: true } : item
-            );
-            setInstructors(updatedInstructors);
-            Alert.alert(
-              "Verzoek verstuurd",
-              `Je koppelverzoek is verstuurd naar ${instructor.name}. Je ontvangt een melding wanneer de instructeur reageert.`
-            );
+            sendRequestMutation.mutate({
+              instructorId: instructor.id,
+            });
           },
         },
       ]
     );
   };
 
-  const handleCancelRequest = (instructor: Instructor) => {
+  const handleCancelRequest = (instructor: Instructor & { requestId?: string }) => {
+    if (cancelRequestMutation.isPending || !instructor.requestId) return;
+
     Alert.alert(
       "Verzoek intrekken",
       `Wil je je koppelverzoek naar ${instructor.name} intrekken?`,
@@ -143,18 +129,14 @@ export default function FindInstructorScreen() {
           text: "Intrekken",
           style: "destructive",
           onPress: () => {
-            const updatedInstructors = instructors.map((item) =>
-              item.id === instructor.id ? { ...item, isRequested: false } : item
-            );
-            setInstructors(updatedInstructors);
-            Alert.alert("Verzoek ingetrokken", "Je koppelverzoek is ingetrokken.");
+            cancelRequestMutation.mutate({ requestId: instructor.requestId! });
           },
         },
       ]
     );
   };
 
-  const renderInstructor = ({ item }: { item: Instructor }) => (
+  const renderInstructor = ({ item }: { item: Instructor & { requestId?: string } }) => (
     <View style={styles.instructorCard}>
       <View style={styles.instructorHeader}>
         <Image source={{ uri: item.photo }} style={styles.instructorPhoto} />
@@ -171,33 +153,44 @@ export default function FindInstructorScreen() {
         </View>
       </View>
 
-      <View style={styles.locationRow}>
-        <MapPin color="#6b7280" size={16} />
-        <Text style={styles.location}>{item.location}</Text>
-      </View>
 
-      <View style={styles.specializationsRow}>
-        {item.specializations.map((spec, index) => (
-          <View key={index} style={styles.specializationBadge}>
-            <Text style={styles.specializationText}>{spec}</Text>
-          </View>
-        ))}
-      </View>
+
+      {item.specializations && item.specializations.length > 0 && (
+        <View style={styles.specializationsRow}>
+          {item.specializations.map((spec, index) => (
+            <View key={index} style={styles.specializationBadge}>
+              <Text style={styles.specializationText}>{spec}</Text>
+            </View>
+          ))}
+        </View>
+      )}
 
       {item.isRequested ? (
         <TouchableOpacity
           style={styles.requestedButton}
           onPress={() => handleCancelRequest(item)}
+          disabled={cancelRequestMutation.isPending}
         >
-          <Check color="#10b981" size={18} />
-          <Text style={styles.requestedButtonText}>Verzoek verstuurd</Text>
+          {cancelRequestMutation.isPending ? (
+            <ActivityIndicator size="small" color="#10b981" />
+          ) : (
+            <>
+              <Check color="#10b981" size={18} />
+              <Text style={styles.requestedButtonText}>Verzoek verstuurd</Text>
+            </>
+          )}
         </TouchableOpacity>
       ) : (
         <TouchableOpacity
           style={styles.requestButton}
           onPress={() => handleSendRequest(item)}
+          disabled={sendRequestMutation.isPending}
         >
-          <Text style={styles.requestButtonText}>Koppelverzoek versturen</Text>
+          {sendRequestMutation.isPending ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Text style={styles.requestButtonText}>Koppelverzoek versturen</Text>
+          )}
         </TouchableOpacity>
       )}
     </View>
@@ -235,21 +228,35 @@ export default function FindInstructorScreen() {
         </View>
       </View>
 
-      <FlatList
-        data={instructors}
-        renderItem={renderInstructor}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>Geen instructeurs gevonden</Text>
-            <Text style={styles.emptySubtext}>
-              Probeer een andere zoekterm
-            </Text>
-          </View>
-        }
-      />
+      {instructorsQuery.isLoading || myRequestsQuery.isLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#2563EB" />
+          <Text style={styles.loadingText}>Instructeurs laden...</Text>
+        </View>
+      ) : instructorsQuery.isError ? (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>Fout bij laden</Text>
+          <Text style={styles.emptySubtext}>
+            {instructorsQuery.error?.message || "Probeer het later opnieuw"}
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          data={instructorsWithRequestStatus}
+          renderItem={renderInstructor}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>Geen instructeurs gevonden</Text>
+              <Text style={styles.emptySubtext}>
+                Probeer een andere zoekterm
+              </Text>
+            </View>
+          }
+        />
+      )}
     </View>
   );
 }
@@ -334,16 +341,7 @@ const styles = StyleSheet.create({
     fontWeight: "600" as const,
     marginTop: 2,
   },
-  locationRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 12,
-  },
-  location: {
-    fontSize: 14,
-    color: "#6b7280",
-  },
+
   specializationsRow: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -402,5 +400,16 @@ const styles = StyleSheet.create({
   emptySubtext: {
     fontSize: 14,
     color: "#9ca3af",
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 48,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: "#6b7280",
+    marginTop: 12,
   },
 });
