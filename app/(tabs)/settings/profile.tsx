@@ -379,6 +379,17 @@ export default function ProfileScreen() {
     onChange("drivingSchools", localProfile.drivingSchools.filter((s) => s !== school));
   }, [localProfile.drivingSchools, onChange]);
 
+  const localProfileRef = React.useRef(localProfile);
+  const profileRef = React.useRef(profile);
+
+  useEffect(() => {
+    localProfileRef.current = localProfile;
+  }, [localProfile]);
+
+  useEffect(() => {
+    profileRef.current = profile;
+  }, [profile]);
+
   useFocusEffect(
     useCallback(() => {
       console.log("[ProfileScreen] Screen focused - checking for draft...");
@@ -388,7 +399,7 @@ export default function ProfileScreen() {
           const { default: AsyncStorage } = await import("@react-native-async-storage/async-storage");
           const draftStr = await AsyncStorage.getItem(DRAFT_KEY);
           if (!cancelled && draftStr) {
-            const draft = JSON.parse(draftStr) as typeof localProfile;
+            const draft = JSON.parse(draftStr);
             console.log("[ProfileScreen] Draft found, restoring and enabling edit mode");
             setLocalProfile(draft);
             setIsEditing(true);
@@ -406,8 +417,8 @@ export default function ProfileScreen() {
         (async () => {
           try {
             const { default: AsyncStorage } = await import("@react-native-async-storage/async-storage");
-            const current = JSON.stringify(localProfile);
-            const saved = JSON.stringify(profile);
+            const current = JSON.stringify(localProfileRef.current);
+            const saved = JSON.stringify(profileRef.current);
             if (current !== saved) {
               await AsyncStorage.setItem(DRAFT_KEY, current);
               console.log("[ProfileScreen] Draft saved on blur");
@@ -420,7 +431,7 @@ export default function ProfileScreen() {
           }
         })();
       };
-    }, [localProfile, profile])
+    }, [])
   );
 
   return (
