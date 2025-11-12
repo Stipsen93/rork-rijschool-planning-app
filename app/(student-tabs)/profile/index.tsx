@@ -67,13 +67,13 @@ export default function StudentProfileScreen() {
           
           <TouchableOpacity
             style={styles.menuItem}
-            onPress={() => Alert.alert("Info", "Deze functionaliteit komt binnenkort")}
+            onPress={() => router.push("/(student-tabs)/profile/personal-info")}
           >
             <View style={styles.menuIconWrap}>
               <Settings color="#0ea5e9" size={22} />
             </View>
             <View style={styles.menuTextWrap}>
-              <Text style={styles.menuTitle}>Profiel bewerken</Text>
+              <Text style={styles.menuTitle}>Persoonlijke gegevens</Text>
               <Text style={styles.menuSubtitle}>Pas je gegevens aan</Text>
             </View>
           </TouchableOpacity>

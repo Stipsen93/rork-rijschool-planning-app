@@ -95,6 +95,12 @@ export interface Database {
         Row: {
           id: string
           user_id: string
+          first_name: string | null
+          last_name: string | null
+          birth_date: string | null
+          address: string | null
+          parent_name: string | null
+          parent_phone: string | null
           lesson_streak: number
           level: string | null
           total_lessons_completed: number
@@ -110,6 +116,12 @@ export interface Database {
         Insert: {
           id?: string
           user_id: string
+          first_name?: string | null
+          last_name?: string | null
+          birth_date?: string | null
+          address?: string | null
+          parent_name?: string | null
+          parent_phone?: string | null
           lesson_streak?: number
           level?: string | null
           total_lessons_completed?: number
@@ -125,6 +137,12 @@ export interface Database {
         Update: {
           id?: string
           user_id?: string
+          first_name?: string | null
+          last_name?: string | null
+          birth_date?: string | null
+          address?: string | null
+          parent_name?: string | null
+          parent_phone?: string | null
           lesson_streak?: number
           level?: string | null
           total_lessons_completed?: number

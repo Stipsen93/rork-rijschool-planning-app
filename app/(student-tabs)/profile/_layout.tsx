@@ -10,6 +10,13 @@ export default function ProfileLayout() {
           headerLargeTitle: true,
         }}
       />
+      <Stack.Screen
+        name="personal-info"
+        options={{
+          title: "Persoonlijke gegevens",
+          headerBackTitle: "Terug",
+        }}
+      />
     </Stack>
   );
 }
