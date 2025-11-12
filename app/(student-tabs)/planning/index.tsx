@@ -238,10 +238,12 @@ const styles = StyleSheet.create({
     marginHorizontal: -16,
   },
   stickyHeaderInner: {
-    paddingTop: 8,
+    paddingTop: 12,
+    paddingBottom: 8,
   },
   stickyHeaderInnerBottom: {
-    paddingTop: 8,
+    paddingTop: 12,
+    paddingBottom: 8,
   },
   sectionHeader: { marginTop: 8 },
   sectionTitle: { fontSize: 16, fontWeight: "700" },
