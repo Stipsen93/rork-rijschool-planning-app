@@ -490,7 +490,10 @@ export default function ProfileScreen() {
               </Modal>
             )}
 
-            <Field label="Professionele titel" value={localProfile.title} onChangeText={(t) => onChange("title", t)} editable={isEditing} testID="field-title" />
+            <Text style={styles.fieldLabel}>Instructeur nummer</Text>
+            <View style={[styles.input, styles.inputDisabled]}>
+              <Text style={styles.inputText}>{localProfile.instructorNumber}</Text>
+            </View>
           </Section>
 
           <Section title="Professionele Informatie">

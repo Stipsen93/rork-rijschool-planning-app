@@ -1,11 +1,11 @@
 import React, { useCallback, useMemo, useState, useEffect, useRef } from "react";
-import { RefreshControl, ScrollView, StyleSheet, Text, View, Pressable, Modal, Platform, Alert, Animated } from "react-native";
+import { RefreshControl, ScrollView, StyleSheet, Text, View, Pressable, Modal, Platform, Alert, Animated, TouchableOpacity } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StudentSearchBar, StudentFilters } from "@/components/students/StudentSearchBar";
 import { LoadingSkeleton } from "@/components/students/LoadingSkeleton";
 import { FilterModal } from "@/components/students/FilterModal";
-import { Users, Plus, X } from "lucide-react-native";
+import { Users, Plus, X, UserPlus } from "lucide-react-native";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { PersonalInformation, PersonalInfo } from "@/components/students/add/PersonalInformation";
 import { NotesSection } from "@/components/students/add/NotesSection";
@@ -202,6 +202,18 @@ export default function StudentsScreen() {
             <Text style={styles.title}>Leerlingen</Text>
             <Text style={styles.text}>Beheer je leerlingen, zoek en filter.</Text>
           </View>
+
+          <TouchableOpacity
+            style={styles.linkRequestsButton}
+            onPress={() => {
+              console.log("Navigating to link requests");
+              router.push("/link-requests");
+            }}
+            testID="link-requests-button"
+          >
+            <UserPlus color="#2563EB" size={20} />
+            <Text style={styles.linkRequestsButtonText}>Koppelverzoeken</Text>
+          </TouchableOpacity>
 
           <StudentSearchBar 
             value={query} 
@@ -460,4 +472,26 @@ const styles = StyleSheet.create({
   input: { borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 10, paddingHorizontal: 12, paddingVertical: 12, backgroundColor: "#fff" },
   primaryBtn: { backgroundColor: "#2f95dc", borderRadius: 12, paddingVertical: 14, alignItems: "center" },
   primaryBtnText: { color: "#fff", fontWeight: "700", fontSize: 16 },
+  linkRequestsButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#fff",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#2563EB",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  linkRequestsButtonText: {
+    fontSize: 16,
+    fontWeight: "700" as const,
+    color: "#2563EB",
+  },
 });

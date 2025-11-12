@@ -20,6 +20,7 @@ interface Instructor {
   reviewCount: number;
   location: string;
   school: string;
+  instructorNumber: string;
   specializations: string[];
   isRequested?: boolean;
 }
@@ -33,6 +34,7 @@ const MOCK_INSTRUCTORS: Instructor[] = [
     reviewCount: 124,
     location: "Amsterdam",
     school: "Rijschool Amsterdam",
+    instructorNumber: "1234567",
     specializations: ["Autorijles", "Examentraining"],
   },
   {
@@ -43,6 +45,7 @@ const MOCK_INSTRUCTORS: Instructor[] = [
     reviewCount: 98,
     location: "Utrecht",
     school: "VerkeersSmart",
+    instructorNumber: "2345678",
     specializations: ["Autorijles", "Faalangst coaching"],
   },
   {
@@ -53,6 +56,7 @@ const MOCK_INSTRUCTORS: Instructor[] = [
     reviewCount: 156,
     location: "Rotterdam",
     school: "De Rijschool Rotterdam",
+    instructorNumber: "3456789",
     specializations: ["Autorijles", "Snelweg training"],
   },
   {
@@ -63,6 +67,7 @@ const MOCK_INSTRUCTORS: Instructor[] = [
     reviewCount: 78,
     location: "Den Haag",
     school: "DriveAcademy",
+    instructorNumber: "4567890",
     specializations: ["Autorijles", "Defensief rijden"],
   },
   {
@@ -73,6 +78,7 @@ const MOCK_INSTRUCTORS: Instructor[] = [
     reviewCount: 142,
     location: "Eindhoven",
     school: "Rijschool Zuid",
+    instructorNumber: "5678901",
     specializations: ["Autorijles", "Spits training"],
   },
 ];
@@ -91,7 +97,8 @@ export default function FindInstructorScreen() {
         (instructor) =>
           instructor.name.toLowerCase().includes(query.toLowerCase()) ||
           instructor.location.toLowerCase().includes(query.toLowerCase()) ||
-          instructor.school.toLowerCase().includes(query.toLowerCase())
+          instructor.school.toLowerCase().includes(query.toLowerCase()) ||
+          instructor.instructorNumber.includes(query)
       );
       setInstructors(filtered);
     }
@@ -160,6 +167,7 @@ export default function FindInstructorScreen() {
             </Text>
           </View>
           <Text style={styles.school}>{item.school}</Text>
+          <Text style={styles.instructorNumber}>#{item.instructorNumber}</Text>
         </View>
       </View>
 
@@ -214,7 +222,7 @@ export default function FindInstructorScreen() {
           <Search color="#6b7280" size={20} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Zoek op naam, locatie of rijschool..."
+            placeholder="Zoek op naam, locatie, rijschool of instructeur nummer..."
             value={searchQuery}
             onChangeText={handleSearch}
             placeholderTextColor="#9ca3af"
@@ -319,6 +327,12 @@ const styles = StyleSheet.create({
   school: {
     fontSize: 14,
     color: "#6b7280",
+  },
+  instructorNumber: {
+    fontSize: 12,
+    color: "#9ca3af",
+    fontWeight: "600" as const,
+    marginTop: 2,
   },
   locationRow: {
     flexDirection: "row",

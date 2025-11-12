@@ -11,7 +11,7 @@ export type InstructorProfile = {
   drivingSchoolName: string;
   drivingSchools: string[];
   birthDate: string | null;
-  title: string;
+  instructorNumber: string;
   experienceYears: string;
   taxId: string;
   address: string;
@@ -22,6 +22,10 @@ export type InstructorProfile = {
 
 const PROFILE_KEY = "instructor_profile" as const;
 
+function generateInstructorNumber(): string {
+  return Math.floor(1000000 + Math.random() * 9000000).toString();
+}
+
 const defaultProfile: InstructorProfile = {
   firstName: "",
   lastName: "",
@@ -31,7 +35,7 @@ const defaultProfile: InstructorProfile = {
   drivingSchoolName: "",
   drivingSchools: [],
   birthDate: null,
-  title: "Gecertificeerd Rijinstructeur",
+  instructorNumber: generateInstructorNumber(),
   experienceYears: "",
   taxId: "",
   address: "",
@@ -51,8 +55,13 @@ export const [ProfileProvider, useProfile] = createContextHook(() => {
         const stored = await AsyncStorage.getItem(PROFILE_KEY);
         if (stored) {
           const parsed = JSON.parse(stored) as InstructorProfile;
+          if (!parsed.instructorNumber) {
+            parsed.instructorNumber = generateInstructorNumber();
+          }
           setProfile(parsed);
           console.log("[ProfileStore] Loaded profile", parsed);
+        } else {
+          setProfile(defaultProfile);
         }
       } catch (e) {
         console.error("[ProfileStore] Failed to load profile", e);
