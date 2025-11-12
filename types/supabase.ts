@@ -48,6 +48,7 @@ export interface Database {
         Row: {
           id: string
           user_id: string
+          instructor_number: string | null
           company_name: string | null
           license_number: string | null
           bio: string | null
@@ -62,6 +63,7 @@ export interface Database {
         Insert: {
           id?: string
           user_id: string
+          instructor_number?: string | null
           company_name?: string | null
           license_number?: string | null
           bio?: string | null
@@ -76,6 +78,7 @@ export interface Database {
         Update: {
           id?: string
           user_id?: string
+          instructor_number?: string | null
           company_name?: string | null
           license_number?: string | null
           bio?: string | null

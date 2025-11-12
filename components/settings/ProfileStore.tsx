@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import createContextHook from "@nkzw/create-context-hook";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { trpc } from "@/lib/trpc";
 
 export type InstructorProfile = {
   firstName: string;
@@ -22,10 +23,6 @@ export type InstructorProfile = {
 
 const PROFILE_KEY = "instructor_profile" as const;
 
-function generateInstructorNumber(): string {
-  return Math.floor(1000000 + Math.random() * 9000000).toString();
-}
-
 const defaultProfile: InstructorProfile = {
   firstName: "",
   lastName: "",
@@ -35,7 +32,7 @@ const defaultProfile: InstructorProfile = {
   drivingSchoolName: "",
   drivingSchools: [],
   birthDate: null,
-  instructorNumber: generateInstructorNumber(),
+  instructorNumber: "",
   experienceYears: "",
   taxId: "",
   address: "",
@@ -48,28 +45,38 @@ export const [ProfileProvider, useProfile] = createContextHook(() => {
   const [profile, setProfile] = useState<InstructorProfile>(defaultProfile);
   const [loading, setLoading] = useState<boolean>(true);
 
+  const meQuery = trpc.auth.me.useQuery(undefined, {
+    enabled: true,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+
   useEffect(() => {
     (async () => {
       console.log("[ProfileStore] Loading instructor profile...");
       try {
         const stored = await AsyncStorage.getItem(PROFILE_KEY);
-        if (stored) {
-          const parsed = JSON.parse(stored) as InstructorProfile;
-          if (!parsed.instructorNumber) {
-            parsed.instructorNumber = generateInstructorNumber();
-          }
-          setProfile(parsed);
-          console.log("[ProfileStore] Loaded profile", parsed);
-        } else {
-          setProfile(defaultProfile);
+        let parsedProfile = stored ? JSON.parse(stored) as InstructorProfile : defaultProfile;
+
+        if (meQuery.data?.extendedProfile) {
+          const instructorNumber = meQuery.data.extendedProfile.instructor_number || "";
+          console.log("[ProfileStore] Syncing instructor number from backend:", instructorNumber);
+          parsedProfile = {
+            ...parsedProfile,
+            instructorNumber,
+          };
+          await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(parsedProfile));
         }
+
+        setProfile(parsedProfile);
+        console.log("[ProfileStore] Loaded profile", parsedProfile);
       } catch (e) {
         console.error("[ProfileStore] Failed to load profile", e);
       } finally {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [meQuery.data]);
 
   const updateProfile = useCallback(async (newProfile: InstructorProfile) => {
     console.log("[ProfileStore] Updating profile", newProfile);
@@ -86,11 +93,11 @@ export const [ProfileProvider, useProfile] = createContextHook(() => {
   const value = useMemo(
     () => ({
       profile,
-      loading,
+      loading: loading || meQuery.isLoading,
       fullName,
       updateProfile,
     }),
-    [profile, loading, fullName, updateProfile]
+    [profile, loading, meQuery.isLoading, fullName, updateProfile]
   );
 
   return value;
