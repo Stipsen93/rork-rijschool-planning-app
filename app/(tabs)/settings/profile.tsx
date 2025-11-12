@@ -579,24 +579,38 @@ export default function ProfileScreen() {
 
           <View style={styles.footer}>
             {!isEditing ? (
-              <TouchableOpacity
-                onPress={() => {
-                  console.log("[ProfileScreen] Entering edit mode");
-                  setIsEditing(true);
-                }}
-                style={styles.saveCta}
-                testID="edit-btn"
-              >
-                <Text style={styles.saveCtaText}>Bewerken</Text>
-              </TouchableOpacity>
+              <View style={styles.actionRow}>
+                <TouchableOpacity
+                  onPress={() => {
+                    console.log("[ProfileScreen] Entering edit mode");
+                    setIsEditing(true);
+                  }}
+                  style={styles.saveCta}
+                  testID="edit-btn"
+                >
+                  <Text style={styles.saveCtaText}>Bewerken</Text>
+                </TouchableOpacity>
+              </View>
             ) : (
-              <TouchableOpacity
-                onPress={handleSave}
-                style={styles.saveCta}
-                testID="save-btn"
-              >
-                <Text style={styles.saveCtaText}>Opslaan</Text>
-              </TouchableOpacity>
+              <View style={styles.actionRow}>
+                <TouchableOpacity
+                  onPress={() => {
+                    setIsEditing(false);
+                    setLocalProfile(profile);
+                  }}
+                  style={[styles.saveCta, styles.cancelCta]}
+                  testID="cancel-btn"
+                >
+                  <Text style={[styles.saveCtaText, styles.cancelCtaText]}>Annuleren</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleSave}
+                  style={styles.saveCta}
+                  testID="save-btn"
+                >
+                  <Text style={styles.saveCtaText}>Opslaan</Text>
+                </TouchableOpacity>
+              </View>
             )}
           </View>
           </ScrollView>
@@ -637,6 +651,8 @@ function Field({ label, value, onChangeText, keyboardType = "default", editable 
         keyboardType={keyboardType}
         editable={editable}
         multiline={multiline}
+        selectTextOnFocus={editable}
+        pointerEvents={editable ? "auto" : "none"}
       />
     </View>
   );
@@ -692,20 +708,19 @@ const styles = StyleSheet.create({
     color: "#111827",
   },
   inputMultiline: { minHeight: 80, textAlignVertical: "top" },
-  inputDisabled: { backgroundColor: "#f3f4f6" },
+  inputDisabled: { backgroundColor: "#f3f4f6", color: "#9ca3af" },
   subTitle: { fontSize: 14, fontWeight: "600", marginTop: 4 },
   saveCta: {
     backgroundColor: "#0ea5e9",
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: "center",
+    flex: 1,
   },
   saveCtaDisabled: { backgroundColor: "#93c5fd" },
   saveCtaText: { color: "#fff", fontWeight: "700", fontSize: 16 },
   footer: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    paddingBottom: 120,
+    marginTop: 8,
   },
   inputWithIcon: {
     flexDirection: "row",
@@ -742,6 +757,20 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "#111827",
     flex: 1,
+  },
+  actionRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 60,
+  },
+  cancelCta: {
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    flex: 1,
+  },
+  cancelCtaText: {
+    color: "#111827",
   },
   modalBackdrop: {
     flex: 1,
