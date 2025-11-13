@@ -1,24 +1,43 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Car, GraduationCap, User } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useAuth } from "@/components/auth/AuthStore";
 
 export default function LoginScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { login } = useAuth();
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const handleInstructorPress = () => {
     router.replace('/(tabs)/overview');
   };
 
-  const handleStudentPress = () => {
-    router.replace('/(student-tabs)/student-overview');
+  const handleStudentPress = async () => {
+    setIsLoading(true);
+    try {
+      const result = await login('student1@example.com', 'password123');
+      
+      if (result.success) {
+        router.replace('/(student-tabs)/student-overview');
+      } else {
+        Alert.alert('Inloggen mislukt', result.error || 'Er is een fout opgetreden');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      Alert.alert('Inloggen mislukt', 'Er is een fout opgetreden bij het inloggen');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -53,13 +72,20 @@ export default function LoginScreen() {
           <TouchableOpacity
             style={styles.roleButton}
             onPress={handleStudentPress}
+            disabled={isLoading}
             testID="student-button"
           >
-            <View style={styles.roleIconContainer}>
-              <User color="#2563EB" size={32} strokeWidth={2} />
-            </View>
-            <Text style={styles.roleButtonTitle}>Student</Text>
-            <Text style={styles.roleButtonSubtitle}>Ga naar student omgeving</Text>
+            {isLoading ? (
+              <ActivityIndicator size="large" color="#2563EB" />
+            ) : (
+              <>
+                <View style={styles.roleIconContainer}>
+                  <User color="#2563EB" size={32} strokeWidth={2} />
+                </View>
+                <Text style={styles.roleButtonTitle}>Student</Text>
+                <Text style={styles.roleButtonSubtitle}>Inloggen als Emma Jansen</Text>
+              </>
+            )}
           </TouchableOpacity>
         </View>
       </View>
