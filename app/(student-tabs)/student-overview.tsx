@@ -17,6 +17,7 @@ import { useStudent } from "@/components/student/StudentStore";
 import { useAuth } from "@/components/auth/AuthStore";
 import ProgressStats from "@/components/student/overview/ProgressStats";
 import RecentActivity from "@/components/student/overview/RecentActivity";
+import NextLessonCard from "@/components/student/overview/NextLessonCard";
 
 export default function StudentOverviewScreen() {
   const router = useRouter();
@@ -212,6 +213,11 @@ export default function StudentOverviewScreen() {
           <Text style={styles.welcomeTitle}>Welkom terug!</Text>
           <Text style={styles.welcomeSubtitle}>Klaar voor je volgende rijles?</Text>
         </View>
+        <NextLessonCard
+          nextLesson={studentData.nextLesson}
+          onCancel={handleCancelLesson}
+          onReschedule={handleRescheduleLesson}
+        />
         <ProgressStats progressData={progressData} />
         <RecentActivity
           activities={recentActivity}
