@@ -70,13 +70,20 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
   const handleSessionUpdate = async (session: Session) => {
     try {
+      console.log('AuthStore: Handling session update for user:', session.user.id);
       await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session));
 
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', session.user.id)
         .single();
+
+      if (profileError) {
+        console.error('AuthStore: Error loading profile:', profileError);
+      }
+      
+      console.log('AuthStore: Profile loaded:', profile);
 
       setAuthState({
         user: session.user,
@@ -86,7 +93,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         isAuthenticated: true,
       });
     } catch (error) {
-      console.error('Error handling session update:', error);
+      console.error('AuthStore: Error handling session update:', error);
       setAuthState({
         user: session.user,
         profile: null,
@@ -114,25 +121,35 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
   const login = useCallback(async (email: string, password: string) => {
     try {
+      console.log('AuthStore: Starting login for', email);
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
+        console.error('AuthStore: Supabase auth error:', error);
         throw error;
       }
 
       if (!data.session) {
+        console.error('AuthStore: No session returned from login');
         throw new Error('No session returned from login');
       }
 
+      console.log('AuthStore: Login successful, user ID:', data.user.id);
+      console.log('AuthStore: Waiting for profile to load...');
+      
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      console.log('AuthStore: Profile loaded:', authState.profile);
+      
       return {
         success: true,
         profile: authState.profile,
       };
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('AuthStore: Login error:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Login failed',

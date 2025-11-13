@@ -23,19 +23,26 @@ export default function LoginScreen() {
   };
 
   const handleStudentPress = async () => {
+    console.log('Student button pressed - starting login...');
     setIsLoading(true);
     try {
+      console.log('Attempting to login with student1@example.com');
       const result = await login('student1@example.com', 'password123');
+      console.log('Login result:', result);
       
       if (result.success) {
-        router.replace('/(student-tabs)/student-overview');
+        console.log('Login successful, navigating to student overview...');
+        setTimeout(() => {
+          router.replace('/(student-tabs)/student-overview');
+        }, 100);
       } else {
+        console.error('Login failed:', result.error);
         Alert.alert('Inloggen mislukt', result.error || 'Er is een fout opgetreden');
+        setIsLoading(false);
       }
     } catch (error) {
-      console.error('Login error:', error);
-      Alert.alert('Inloggen mislukt', 'Er is een fout opgetreden bij het inloggen');
-    } finally {
+      console.error('Login exception:', error);
+      Alert.alert('Inloggen mislukt', error instanceof Error ? error.message : 'Er is een fout opgetreden bij het inloggen');
       setIsLoading(false);
     }
   };
