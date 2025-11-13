@@ -67,7 +67,7 @@ CREATE TABLE IF NOT EXISTS student_profiles (
   level TEXT,
   total_lessons_completed INTEGER DEFAULT 0,
   hours_driven DECIMAL(5, 2) DEFAULT 0,
-  overall_progress DECIMAL(3, 2) DEFAULT 0,
+  overall_progress DECIMAL(5, 2) DEFAULT 0,
   instructor_id UUID REFERENCES profiles(id),
   package_id UUID,
   learning_preferences JSONB,

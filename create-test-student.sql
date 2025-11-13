@@ -82,7 +82,7 @@ INSERT INTO student_profiles (
   'Beginner',
   8,
   12.5,
-  35.0,
+  35.00,
   '{"preferredTime": "afternoon", "transmission": "manual", "lessonDuration": 60}',
   '{"parking": 60, "cityDriving": 45, "highway": 20, "nightDriving": 10}'
 ) ON CONFLICT (user_id) DO UPDATE SET
