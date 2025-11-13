@@ -42,7 +42,7 @@ INSERT INTO auth.users (
   '',
   '',
   ''
-) ON CONFLICT (email) DO NOTHING;
+) ON CONFLICT (id) DO NOTHING;
 
 -- Create profile for the student
 INSERT INTO profiles (
