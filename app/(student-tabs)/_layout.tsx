@@ -29,19 +29,19 @@ export default function StudentTabLayout() {
       }}
     >
       <Tabs.Screen
-        name="planning"
+        name="student-overview"
         options={{
-          title: "Planning",
-          tabBarLabel: "Planning",
-          tabBarIcon: ({ color }) => <Calendar color={color} size={25.2} />,
+          title: "Dashboard",
+          tabBarLabel: "Dashboard",
+          tabBarIcon: ({ color }) => <LayoutDashboard color={color} size={25.2} />,
         }}
       />
       <Tabs.Screen
-        name="student-overview"
+        name="planning"
         options={{
-          title: "Overzicht",
-          tabBarLabel: "Overzicht",
-          tabBarIcon: ({ color }) => <LayoutDashboard color={color} size={25.2} />,
+          title: "Agenda",
+          tabBarLabel: "Agenda",
+          tabBarIcon: ({ color }) => <Calendar color={color} size={25.2} />,
         }}
       />
       <Tabs.Screen
