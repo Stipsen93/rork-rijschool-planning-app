@@ -306,6 +306,133 @@ export interface Database {
           updated_at?: string
         }
       }
+      student_packages: {
+        Row: {
+          id: string
+          student_id: string
+          package_id: string
+          total_hours: number
+          hours_used: number
+          hours_remaining: number
+          price_total: number
+          price_paid: number
+          price_remaining: number
+          status: 'active' | 'completed' | 'expired' | 'cancelled'
+          start_date: string
+          expiry_date: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          student_id: string
+          package_id: string
+          total_hours: number
+          hours_used?: number
+          price_total: number
+          price_paid?: number
+          status?: 'active' | 'completed' | 'expired' | 'cancelled'
+          start_date?: string
+          expiry_date?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          student_id?: string
+          package_id?: string
+          total_hours?: number
+          hours_used?: number
+          price_total?: number
+          price_paid?: number
+          status?: 'active' | 'completed' | 'expired' | 'cancelled'
+          start_date?: string
+          expiry_date?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      products: {
+        Row: {
+          id: string
+          instructor_id: string
+          name: string
+          description: string | null
+          category: 'exam' | 'theory' | 'material' | 'other'
+          price: number
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          instructor_id: string
+          name: string
+          description?: string | null
+          category: 'exam' | 'theory' | 'material' | 'other'
+          price: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          instructor_id?: string
+          name?: string
+          description?: string | null
+          category?: 'exam' | 'theory' | 'material' | 'other'
+          price?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      student_products: {
+        Row: {
+          id: string
+          student_id: string
+          product_id: string
+          quantity: number
+          quantity_used: number
+          quantity_remaining: number
+          price_total: number
+          price_paid: number
+          price_remaining: number
+          status: 'active' | 'used' | 'expired' | 'cancelled'
+          purchase_date: string
+          expiry_date: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          student_id: string
+          product_id: string
+          quantity?: number
+          quantity_used?: number
+          price_total: number
+          price_paid?: number
+          status?: 'active' | 'used' | 'expired' | 'cancelled'
+          purchase_date?: string
+          expiry_date?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          student_id?: string
+          product_id?: string
+          quantity?: number
+          quantity_used?: number
+          price_total?: number
+          price_paid?: number
+          status?: 'active' | 'used' | 'expired' | 'cancelled'
+          purchase_date?: string
+          expiry_date?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never
@@ -317,6 +444,9 @@ export interface Database {
       user_role: 'instructor' | 'student'
       lesson_status: 'scheduled' | 'completed' | 'cancelled' | 'no_show'
       transmission_type: 'manual' | 'automatic'
+      package_status: 'active' | 'completed' | 'expired' | 'cancelled'
+      product_status: 'active' | 'used' | 'expired' | 'cancelled'
+      product_category: 'exam' | 'theory' | 'material' | 'other'
     }
   }
 }

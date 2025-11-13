@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIn
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useAuth } from "@/components/auth/AuthStore";
-import { LogOut, User, Settings } from "lucide-react-native";
+import { LogOut, User, Settings, Package } from "lucide-react-native";
 
 export default function StudentProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -75,6 +75,19 @@ export default function StudentProfileScreen() {
             <View style={styles.menuTextWrap}>
               <Text style={styles.menuTitle}>Persoonlijke gegevens</Text>
               <Text style={styles.menuSubtitle}>Pas je gegevens aan</Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => router.push("/(student-tabs)/profile/packages")}
+          >
+            <View style={styles.menuIconWrap}>
+              <Package color="#10b981" size={22} />
+            </View>
+            <View style={styles.menuTextWrap}>
+              <Text style={styles.menuTitle}>Pakketten/Uren/Producten</Text>
+              <Text style={styles.menuSubtitle}>Bekijk je pakketten en uren</Text>
             </View>
           </TouchableOpacity>
         </View>

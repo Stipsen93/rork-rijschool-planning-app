@@ -16,6 +16,7 @@ import { cancelLinkRequestProcedure } from "./routes/link-requests/cancel/route"
 import { searchInstructorsProcedure } from "./routes/instructors/search/route";
 import { getStudentProfileProcedure } from "./routes/students/profile/route";
 import { updateStudentProfileProcedure } from "./routes/students/update-profile/route";
+import { studentPackagesProcedure } from "./routes/students/packages/route";
 
 export const appRouter = createTRPCRouter({
   example: createTRPCRouter({
@@ -46,6 +47,7 @@ export const appRouter = createTRPCRouter({
   students: createTRPCRouter({
     profile: getStudentProfileProcedure,
     updateProfile: updateStudentProfileProcedure,
+    packages: studentPackagesProcedure,
   }),
 });
 
