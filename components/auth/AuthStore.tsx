@@ -70,44 +70,54 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       console.log('[Auth] Session updated for:', session.user.id);
       await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session));
 
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', session.user.id)
         .single();
 
-      if (!profile) {
-        console.log('[Auth] No profile found, waiting...');
-        
-        let retryCount = 0;
-        let foundProfile = null;
-        
-        while (retryCount < 5) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
+      if (profileError) {
+        if (profileError.code === 'PGRST116') {
+          console.log('[Auth] No profile found (no rows), waiting...');
           
-          const { data: retryProfile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
+          let retryCount = 0;
+          let foundProfile = null;
           
-          if (retryProfile) {
-            foundProfile = retryProfile;
-            break;
+          while (retryCount < 5) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            const { data: retryProfile, error: retryError } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .single();
+            
+            if (retryProfile && !retryError) {
+              foundProfile = retryProfile;
+              break;
+            }
+            retryCount++;
           }
-          retryCount++;
+          
+          if (foundProfile) {
+            setAuthState({
+              user: session.user,
+              profile: foundProfile,
+              session,
+              isLoading: false,
+              isAuthenticated: true,
+            });
+            return;
+          } else {
+            console.error('[Auth] Profile not found after retries');
+            setAuthState((prev) => ({ ...prev, isLoading: false }));
+            return;
+          }
         }
         
-        if (foundProfile) {
-          setAuthState({
-            user: session.user,
-            profile: foundProfile,
-            session,
-            isLoading: false,
-            isAuthenticated: true,
-          });
-          return;
-        }
+        console.error('[Auth] Profile fetch error:', profileError);
+        setAuthState((prev) => ({ ...prev, isLoading: false }));
+        return;
       }
 
       setAuthState({
@@ -119,6 +129,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       });
     } catch (error) {
       console.error('[Auth] Session update error:', error);
+      setAuthState((prev) => ({ ...prev, isLoading: false }));
     }
   };
 
@@ -159,15 +170,22 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         .eq('id', data.user.id)
         .single();
       
-      if (profileError || !profileData) {
-        throw new Error('Profile not found');
+      if (profileError) {
+        if (profileError.code === 'PGRST116') {
+          throw new Error('Profiel niet gevonden');
+        }
+        throw new Error(profileError.message || 'Profiel ophalen mislukt');
+      }
+      
+      if (!profileData) {
+        throw new Error('Profiel niet gevonden');
       }
       
       const profile = profileData as Profile;
       
       if (!profile.is_active) {
         await supabase.auth.signOut();
-        throw new Error('Account is not active');
+        throw new Error('Account is niet actief');
       }
       
       console.log('[Auth] Setting authenticated state');
@@ -187,7 +205,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       console.error('[Auth] Login error:', error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Login failed',
+        error: error instanceof Error ? error.message : 'Inloggen mislukt',
       };
     }
   }, []);
@@ -218,7 +236,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       });
 
       if (authError || !authData.user || !authData.session) {
-        throw authError || new Error('Signup failed');
+        throw authError || new Error('Registratie mislukt');
       }
 
       console.log('[Auth] User created, waiting for profile...');
@@ -229,21 +247,26 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       while (retryCount < 10 && !profile) {
         await new Promise(resolve => setTimeout(resolve, 500));
         
-        const { data: profileData } = await supabase
+        const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', authData.user.id)
           .single();
         
-        if (profileData) {
+        if (profileData && !profileError) {
           profile = profileData;
           break;
         }
+        
+        if (profileError && profileError.code !== 'PGRST116') {
+          console.error('[Auth] Profile fetch error:', profileError);
+        }
+        
         retryCount++;
       }
       
       if (!profile) {
-        throw new Error('Profile creation timeout');
+        throw new Error('Profiel aanmaken time-out');
       }
       
       console.log('[Auth] Setting authenticated state');
@@ -263,7 +286,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       console.error('[Auth] Signup error:', error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Signup failed',
+        error: error instanceof Error ? error.message : 'Registratie mislukt',
       };
     }
   }, []);
@@ -287,11 +310,16 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     if (!authState.user) return;
 
     try {
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', authState.user.id)
         .single();
+
+      if (profileError) {
+        console.error('[Auth] Refresh profile error:', profileError);
+        return;
+      }
 
       if (profile) {
         setAuthState((prev) => ({ ...prev, profile }));
