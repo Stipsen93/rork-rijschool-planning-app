@@ -261,18 +261,7 @@ export default function RegisterScreen() {
         return;
       }
 
-      Alert.alert(
-        "Registratie succesvol!",
-        "Welkom bij DrivePlan!",
-        [
-          {
-            text: "OK",
-            onPress: () => {
-              router.replace("/(tabs)/overview");
-            },
-          },
-        ]
-      );
+      router.replace("/(tabs)/overview");
     } catch (error) {
       console.error("Registration error:", error);
       Alert.alert(
