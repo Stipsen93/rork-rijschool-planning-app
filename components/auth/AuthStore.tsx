@@ -194,8 +194,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     firstName: string,
     lastName: string,
     role: 'instructor' | 'student',
-    phone?: string,
-    drivingschoolId?: string
+    phone?: string
   ) => {
     try {
       const fullName = `${firstName} ${lastName}`;
@@ -210,7 +209,6 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
             last_name: lastName,
             role: role,
             phone: phone || null,
-            drivingschool_id: drivingschoolId || null,
           }
         }
       });
