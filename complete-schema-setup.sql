@@ -383,19 +383,51 @@ CREATE TRIGGER update_lessons_updated_at BEFORE UPDATE ON lessons
 
 -- Function to automatically create profile after user signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER AS $
+DECLARE
+  user_role_val user_role;
 BEGIN
-  INSERT INTO public.profiles (id, email, full_name, role, is_active)
+  -- Get role from metadata, default to 'student'
+  user_role_val := COALESCE((NEW.raw_user_meta_data->>'role')::user_role, 'student');
+  
+  -- Insert into profiles table
+  INSERT INTO public.profiles (id, email, full_name, role, phone, is_active)
   VALUES (
     NEW.id,
     NEW.email,
     COALESCE(NEW.raw_user_meta_data->>'full_name', ''),
-    COALESCE((NEW.raw_user_meta_data->>'role')::user_role, 'student'),
+    user_role_val,
+    COALESCE(NEW.raw_user_meta_data->>'phone', NULL),
     true
   );
+  
+  -- If instructor, create instructor profile
+  IF user_role_val = 'instructor' THEN
+    INSERT INTO public.instructor_profiles (user_id, first_name, last_name, rating, total_lessons)
+    VALUES (
+      NEW.id,
+      COALESCE(NEW.raw_user_meta_data->>'first_name', ''),
+      COALESCE(NEW.raw_user_meta_data->>'last_name', ''),
+      0,
+      0
+    );
+  END IF;
+  
+  -- If student, create student profile
+  IF user_role_val = 'student' THEN
+    INSERT INTO public.student_profiles (user_id, lesson_streak, total_lessons_completed, hours_driven, overall_progress)
+    VALUES (
+      NEW.id,
+      0,
+      0,
+      0,
+      0
+    );
+  END IF;
+  
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Drop existing trigger if exists
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
