@@ -31,7 +31,7 @@ export const createContext = async (opts: FetchCreateContextFnOptions) => {
         .from('profiles')
         .select('*')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
       profile = data;
     }
   }

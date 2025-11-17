@@ -2,6 +2,7 @@ import React, { useEffect, useCallback, useRef } from "react";
 import createContextHook from "@nkzw/create-context-hook";
 import { AppState, AppStateStatus } from "react-native";
 import { trpc } from "@/lib/trpc";
+import { useAuth } from "../auth/AuthStore";
 import { useProfile } from "../settings/ProfileStore";
 import { useWorkingHours } from "../settings/WorkingHoursStore";
 import { useSettings } from "../settings/SettingsStore";
@@ -12,6 +13,7 @@ import { useStudentConfig } from "../settings/StudentConfigStore";
 const SYNC_INTERVAL = 60000;
 
 export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
+  const { isAuthenticated } = useAuth();
   const { profile } = useProfile();
   const { workingHours, vacationPeriods } = useWorkingHours();
   const { lessonConfig, products, packages, hourlyRates } = useSettings();
@@ -30,6 +32,11 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
   const lastSyncRef = useRef<number>(0);
 
   const syncToSupabase = useCallback(async () => {
+    if (!isAuthenticated) {
+      console.log("[AutoSync] Skipping sync - user not authenticated");
+      return;
+    }
+
     try {
       console.log("[AutoSync] Syncing settings to Supabase...");
       
@@ -87,6 +94,7 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
       console.error("[AutoSync] Failed to sync:", error);
     }
   }, [
+    isAuthenticated,
     profile,
     workingHours,
     vacationPeriods,
@@ -102,6 +110,11 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
   ]);
 
   const fetchFromSupabase = useCallback(async () => {
+    if (!isAuthenticated) {
+      console.log("[AutoSync] Skipping fetch - user not authenticated");
+      return;
+    }
+
     try {
       console.log("[AutoSync] Fetching settings from Supabase...");
       const result = await fetchSettingsQuery.refetch();
@@ -112,7 +125,7 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
     } catch (error) {
       console.error("[AutoSync] Failed to fetch:", error);
     }
-  }, [fetchSettingsQuery]);
+  }, [isAuthenticated, fetchSettingsQuery]);
 
   const startSync = useCallback(() => {
     if (intervalRef.current) {

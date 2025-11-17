@@ -73,23 +73,61 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       console.log('AuthStore: Handling session update for user:', session.user.id);
       await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session));
 
-      const { data: profile, error: profileError } = await supabase
+      let profile = null;
+      
+      const { data: existingProfile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', session.user.id)
-        .single();
+        .maybeSingle();
 
       if (profileError) {
         console.error('AuthStore: Error loading profile:', JSON.stringify(profileError, null, 2));
-        console.error('AuthStore: Profile error details:', {
-          message: profileError.message,
-          code: profileError.code,
-          details: profileError.details,
-          hint: profileError.hint,
-        });
+      } else if (!existingProfile) {
+        console.log('AuthStore: No profile found, creating one for user:', session.user.id);
+        
+        const newProfile: ProfileInsert = {
+          id: session.user.id,
+          email: session.user.email || '',
+          full_name: session.user.user_metadata?.full_name || '',
+          role: session.user.user_metadata?.role || 'instructor',
+          phone: session.user.user_metadata?.phone || null,
+          is_active: true,
+        };
+
+        const { data: createdProfile, error: createError } = await supabase
+          .from('profiles')
+          .insert(newProfile as any)
+          .select()
+          .single();
+
+        if (createError) {
+          console.error('AuthStore: Error creating profile:', createError);
+        } else {
+          profile = createdProfile;
+          console.log('AuthStore: Profile created successfully');
+          
+          if (newProfile.role === 'instructor') {
+            const instructorData: InstructorProfileInsert = {
+              user_id: session.user.id,
+              rating: 0,
+              total_lessons: 0,
+            };
+            const { error: instructorError } = await supabase
+              .from('instructor_profiles')
+              .insert(instructorData as any);
+            
+            if (instructorError) {
+              console.error('AuthStore: Error creating instructor profile:', instructorError);
+            } else {
+              console.log('AuthStore: Instructor profile created successfully');
+            }
+          }
+        }
+      } else {
+        profile = existingProfile;
+        console.log('AuthStore: Profile loaded:', profile);
       }
-      
-      console.log('AuthStore: Profile loaded:', profile);
 
       setAuthState({
         user: session.user,
