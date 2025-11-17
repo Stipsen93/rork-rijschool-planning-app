@@ -233,23 +233,49 @@ export default function RegisterScreen() {
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Geboortedatum</Text>
-            <TouchableOpacity
-              style={styles.inputContainer}
-              onPress={() => setShowDatePicker(true)}
-            >
-              <Calendar color="#9ca3af" size={20} style={styles.inputIcon} />
-              <Text
-                style={[
-                  styles.dateText,
-                  !birthdate && styles.dateTextPlaceholder,
-                ]}
+            {Platform.OS === "web" ? (
+              <View style={styles.inputContainer}>
+                <Calendar color="#9ca3af" size={20} style={styles.inputIcon} />
+                <input
+                  type="date"
+                  value={birthdate ? birthdate.toISOString().split('T')[0] : ''}
+                  onChange={(e) => {
+                    const newDate = e.target.value ? new Date(e.target.value) : null;
+                    setBirthdate(newDate);
+                  }}
+                  max={new Date().toISOString().split('T')[0]}
+                  style={{
+                    flex: 1,
+                    paddingTop: 14,
+                    paddingBottom: 14,
+                    fontSize: 16,
+                    color: '#111827',
+                    border: 'none',
+                    outline: 'none',
+                    backgroundColor: 'transparent',
+                  }}
+                  placeholder="dd/mm/jjjj"
+                />
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={styles.inputContainer}
+                onPress={() => setShowDatePicker(true)}
               >
-                {formatDate(birthdate)}
-              </Text>
-            </TouchableOpacity>
+                <Calendar color="#9ca3af" size={20} style={styles.inputIcon} />
+                <Text
+                  style={[
+                    styles.dateText,
+                    !birthdate && styles.dateTextPlaceholder,
+                  ]}
+                >
+                  {formatDate(birthdate)}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
 
-          {showDatePicker && (
+          {showDatePicker && Platform.OS !== "web" && (
             <DateTimePicker
               value={birthdate || new Date()}
               mode="date"
