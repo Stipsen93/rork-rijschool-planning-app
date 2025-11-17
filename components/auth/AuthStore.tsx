@@ -196,6 +196,17 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       }
       
       console.log('AuthStore: Profile loaded:', profile);
+      console.log('AuthStore: Updating auth state immediately...');
+      
+      // Update auth state immediately instead of waiting for onAuthStateChange
+      await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(data.session));
+      setAuthState({
+        user: data.user,
+        profile: profile,
+        session: data.session,
+        isLoading: false,
+        isAuthenticated: true,
+      });
       
       return {
         success: true,

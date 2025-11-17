@@ -44,12 +44,14 @@ export default function LoginScreen() {
       const result = await login(email.trim(), password.trim());
       console.log('Login result:', result);
       
-      if (!result.success) {
+      if (result.success) {
+        console.log('Login successful, waiting for auth state update...');
+        // Don't set isLoading to false - let useEffect handle navigation
+        // The onAuthStateChange listener will update isAuthenticated
+      } else {
         setIsLoading(false);
         Alert.alert('Inloggen mislukt', result.error || 'Er is een fout opgetreden');
       }
-      // Don't set isLoading to false on success - let the useEffect handle navigation
-      // The auth state change will trigger the useEffect which will navigate
     } catch (error) {
       console.error('Login exception:', error);
       setIsLoading(false);
