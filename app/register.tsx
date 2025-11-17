@@ -63,6 +63,8 @@ export default function RegisterScreen() {
     if (!confirmPassword.trim()) return "Wachtwoord bevestiging is verplicht";
     if (password !== confirmPassword) return "Wachtwoorden komen niet overeen";
     if (!certificationNumber.trim()) return "WRM Pasnummer is verplicht";
+    if (!/^\d+$/.test(certificationNumber)) return "WRM Pasnummer mag alleen cijfers bevatten";
+    if (certificationNumber.length < 5) return "WRM Pasnummer moet minimaal 5 cijfers bevatten";
     if (!schoolName.trim()) return "Rijschool naam is verplicht";
     if (!termsAccepted) return "Je moet de algemene voorwaarden accepteren om door te gaan";
 
@@ -305,9 +307,13 @@ export default function RegisterScreen() {
               <TextInput
                 style={styles.input}
                 value={certificationNumber}
-                onChangeText={setCertificationNumber}
+                onChangeText={(text) => {
+                  const digitsOnly = text.replace(/\D/g, '');
+                  setCertificationNumber(digitsOnly);
+                }}
                 placeholder="Voer je WRM pasnummer in"
                 placeholderTextColor="#9ca3af"
+                keyboardType="numeric"
               />
             </View>
           </View>

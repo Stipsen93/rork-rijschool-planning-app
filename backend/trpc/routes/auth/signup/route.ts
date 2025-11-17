@@ -16,6 +16,7 @@ export const signupProcedure = publicProcedure
       lastName: z.string(),
       role: z.enum(['instructor', 'student']),
       phone: z.string().optional(),
+      wrmNumber: z.string().regex(/^\d+$/, 'WRM nummer mag alleen cijfers bevatten').min(5, 'WRM nummer moet minimaal 5 cijfers bevatten').optional(),
     })
   )
   .mutation(async ({ ctx, input }) => {
