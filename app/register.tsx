@@ -11,6 +11,9 @@ import {
   ActivityIndicator,
   Alert,
   Switch,
+  Modal,
+  Pressable,
+  FlatList,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useAuth } from "@/components/auth/AuthStore";
@@ -26,9 +29,168 @@ import {
   ArrowLeft,
   GraduationCap,
   Building,
+  X,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import DateTimePicker from "@react-native-community/datetimepicker";
+
+const monthNames = [
+  "januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december",
+] as const;
+const weekDays = ["Ma","Di","Wo","Do","Vr","Za","Zo"] as const;
+
+function startOfMonth(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth(), 1);
+}
+
+function endOfMonth(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth() + 1, 0);
+}
+
+interface WebDatePickerModalProps {
+  visible: boolean;
+  value: Date | null;
+  onClose: () => void;
+  onSelect: (date: Date) => void;
+  maximumDate?: Date;
+}
+
+function WebDatePickerModal({ visible, value, onClose, onSelect, maximumDate }: WebDatePickerModalProps) {
+  const [cursor, setCursor] = React.useState<Date>(startOfMonth(value || new Date()));
+  const [showYearPicker, setShowYearPicker] = React.useState<boolean>(false);
+  const today = new Date();
+  
+  const days: { date: Date; inMonth: boolean }[] = React.useMemo(() => {
+    const start = startOfMonth(cursor);
+    const end = endOfMonth(cursor);
+    const startWeekDay = (start.getDay() + 6) % 7;
+    const totalDays = end.getDate();
+    const arr: { date: Date; inMonth: boolean }[] = [];
+    
+    for (let i = 0; i < startWeekDay; i++) {
+      const d = new Date(start);
+      d.setDate(d.getDate() - (startWeekDay - i));
+      arr.push({ date: d, inMonth: false });
+    }
+    
+    for (let i = 1; i <= totalDays; i++) {
+      arr.push({ date: new Date(cursor.getFullYear(), cursor.getMonth(), i), inMonth: true });
+    }
+    
+    const trailing = (7 - (arr.length % 7)) % 7;
+    for (let i = 1; i <= trailing; i++) {
+      const d = new Date(end);
+      d.setDate(end.getDate() + i);
+      arr.push({ date: d, inMonth: false });
+    }
+    
+    return arr;
+  }, [cursor]);
+
+  const yearRange = React.useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const years = [];
+    for (let year = currentYear - 100; year <= currentYear; year++) {
+      years.push(year);
+    }
+    return years.reverse();
+  }, []);
+
+  if (!visible) return null;
+
+  return (
+    <Modal visible animationType="fade" transparent>
+      <View style={pickerStyles.modalBackdrop}>
+        <View style={pickerStyles.modalCard}>
+          <View style={pickerStyles.modalHeader}>
+            <Text style={pickerStyles.modalTitle}>Kies datum</Text>
+            <TouchableOpacity onPress={onClose}>
+              <X size={20} color="#111827" />
+            </TouchableOpacity>
+          </View>
+          <View style={pickerStyles.pickerWrap}>
+            <View style={pickerStyles.calendarHeader}>
+              <TouchableOpacity onPress={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))}>
+                <ChevronLeft size={18} color="#111827" />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setShowYearPicker(true)}>
+                <Text style={pickerStyles.calendarHeaderTitle}>
+                  {monthNames[cursor.getMonth()]} {cursor.getFullYear()}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))}>
+                <ChevronRight size={18} color="#111827" />
+              </TouchableOpacity>
+            </View>
+            <View style={pickerStyles.weekRow}>
+              {weekDays.map((w) => (
+                <Text key={w} style={pickerStyles.weekCell}>{w}</Text>
+              ))}
+            </View>
+            <View style={pickerStyles.daysGrid}>
+              {days.map(({ date, inMonth }) => {
+                const isToday = date.toDateString() === new Date(today.getFullYear(), today.getMonth(), today.getDate()).toDateString();
+                const isSelected = value && date.toDateString() === new Date(value.getFullYear(), value.getMonth(), value.getDate()).toDateString();
+                const isFuture = maximumDate && date > maximumDate;
+                const isDisabled = !inMonth || isFuture;
+                
+                return (
+                  <Pressable
+                    key={date.toISOString()}
+                    onPress={() => !isDisabled && onSelect(date)}
+                    disabled={isDisabled}
+                    style={[pickerStyles.dayCell, isDisabled && pickerStyles.dayCellOutside, isSelected && pickerStyles.daySelected]}
+                  >
+                    <Text style={[pickerStyles.dayText, isDisabled && pickerStyles.dayTextOutside, isSelected && pickerStyles.dayTextSelected]}>
+                      {date.getDate()}
+                    </Text>
+                    {isToday && !isSelected && <View style={pickerStyles.todayDot} />}
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+          {showYearPicker && (
+            <Modal visible animationType="fade" transparent>
+              <View style={pickerStyles.modalBackdrop}>
+                <View style={pickerStyles.yearPickerCard}>
+                  <View style={pickerStyles.modalHeader}>
+                    <Text style={pickerStyles.modalTitle}>Kies jaar</Text>
+                    <TouchableOpacity onPress={() => setShowYearPicker(false)}>
+                      <X size={20} color="#111827" />
+                    </TouchableOpacity>
+                  </View>
+                  <FlatList
+                    data={yearRange}
+                    keyExtractor={(item) => `year-${item}`}
+                    style={pickerStyles.yearList}
+                    contentContainerStyle={pickerStyles.yearListContent}
+                    renderItem={({ item }) => {
+                      const isSelected = item === cursor.getFullYear();
+                      return (
+                        <Pressable
+                          onPress={() => {
+                            setCursor(new Date(item, cursor.getMonth(), 1));
+                            setShowYearPicker(false);
+                          }}
+                          style={[pickerStyles.yearItem, isSelected && pickerStyles.yearItemSelected]}
+                        >
+                          <Text style={[pickerStyles.yearText, isSelected && pickerStyles.yearTextSelected]}>{item}</Text>
+                        </Pressable>
+                      );
+                    }}
+                  />
+                </View>
+              </View>
+            </Modal>
+          )}
+        </View>
+      </View>
+    </Modal>
+  );
+}
 
 export default function RegisterScreen() {
   const [firstName, setFirstName] = useState<string>("");
@@ -235,61 +397,48 @@ export default function RegisterScreen() {
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Geboortedatum</Text>
-            {Platform.OS === "web" ? (
-              <View style={styles.inputContainer}>
-                <Calendar color="#9ca3af" size={20} style={styles.inputIcon} />
-                <input
-                  type="date"
-                  value={birthdate ? birthdate.toISOString().split('T')[0] : ''}
-                  onChange={(e) => {
-                    const newDate = e.target.value ? new Date(e.target.value) : null;
-                    setBirthdate(newDate);
-                  }}
-                  max={new Date().toISOString().split('T')[0]}
-                  style={{
-                    flex: 1,
-                    paddingTop: 14,
-                    paddingBottom: 14,
-                    fontSize: 16,
-                    color: '#111827',
-                    border: 'none',
-                    outline: 'none',
-                    backgroundColor: 'transparent',
-                  }}
-                  placeholder="dd/mm/jjjj"
-                />
-              </View>
-            ) : (
-              <TouchableOpacity
-                style={styles.inputContainer}
-                onPress={() => setShowDatePicker(true)}
+            <TouchableOpacity
+              style={styles.inputContainer}
+              onPress={() => setShowDatePicker(true)}
+            >
+              <Calendar color="#9ca3af" size={20} style={styles.inputIcon} />
+              <Text
+                style={[
+                  styles.dateText,
+                  !birthdate && styles.dateTextPlaceholder,
+                ]}
               >
-                <Calendar color="#9ca3af" size={20} style={styles.inputIcon} />
-                <Text
-                  style={[
-                    styles.dateText,
-                    !birthdate && styles.dateTextPlaceholder,
-                  ]}
-                >
-                  {formatDate(birthdate)}
-                </Text>
-              </TouchableOpacity>
-            )}
+                {formatDate(birthdate)}
+              </Text>
+            </TouchableOpacity>
           </View>
 
-          {showDatePicker && Platform.OS !== "web" && (
-            <DateTimePicker
-              value={birthdate || new Date()}
-              mode="date"
-              display={Platform.OS === "ios" ? "spinner" : "default"}
-              onChange={(event, selectedDate) => {
-                setShowDatePicker(Platform.OS === "ios");
-                if (selectedDate) {
-                  setBirthdate(selectedDate);
-                }
-              }}
-              maximumDate={new Date()}
-            />
+          {showDatePicker && (
+            Platform.OS === "web" ? (
+              <WebDatePickerModal
+                visible={showDatePicker}
+                value={birthdate}
+                onClose={() => setShowDatePicker(false)}
+                onSelect={(date) => {
+                  setBirthdate(date);
+                  setShowDatePicker(false);
+                }}
+                maximumDate={new Date()}
+              />
+            ) : (
+              <DateTimePicker
+                value={birthdate || new Date()}
+                mode="date"
+                display={Platform.OS === "ios" ? "spinner" : "default"}
+                onChange={(event, selectedDate) => {
+                  setShowDatePicker(Platform.OS === "ios");
+                  if (selectedDate) {
+                    setBirthdate(selectedDate);
+                  }
+                }}
+                maximumDate={new Date()}
+              />
+            )
           )}
         </View>
 
@@ -592,5 +741,138 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#2563EB",
     fontWeight: "600" as const,
+  },
+});
+
+const pickerStyles = StyleSheet.create({
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 16,
+  },
+  modalCard: {
+    width: "100%",
+    maxWidth: 420,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 4,
+    paddingHorizontal: 8,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: "700" as const,
+  },
+  pickerWrap: {
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: "#fff",
+  },
+  calendarHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
+    backgroundColor: "#f9fafb",
+  },
+  calendarHeaderTitle: {
+    fontWeight: "700" as const,
+    color: "#111827",
+  },
+  weekRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    backgroundColor: "#f3f4f6",
+  },
+  weekCell: {
+    width: `${100 / 7}%`,
+    textAlign: "center" as const,
+    fontSize: 12,
+    color: "#6b7280",
+  },
+  daysGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap" as const,
+  },
+  dayCell: {
+    width: `${100 / 7}%`,
+    aspectRatio: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dayCellOutside: {
+    opacity: 0.35,
+  },
+  dayText: {
+    color: "#111827",
+    fontSize: 14,
+  },
+  dayTextOutside: {
+    color: "#6b7280",
+  },
+  daySelected: {
+    backgroundColor: "#eff6ff",
+    borderRadius: 12,
+  },
+  dayTextSelected: {
+    color: "#2563eb",
+    fontWeight: "700" as const,
+  },
+  todayDot: {
+    position: "absolute" as const,
+    bottom: 6,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#2563eb",
+  },
+  yearPickerCard: {
+    width: "90%",
+    maxWidth: 320,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    maxHeight: "70%",
+  },
+  yearList: {
+    flexGrow: 0,
+    maxHeight: 400,
+  },
+  yearListContent: {
+    paddingVertical: 6,
+  },
+  yearItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: "center" as const,
+  },
+  yearItemSelected: {
+    backgroundColor: "#eff6ff",
+  },
+  yearText: {
+    fontSize: 18,
+    color: "#111827",
+  },
+  yearTextSelected: {
+    color: "#2563eb",
+    fontWeight: "700" as const,
   },
 });
