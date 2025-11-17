@@ -13,7 +13,7 @@ import { useStudentConfig } from "../settings/StudentConfigStore";
 const SYNC_INTERVAL = 60000;
 
 export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, profile: authProfile } = useAuth();
   const { profile } = useProfile();
   const { workingHours, vacationPeriods } = useWorkingHours();
   const { lessonConfig, products, packages, hourlyRates } = useSettings();
@@ -32,8 +32,7 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
   const lastSyncRef = useRef<number>(0);
 
   const syncToSupabase = useCallback(async () => {
-    if (!isAuthenticated) {
-      console.log("[AutoSync] Skipping sync - user not authenticated");
+    if (!isAuthenticated || !authProfile) {
       return;
     }
 
@@ -95,6 +94,7 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
     }
   }, [
     isAuthenticated,
+    authProfile,
     profile,
     workingHours,
     vacationPeriods,
@@ -110,8 +110,7 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
   ]);
 
   const fetchFromSupabase = useCallback(async () => {
-    if (!isAuthenticated) {
-      console.log("[AutoSync] Skipping fetch - user not authenticated");
+    if (!isAuthenticated || !authProfile) {
       return;
     }
 
@@ -125,14 +124,12 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
     } catch (error) {
       console.error("[AutoSync] Failed to fetch:", error);
     }
-  }, [isAuthenticated, fetchSettingsQuery]);
+  }, [isAuthenticated, authProfile, fetchSettingsQuery]);
 
   const startSync = useCallback(() => {
-    if (intervalRef.current) {
+    if (!isAuthenticated || !authProfile || intervalRef.current) {
       return;
     }
-
-    console.log("[AutoSync] Starting auto-sync interval");
     
     intervalRef.current = setInterval(() => {
       const now = Date.now();
@@ -142,29 +139,30 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
     }, SYNC_INTERVAL);
 
     void syncToSupabase();
-  }, [syncToSupabase]);
+  }, [isAuthenticated, authProfile, syncToSupabase]);
 
   const stopSync = useCallback(() => {
     if (intervalRef.current) {
-      console.log("[AutoSync] Stopping auto-sync interval");
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
   }, []);
 
   useEffect(() => {
+    if (!isAuthenticated || !authProfile) {
+      stopSync();
+      return;
+    }
+
     const subscription = AppState.addEventListener("change", (nextAppState) => {
       if (
         appState.current.match(/inactive|background/) &&
         nextAppState === "active"
       ) {
-        console.log("[AutoSync] App became active, restarting sync");
         startSync();
       } else if (nextAppState.match(/inactive|background/)) {
-        console.log("[AutoSync] App went to background, stopping sync");
         stopSync();
       }
-
       appState.current = nextAppState;
     });
 
@@ -174,7 +172,7 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
       stopSync();
       subscription.remove();
     };
-  }, [startSync, stopSync]);
+  }, [isAuthenticated, authProfile, startSync, stopSync]);
 
   const manualSync = useCallback(async () => {
     await syncToSupabase();

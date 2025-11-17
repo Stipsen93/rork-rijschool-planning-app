@@ -242,36 +242,23 @@ export default function RegisterScreen() {
 
     setIsLoading(true);
 
-    try {
-      const result = await signup(
-        email.trim(),
-        password.trim(),
-        firstName.trim(),
-        lastName.trim(),
-        "instructor",
-        phone.trim()
-      );
+    const result = await signup(
+      email.trim(),
+      password.trim(),
+      firstName.trim(),
+      lastName.trim(),
+      "instructor",
+      phone.trim()
+    );
 
-      if (!result.success) {
-        Alert.alert(
-          "Registratie mislukt",
-          result.error || "Er is een fout opgetreden. Probeer het opnieuw.",
-          [{ text: "OK" }]
-        );
-        setIsLoading(false);
-        return;
-      }
-
-      console.log('Registration successful, navigating to dashboard...');
+    if (result.success) {
       router.replace("/(tabs)/overview");
-    } catch (error) {
-      console.error("Registration error:", error);
+    } else {
+      setIsLoading(false);
       Alert.alert(
         "Registratie mislukt",
-        "Er is een fout opgetreden. Probeer het opnieuw.",
-        [{ text: "OK" }]
+        result.error || "Er is een fout opgetreden"
       );
-      setIsLoading(false);
     }
   };
 

@@ -31,7 +31,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth state changed:', event);
+        console.log('[Auth] State changed:', event);
         
         if (session) {
           await handleSessionUpdate(session);
@@ -60,60 +60,54 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         setAuthState((prev) => ({ ...prev, isLoading: false }));
       }
     } catch (error) {
-      console.error('Error loading stored session:', error);
+      console.error('[Auth] Load session error:', error);
       setAuthState((prev) => ({ ...prev, isLoading: false }));
     }
   };
 
   const handleSessionUpdate = async (session: Session) => {
     try {
-      console.log('AuthStore: Handling session update for user:', session.user.id);
+      console.log('[Auth] Session updated for:', session.user.id);
       await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session));
 
-      let profile = null;
-      
-      const { data: existingProfile, error: profileError } = await supabase
+      const { data: profile } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', session.user.id)
-        .maybeSingle();
+        .single();
 
-      if (profileError) {
-        console.error('AuthStore: Error loading profile:', JSON.stringify(profileError, null, 2));
-        console.error('AuthStore: Profile error details:', profileError);
-      } else if (!existingProfile) {
-        console.log('AuthStore: No profile found yet for user:', session.user.id);
-        console.log('AuthStore: Waiting for trigger to create profile...');
+      if (!profile) {
+        console.log('[Auth] No profile found, waiting...');
         
-        // Wait for the database trigger to create the profile
-        // Retry a few times with exponential backoff
         let retryCount = 0;
-        const maxRetries = 5;
+        let foundProfile = null;
         
-        while (retryCount < maxRetries && !profile) {
-          await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, retryCount)));
+        while (retryCount < 5) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
           
           const { data: retryProfile } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', session.user.id)
-            .maybeSingle();
+            .single();
           
           if (retryProfile) {
-            profile = retryProfile;
-            console.log('AuthStore: Profile found after retry', retryCount + 1);
+            foundProfile = retryProfile;
             break;
           }
-          
           retryCount++;
         }
         
-        if (!profile) {
-          console.error('AuthStore: Profile not created by trigger after', maxRetries, 'retries');
+        if (foundProfile) {
+          setAuthState({
+            user: session.user,
+            profile: foundProfile,
+            session,
+            isLoading: false,
+            isAuthenticated: true,
+          });
+          return;
         }
-      } else {
-        profile = existingProfile;
-        console.log('AuthStore: Profile loaded:', profile);
       }
 
       setAuthState({
@@ -124,14 +118,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         isAuthenticated: true,
       });
     } catch (error) {
-      console.error('AuthStore: Error handling session update:', error);
-      setAuthState({
-        user: session.user,
-        profile: null,
-        session,
-        isLoading: false,
-        isAuthenticated: true,
-      });
+      console.error('[Auth] Session update error:', error);
     }
   };
 
@@ -146,74 +133,58 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         isAuthenticated: false,
       });
     } catch (error) {
-      console.error('Error handling session end:', error);
+      console.error('[Auth] Session end error:', error);
     }
   };
 
   const login = useCallback(async (email: string, password: string) => {
     try {
-      console.log('AuthStore: Starting login for', email);
+      console.log('[Auth] Starting login for', email);
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) {
-        console.error('AuthStore: Supabase auth error:', error);
-        throw error;
+      if (error) throw error;
+      if (!data.session || !data.user) {
+        throw new Error('No session returned');
       }
 
-      if (!data.session) {
-        console.error('AuthStore: No session returned from login');
-        throw new Error('No session returned from login');
-      }
-
-      console.log('AuthStore: Login successful, user ID:', data.user.id);
-      console.log('AuthStore: Loading profile...');
+      console.log('[Auth] Login successful, loading profile...');
       
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', data.user.id)
-        .maybeSingle();
+        .single();
       
-      if (profileError) {
-        console.error('AuthStore: Error loading profile:', profileError);
-        throw new Error('Failed to load user profile');
-      }
-      
-      if (!profileData) {
-        console.error('AuthStore: Profile not found for user');
-        throw new Error('User profile not found');
+      if (profileError || !profileData) {
+        throw new Error('Profile not found');
       }
       
       const profile = profileData as Profile;
       
       if (!profile.is_active) {
-        console.error('AuthStore: User account is not active');
         await supabase.auth.signOut();
-        throw new Error('Your account is not active. Please contact support.');
+        throw new Error('Account is not active');
       }
       
-      console.log('AuthStore: Profile loaded:', profile);
-      console.log('AuthStore: Updating auth state immediately...');
+      console.log('[Auth] Setting authenticated state');
       
-      // Update auth state immediately instead of waiting for onAuthStateChange
       await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(data.session));
       setAuthState({
         user: data.user,
-        profile: profile,
+        profile: profileData,
         session: data.session,
         isLoading: false,
         isAuthenticated: true,
       });
       
-      return {
-        success: true,
-        profile,
-      };
+      console.log('[Auth] Login complete');
+      return { success: true };
     } catch (error) {
-      console.error('AuthStore: Login error:', error);
+      console.error('[Auth] Login error:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Login failed',
@@ -230,60 +201,53 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     phone?: string
   ) => {
     try {
-      const fullName = `${firstName} ${lastName}`;
+      console.log('[Auth] Starting signup for', email);
       
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
-            full_name: fullName,
+            full_name: `${firstName} ${lastName}`,
             first_name: firstName,
             last_name: lastName,
-            role: role,
+            role,
             phone: phone || null,
           }
         }
       });
 
       if (authError || !authData.user || !authData.session) {
-        console.error('Signup error:', authError);
         throw authError || new Error('Signup failed');
       }
 
-      console.log('AuthStore: User created successfully, user ID:', authData.user.id);
-      console.log('AuthStore: Metadata sent:', authData.user.user_metadata);
-      console.log('AuthStore: Waiting for database trigger to create profile and role-specific profile...');
+      console.log('[Auth] User created, waiting for profile...');
       
-      // Wait for profile to be created by trigger
       let profile = null;
       let retryCount = 0;
-      const maxRetries = 10;
       
-      while (retryCount < maxRetries && !profile) {
+      while (retryCount < 10 && !profile) {
         await new Promise(resolve => setTimeout(resolve, 500));
         
         const { data: profileData } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', authData.user.id)
-          .maybeSingle();
+          .single();
         
         if (profileData) {
           profile = profileData;
-          console.log('AuthStore: Profile found after retry', retryCount + 1);
           break;
         }
-        
         retryCount++;
       }
       
       if (!profile) {
-        console.error('AuthStore: Profile not created by trigger after', maxRetries, 'retries');
-        throw new Error('Failed to create user profile');
+        throw new Error('Profile creation timeout');
       }
       
-      // Update auth state immediately
+      console.log('[Auth] Setting authenticated state');
+      
       await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authData.session));
       setAuthState({
         user: authData.user,
@@ -293,11 +257,10 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         isAuthenticated: true,
       });
 
-      return {
-        success: true,
-      };
+      console.log('[Auth] Signup complete');
+      return { success: true };
     } catch (error) {
-      console.error('Signup error:', error);
+      console.error('[Auth] Signup error:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Signup failed',
@@ -307,18 +270,12 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
   const logout = useCallback(async () => {
     try {
-      console.log('Starting logout...');
+      console.log('[Auth] Logging out...');
       const { error } = await supabase.auth.signOut();
-      
-      if (error) {
-        console.error('Logout error from supabase:', error);
-        throw error;
-      }
-      
-      console.log('Logout successful');
+      if (error) throw error;
       return { success: true };
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error('[Auth] Logout error:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Logout failed',
@@ -337,13 +294,10 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         .single();
 
       if (profile) {
-        setAuthState((prev) => ({
-          ...prev,
-          profile,
-        }));
+        setAuthState((prev) => ({ ...prev, profile }));
       }
     } catch (error) {
-      console.error('Error refreshing profile:', error);
+      console.error('[Auth] Refresh profile error:', error);
     }
   }, [authState.user]);
 
