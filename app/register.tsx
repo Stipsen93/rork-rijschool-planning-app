@@ -16,7 +16,6 @@ import {
   FlatList,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { useAuth } from "@/components/auth/AuthStore";
 import {
   Car,
   Mail,
@@ -35,6 +34,7 @@ import {
 } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import { supabase } from "@/lib/supabase";
 
 const monthNames = [
   "januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december",
@@ -210,7 +210,6 @@ export default function RegisterScreen() {
 
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { signup } = useAuth();
 
   const validateForm = (): string | null => {
     if (!firstName.trim()) return "Voornaam is verplicht";
@@ -234,9 +233,6 @@ export default function RegisterScreen() {
   };
 
   const handleRegister = async () => {
-    const startTime = Date.now();
-    console.log(`[Register:${Date.now() - startTime}ms] START handleRegister`);
-
     const error = validateForm();
     if (error) {
       Alert.alert("Validatiefout", error);
@@ -244,38 +240,69 @@ export default function RegisterScreen() {
     }
 
     setIsLoading(true);
-    console.log(`[Register:${Date.now() - startTime}ms] ✓ Spinner started`);
 
     try {
-      console.log(`[Register:${Date.now() - startTime}ms] → Calling signup()`);
-      const result = await signup(
-        email.trim(),
-        password.trim(),
-        firstName.trim(),
-        lastName.trim(),
-        "instructor",
-        phone.trim()
-      );
-      console.log(`[Register:${Date.now() - startTime}ms] ✓ signup() resolved, success=${result.success}`);
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: email.trim(),
+        password: password.trim(),
+        options: {
+          data: {
+            full_name: `${firstName.trim()} ${lastName.trim()}`,
+            first_name: firstName.trim(),
+            last_name: lastName.trim(),
+            role: 'instructor',
+            phone: phone.trim(),
+          }
+        }
+      });
 
-      if (result.success) {
-        console.log(`[Register:${Date.now() - startTime}ms] → Pushing route to overview`);
-        await router.replace("/(tabs)/overview");
-        console.log(`[Register:${Date.now() - startTime}ms] ✓ Route push complete`);
-      } else {
-        const errorMsg = 'error' in result ? result.error : 'Er is een fout opgetreden';
-        console.error(`[Register:${Date.now() - startTime}ms] ✗ Signup failed:`, errorMsg);
-        Alert.alert(
-          "Registratie mislukt",
-          errorMsg
-        );
+      if (authError) {
+        Alert.alert('Registratie mislukt', authError.message);
+        return;
       }
+
+      if (!authData.user || !authData.session) {
+        Alert.alert('Registratie mislukt', 'Geen gebruiker of sessie ontvangen');
+        return;
+      }
+
+      let profile = null;
+      let attempts = 0;
+      const maxAttempts = 10;
+
+      while (!profile && attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', authData.user.id)
+          .maybeSingle();
+
+        if (profileData && !profileError) {
+          profile = profileData;
+          break;
+        }
+
+        if (profileError && profileError.code !== 'PGRST116') {
+          console.error('Profile fetch error:', profileError);
+        }
+
+        attempts++;
+      }
+
+      if (!profile) {
+        Alert.alert('Fout', 'Profiel kon niet worden aangemaakt');
+        await supabase.auth.signOut();
+        return;
+      }
+
+      router.replace("/(tabs)/overview");
     } catch (error) {
-      console.error(`[Register:${Date.now() - startTime}ms] ✗✗✗ Catch error:`, error instanceof Error ? error.message : String(error));
+      console.error('Register error:', error);
       Alert.alert('Fout', 'Er is een onverwachte fout opgetreden');
     } finally {
       setIsLoading(false);
-      console.log(`[Register:${Date.now() - startTime}ms] ✓ Spinner stopped (total: ${Date.now() - startTime}ms)`);
     }
   };
 
@@ -304,6 +331,7 @@ export default function RegisterScreen() {
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => router.back()}
+            disabled={isLoading}
           >
             <ArrowLeft color="#1f2937" size={24} />
           </TouchableOpacity>
@@ -338,6 +366,7 @@ export default function RegisterScreen() {
                 placeholder="Voer je voornaam in"
                 placeholderTextColor="#9ca3af"
                 autoCapitalize="words"
+                editable={!isLoading}
               />
             </View>
           </View>
@@ -353,6 +382,7 @@ export default function RegisterScreen() {
                 placeholder="Voer je achternaam in"
                 placeholderTextColor="#9ca3af"
                 autoCapitalize="words"
+                editable={!isLoading}
               />
             </View>
           </View>
@@ -370,6 +400,7 @@ export default function RegisterScreen() {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoComplete="email"
+                editable={!isLoading}
               />
             </View>
           </View>
@@ -385,6 +416,7 @@ export default function RegisterScreen() {
                 placeholder="Voer je telefoonnummer in"
                 placeholderTextColor="#9ca3af"
                 keyboardType="phone-pad"
+                editable={!isLoading}
               />
             </View>
           </View>
@@ -394,6 +426,7 @@ export default function RegisterScreen() {
             <TouchableOpacity
               style={styles.inputContainer}
               onPress={() => setShowDatePicker(true)}
+              disabled={isLoading}
             >
               <Calendar color="#9ca3af" size={20} style={styles.inputIcon} />
               <Text
@@ -457,6 +490,7 @@ export default function RegisterScreen() {
                 placeholder="Voer je WRM pasnummer in"
                 placeholderTextColor="#9ca3af"
                 keyboardType="numeric"
+                editable={!isLoading}
               />
             </View>
           </View>
@@ -475,6 +509,7 @@ export default function RegisterScreen() {
                 onChangeText={setSchoolName}
                 placeholder="Voer je rijschool naam in"
                 placeholderTextColor="#9ca3af"
+                editable={!isLoading}
               />
             </View>
           </View>
@@ -495,10 +530,12 @@ export default function RegisterScreen() {
                 placeholderTextColor="#9ca3af"
                 secureTextEntry={obscurePassword}
                 autoComplete="password"
+                editable={!isLoading}
               />
               <TouchableOpacity
                 onPress={() => setObscurePassword(!obscurePassword)}
                 style={styles.eyeIcon}
+                disabled={isLoading}
               >
                 {obscurePassword ? (
                   <Eye color="#9ca3af" size={20} />
@@ -521,12 +558,14 @@ export default function RegisterScreen() {
                 placeholderTextColor="#9ca3af"
                 secureTextEntry={obscureConfirmPassword}
                 autoComplete="password"
+                editable={!isLoading}
               />
               <TouchableOpacity
                 onPress={() =>
                   setObscureConfirmPassword(!obscureConfirmPassword)
                 }
                 style={styles.eyeIcon}
+                disabled={isLoading}
               >
                 {obscureConfirmPassword ? (
                   <Eye color="#9ca3af" size={20} />
@@ -545,6 +584,7 @@ export default function RegisterScreen() {
               onValueChange={setTermsAccepted}
               trackColor={{ false: "#d1d5db", true: "#93c5fd" }}
               thumbColor={termsAccepted ? "#2563EB" : "#f3f4f6"}
+              disabled={isLoading}
             />
             <Text style={styles.termsText}>
               Ik accepteer de <Text style={styles.termsLink}>Algemene Voorwaarden</Text> en het <Text style={styles.termsLink}>Privacybeleid</Text>
@@ -570,7 +610,7 @@ export default function RegisterScreen() {
 
         <View style={styles.loginSection}>
           <Text style={styles.loginText}>Heb je al een account? </Text>
-          <TouchableOpacity onPress={() => router.back()}>
+          <TouchableOpacity onPress={() => router.back()} disabled={isLoading}>
             <Text style={styles.loginLink}>Inloggen</Text>
           </TouchableOpacity>
         </View>

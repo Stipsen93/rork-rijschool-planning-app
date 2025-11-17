@@ -13,12 +13,14 @@ import {
 import { useRouter } from "expo-router";
 import { Car, Mail, Lock, Eye, EyeOff } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useAuth } from "@/components/auth/AuthStore";
+import { supabase } from "@/lib/supabase";
+import { Database } from "@/types/supabase";
+
+type Profile = Database['public']['Tables']['profiles']['Row'];
 
 export default function LoginScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { login } = useAuth();
   
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
@@ -26,37 +28,62 @@ export default function LoginScreen() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const handleLogin = async () => {
-    const startTime = Date.now();
-    console.log(`[Login:${Date.now() - startTime}ms] START handleLogin`);
-
     if (!email.trim() || !password.trim()) {
       Alert.alert("Validatiefout", "Vul alle velden in");
       return;
     }
 
     setIsLoading(true);
-    console.log(`[Login:${Date.now() - startTime}ms] ✓ Spinner started`);
     
     try {
-      console.log(`[Login:${Date.now() - startTime}ms] → Calling login()`);
-      const result = await login(email.trim(), password.trim());
-      console.log(`[Login:${Date.now() - startTime}ms] ✓ login() resolved, success=${result.success}`);
-      
-      if (result.success) {
-        console.log(`[Login:${Date.now() - startTime}ms] → Pushing route to overview`);
-        await router.replace('/(tabs)/overview');
-        console.log(`[Login:${Date.now() - startTime}ms] ✓ Route push complete`);
-      } else {
-        const errorMsg = 'error' in result ? result.error : 'Er is een fout opgetreden';
-        console.error(`[Login:${Date.now() - startTime}ms] ✗ Login failed:`, errorMsg);
-        Alert.alert('Inloggen mislukt', errorMsg);
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password: password.trim(),
+      });
+
+      if (error) {
+        Alert.alert('Inloggen mislukt', error.message);
+        return;
       }
+
+      if (!data.session) {
+        Alert.alert('Inloggen mislukt', 'Geen sessie ontvangen');
+        return;
+      }
+
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', data.user.id)
+        .maybeSingle();
+
+      if (profileError) {
+        console.error('Profile error:', profileError);
+        Alert.alert('Fout', 'Kon profiel niet ophalen');
+        await supabase.auth.signOut();
+        return;
+      }
+
+      if (!profileData) {
+        Alert.alert('Fout', 'Profiel niet gevonden');
+        await supabase.auth.signOut();
+        return;
+      }
+
+      const profile = profileData as Profile;
+
+      if (!profile.is_active) {
+        Alert.alert('Account inactief', 'Je account is niet actief');
+        await supabase.auth.signOut();
+        return;
+      }
+
+      router.replace('/(tabs)/overview');
     } catch (error) {
-      console.error(`[Login:${Date.now() - startTime}ms] ✗✗✗ Catch error:`, error instanceof Error ? error.message : String(error));
+      console.error('Login error:', error);
       Alert.alert('Fout', 'Er is een onverwachte fout opgetreden');
     } finally {
       setIsLoading(false);
-      console.log(`[Login:${Date.now() - startTime}ms] ✓ Spinner stopped (total: ${Date.now() - startTime}ms)`);
     }
   };
 
