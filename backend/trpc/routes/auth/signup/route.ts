@@ -12,13 +12,15 @@ export const signupProcedure = publicProcedure
     z.object({
       email: z.string().email(),
       password: z.string().min(6),
-      fullName: z.string(),
+      firstName: z.string(),
+      lastName: z.string(),
       role: z.enum(['instructor', 'student']),
       phone: z.string().optional(),
     })
   )
   .mutation(async ({ ctx, input }) => {
-    const { email, password, fullName, role, phone } = input;
+    const { email, password, firstName, lastName, role, phone } = input;
+    const fullName = `${firstName} ${lastName}`;
 
     const { data: authData, error: authError } = await ctx.supabase.auth.signUp({
       email,
@@ -56,6 +58,8 @@ export const signupProcedure = publicProcedure
     if (role === 'instructor') {
       const instructorData: InstructorProfileInsert = {
         user_id: authData.user.id,
+        first_name: firstName,
+        last_name: lastName,
         rating: 0,
         total_lessons: 0,
       };

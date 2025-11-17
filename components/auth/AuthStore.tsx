@@ -204,7 +204,8 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   const signup = useCallback(async (
     email: string,
     password: string,
-    fullName: string,
+    firstName: string,
+    lastName: string,
     role: 'instructor' | 'student',
     phone?: string
   ) => {
@@ -218,6 +219,8 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         throw authError || new Error('Signup failed');
       }
 
+      const fullName = `${firstName} ${lastName}`;
+      
       const profileData: ProfileInsert = {
         id: authData.user.id,
         email,
@@ -236,6 +239,8 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       if (role === 'instructor') {
         const instructorData: InstructorProfileInsert = {
           user_id: authData.user.id,
+          first_name: firstName,
+          last_name: lastName,
           rating: 0,
           total_lessons: 0,
         };

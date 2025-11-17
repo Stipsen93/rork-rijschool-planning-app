@@ -31,7 +31,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import DateTimePicker from "@react-native-community/datetimepicker";
 
 export default function RegisterScreen() {
-  const [fullName, setFullName] = useState<string>("");
+  const [firstName, setFirstName] = useState<string>("");
+  const [lastName, setLastName] = useState<string>("");
   const [email, setEmail] = useState<string>("");
   const [phone, setPhone] = useState<string>("");
   const [password, setPassword] = useState<string>("");
@@ -50,7 +51,8 @@ export default function RegisterScreen() {
   const { signup } = useAuth();
 
   const validateForm = (): string | null => {
-    if (!fullName.trim()) return "Naam is verplicht";
+    if (!firstName.trim()) return "Voornaam is verplicht";
+    if (!lastName.trim()) return "Achternaam is verplicht";
     if (!email.trim()) return "E-mailadres is verplicht";
     const emailRegex = /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/;
     if (!emailRegex.test(email)) return "Ongeldig e-mailadres";
@@ -80,7 +82,8 @@ export default function RegisterScreen() {
       const result = await signup(
         email.trim(),
         password.trim(),
-        fullName.trim(),
+        firstName.trim(),
+        lastName.trim(),
         "instructor",
         phone.trim()
       );
@@ -157,7 +160,7 @@ export default function RegisterScreen() {
         </View>
 
         <View style={styles.welcomeSection}>
-          <Text style={styles.welcomeTitle}>Word Instructeur bij DrivePlan</Text>
+          <Text style={styles.welcomeTitle}>Welkom bij Driveplannen</Text>
           <Text style={styles.welcomeSubtitle}>
             Maak een account aan om te beginnen met het beheren van je rijlessen en studenten.
           </Text>
@@ -167,14 +170,29 @@ export default function RegisterScreen() {
           <Text style={styles.sectionTitle}>Persoonlijke gegevens</Text>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Volledige naam</Text>
+            <Text style={styles.label}>Voornaam</Text>
             <View style={styles.inputContainer}>
               <User color="#9ca3af" size={20} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                value={fullName}
-                onChangeText={setFullName}
-                placeholder="Voer je volledige naam in"
+                value={firstName}
+                onChangeText={setFirstName}
+                placeholder="Voer je voornaam in"
+                placeholderTextColor="#9ca3af"
+                autoCapitalize="words"
+              />
+            </View>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Achternaam</Text>
+            <View style={styles.inputContainer}>
+              <User color="#9ca3af" size={20} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                value={lastName}
+                onChangeText={setLastName}
+                placeholder="Voer je achternaam in"
                 placeholderTextColor="#9ca3af"
                 autoCapitalize="words"
               />
