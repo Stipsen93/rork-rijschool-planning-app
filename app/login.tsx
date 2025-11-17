@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -18,12 +18,19 @@ import { useAuth } from "@/components/auth/AuthStore";
 export default function LoginScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { login } = useAuth();
+  const { login, isAuthenticated, isLoading: authLoading } = useAuth();
   
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [obscurePassword, setObscurePassword] = useState<boolean>(true);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (isAuthenticated && !authLoading) {
+      console.log('User is authenticated, navigating to dashboard...');
+      router.replace('/(tabs)/overview');
+    }
+  }, [isAuthenticated, authLoading, router]);
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -33,18 +40,20 @@ export default function LoginScreen() {
 
     setIsLoading(true);
     try {
+      console.log('Starting login process...');
       const result = await login(email.trim(), password.trim());
+      console.log('Login result:', result);
       
-      if (result.success) {
-        router.replace('/(tabs)/overview');
-      } else {
+      if (!result.success) {
+        setIsLoading(false);
         Alert.alert('Inloggen mislukt', result.error || 'Er is een fout opgetreden');
       }
+      // Don't set isLoading to false on success - let the useEffect handle navigation
+      // The auth state change will trigger the useEffect which will navigate
     } catch (error) {
       console.error('Login exception:', error);
-      Alert.alert('Inloggen mislukt', error instanceof Error ? error.message : 'Er is een fout opgetreden bij het inloggen');
-    } finally {
       setIsLoading(false);
+      Alert.alert('Inloggen mislukt', error instanceof Error ? error.message : 'Er is een fout opgetreden bij het inloggen');
     }
   };
 
