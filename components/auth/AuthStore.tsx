@@ -150,113 +150,81 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
   const login = useCallback(async (email: string, password: string) => {
     const startTime = Date.now();
-    let timeoutId: NodeJS.Timeout | null = null;
     
-    const createTimeout = () => {
-      return new Promise<never>((_, reject) => {
-        timeoutId = setTimeout(() => {
-          reject(new Error('Login duurde te lang (> 5s)'));
-        }, 5000);
-      });
-    };
-
     try {
       console.log(`[Auth:${Date.now() - startTime}ms] START login for ${email}`);
       
-      const loginPromise = (async () => {
-        try {
-          const signInStart = Date.now();
-          console.log(`[Auth:${Date.now() - startTime}ms] → Calling signInWithPassword`);
-          
-          const { data, error } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-          });
-
-          console.log(`[Auth:${Date.now() - startTime}ms] ✓ signInWithPassword resolved (${Date.now() - signInStart}ms)`);
-
-          if (error) {
-            console.error(`[Auth:${Date.now() - startTime}ms] ✗ signInWithPassword error:`, error.message);
-            throw error;
-          }
-          if (!data.session || !data.user) {
-            console.error(`[Auth:${Date.now() - startTime}ms] ✗ No session returned`);
-            throw new Error('No session returned');
-          }
-
-          console.log(`[Auth:${Date.now() - startTime}ms] ✓ Session received for user: ${data.user.id}`);
-
-          const getSessionStart = Date.now();
-          console.log(`[Auth:${Date.now() - startTime}ms] → Getting current session`);
-          const { data: { session } } = await supabase.auth.getSession();
-          console.log(`[Auth:${Date.now() - startTime}ms] ✓ getSession resolved (${Date.now() - getSessionStart}ms)`);
-
-          const getUserStart = Date.now();
-          console.log(`[Auth:${Date.now() - startTime}ms] → Getting user data`);
-          const { data: { user } } = await supabase.auth.getUser();
-          console.log(`[Auth:${Date.now() - startTime}ms] ✓ getUser resolved (${Date.now() - getUserStart}ms)`);
-
-          const profileStart = Date.now();
-          console.log(`[Auth:${Date.now() - startTime}ms] → Fetching profile`);
-          
-          const { data: profileData, error: profileError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', data.user.id)
-            .single();
-          
-          console.log(`[Auth:${Date.now() - startTime}ms] ✓ Profile fetch resolved (${Date.now() - profileStart}ms)`);
-          
-          if (profileError) {
-            console.error(`[Auth:${Date.now() - startTime}ms] ✗ Profile error:`, profileError.message, `(code: ${profileError.code})`);
-            if (profileError.code === 'PGRST116') {
-              throw new Error('Profiel niet gevonden');
-            }
-            throw new Error(profileError.message || 'Profiel ophalen mislukt');
-          }
-          
-          if (!profileData) {
-            console.error(`[Auth:${Date.now() - startTime}ms] ✗ No profile data returned`);
-            throw new Error('Profiel niet gevonden');
-          }
-          
-          console.log(`[Auth:${Date.now() - startTime}ms] ✓ Profile data received`);
-          
-          const profile = profileData as Profile;
-          
-          if (!profile.is_active) {
-            console.error(`[Auth:${Date.now() - startTime}ms] ✗ Account not active`);
-            await supabase.auth.signOut();
-            throw new Error('Account is niet actief');
-          }
-          
-          console.log(`[Auth:${Date.now() - startTime}ms] → Storing session`);
-          await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(data.session));
-          console.log(`[Auth:${Date.now() - startTime}ms] ✓ Session stored`);
-          
-          console.log(`[Auth:${Date.now() - startTime}ms] → Setting auth state`);
-          setAuthState({
-            user: data.user,
-            profile: profileData,
-            session: data.session,
-            isLoading: false,
-            isAuthenticated: true,
-          });
-          
-          console.log(`[Auth:${Date.now() - startTime}ms] ✓✓✓ LOGIN COMPLETE (total: ${Date.now() - startTime}ms)`);
-          return { success: true };
-        } catch (error) {
-          console.error(`[Auth:${Date.now() - startTime}ms] ✗✗✗ Login error:`, error instanceof Error ? error.message : String(error));
-          throw error;
-        }
-      })();
-
-      const result = await Promise.race([loginPromise, createTimeout()]);
+      const signInStart = Date.now();
+      console.log(`[Auth:${Date.now() - startTime}ms] → Calling signInWithPassword`);
       
-      if (timeoutId) clearTimeout(timeoutId);
-      return result;
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      console.log(`[Auth:${Date.now() - startTime}ms] ✓ signInWithPassword resolved (${Date.now() - signInStart}ms)`);
+
+      if (error) {
+        console.error(`[Auth:${Date.now() - startTime}ms] ✗ signInWithPassword error:`, error.message);
+        throw error;
+      }
+      if (!data.session || !data.user) {
+        console.error(`[Auth:${Date.now() - startTime}ms] ✗ No session returned`);
+        throw new Error('No session returned');
+      }
+
+      console.log(`[Auth:${Date.now() - startTime}ms] ✓ Session received for user: ${data.user.id}`);
+
+      const profileStart = Date.now();
+      console.log(`[Auth:${Date.now() - startTime}ms] → Fetching profile`);
+      
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', data.user.id)
+        .single();
+      
+      console.log(`[Auth:${Date.now() - startTime}ms] ✓ Profile fetch resolved (${Date.now() - profileStart}ms)`);
+      
+      if (profileError) {
+        console.error(`[Auth:${Date.now() - startTime}ms] ✗ Profile error:`, profileError.message, `(code: ${profileError.code})`);
+        if (profileError.code === 'PGRST116') {
+          throw new Error('Profiel niet gevonden');
+        }
+        throw new Error(profileError.message || 'Profiel ophalen mislukt');
+      }
+      
+      if (!profileData) {
+        console.error(`[Auth:${Date.now() - startTime}ms] ✗ No profile data returned`);
+        throw new Error('Profiel niet gevonden');
+      }
+      
+      console.log(`[Auth:${Date.now() - startTime}ms] ✓ Profile data received`);
+      
+      const profile = profileData as Profile;
+      
+      if (!profile.is_active) {
+        console.error(`[Auth:${Date.now() - startTime}ms] ✗ Account not active`);
+        await supabase.auth.signOut();
+        throw new Error('Account is niet actief');
+      }
+      
+      console.log(`[Auth:${Date.now() - startTime}ms] → Storing session`);
+      await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(data.session));
+      console.log(`[Auth:${Date.now() - startTime}ms] ✓ Session stored`);
+      
+      console.log(`[Auth:${Date.now() - startTime}ms] → Setting auth state`);
+      setAuthState({
+        user: data.user,
+        profile: profileData,
+        session: data.session,
+        isLoading: false,
+        isAuthenticated: true,
+      });
+      
+      console.log(`[Auth:${Date.now() - startTime}ms] ✓✓✓ LOGIN COMPLETE (total: ${Date.now() - startTime}ms)`);
+      return { success: true };
     } catch (error) {
-      if (timeoutId) clearTimeout(timeoutId);
       console.error(`[Auth:${Date.now() - startTime}ms] ✗✗✗ FINAL ERROR:`, error instanceof Error ? error.message : String(error));
       return {
         success: false,
