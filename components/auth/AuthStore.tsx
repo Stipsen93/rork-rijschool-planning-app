@@ -169,15 +169,37 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       }
 
       console.log('AuthStore: Login successful, user ID:', data.user.id);
-      console.log('AuthStore: Waiting for profile to load...');
+      console.log('AuthStore: Loading profile...');
       
-      await new Promise(resolve => setTimeout(resolve, 500));
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', data.user.id)
+        .maybeSingle();
       
-      console.log('AuthStore: Profile loaded:', authState.profile);
+      if (profileError) {
+        console.error('AuthStore: Error loading profile:', profileError);
+        throw new Error('Failed to load user profile');
+      }
+      
+      if (!profileData) {
+        console.error('AuthStore: Profile not found for user');
+        throw new Error('User profile not found');
+      }
+      
+      const profile = profileData as Profile;
+      
+      if (!profile.is_active) {
+        console.error('AuthStore: User account is not active');
+        await supabase.auth.signOut();
+        throw new Error('Your account is not active. Please contact support.');
+      }
+      
+      console.log('AuthStore: Profile loaded:', profile);
       
       return {
         success: true,
-        profile: authState.profile,
+        profile,
       };
     } catch (error) {
       console.error('AuthStore: Login error:', error);
@@ -186,7 +208,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         error: error instanceof Error ? error.message : 'Login failed',
       };
     }
-  }, [authState.profile]);
+  }, []);
 
   const signup = useCallback(async (
     email: string,
