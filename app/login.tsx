@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -13,10 +13,7 @@ import {
 import { useRouter } from "expo-router";
 import { Car, Mail, Lock, Eye, EyeOff } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { supabase } from "@/lib/supabase";
-import { Database } from "@/types/supabase";
-
-type Profile = Database['public']['Tables']['profiles']['Row'];
+import { useAuth } from "@/components/auth/AuthStore";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -25,7 +22,14 @@ export default function LoginScreen() {
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [obscurePassword, setObscurePassword] = useState<boolean>(true);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const { isAuthenticated, isLoading: authLoading, login } = useAuth();
+
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      router.replace('/(tabs)/overview');
+    }
+  }, [isAuthenticated, authLoading, router]);
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -33,57 +37,26 @@ export default function LoginScreen() {
       return;
     }
 
-    setIsLoading(true);
+    setIsSubmitting(true);
+    const startTime = Date.now();
+    console.log(`[Login:${Date.now() - startTime}ms] Starting login...`);
     
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password: password.trim(),
-      });
+      const result = await login(email.trim(), password.trim());
+      console.log(`[Login:${Date.now() - startTime}ms] Login result:`, result);
 
-      if (error) {
-        Alert.alert('Inloggen mislukt', error.message);
+      if (!result.success) {
+        console.log(`[Login:${Date.now() - startTime}ms] ✗ Login failed:`, result.error);
+        Alert.alert('Inloggen mislukt', result.error || 'Onbekende fout');
+        setIsSubmitting(false);
         return;
       }
 
-      if (!data.session) {
-        Alert.alert('Inloggen mislukt', 'Geen sessie ontvangen');
-        return;
-      }
-
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', data.user.id)
-        .maybeSingle();
-
-      if (profileError) {
-        console.error('Profile error:', profileError);
-        Alert.alert('Fout', 'Kon profiel niet ophalen');
-        await supabase.auth.signOut();
-        return;
-      }
-
-      if (!profileData) {
-        Alert.alert('Fout', 'Profiel niet gevonden');
-        await supabase.auth.signOut();
-        return;
-      }
-
-      const profile = profileData as Profile;
-
-      if (!profile.is_active) {
-        Alert.alert('Account inactief', 'Je account is niet actief');
-        await supabase.auth.signOut();
-        return;
-      }
-
-      router.replace('/(tabs)/overview');
+      console.log(`[Login:${Date.now() - startTime}ms] ✓ Login success, navigating...`);
     } catch (error) {
-      console.error('Login error:', error);
+      console.error(`[Login:${Date.now() - startTime}ms] ✗ Unexpected error:`, error);
       Alert.alert('Fout', 'Er is een onverwachte fout opgetreden');
-    } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -120,7 +93,7 @@ export default function LoginScreen() {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoComplete="email"
-                editable={!isLoading}
+                editable={!isSubmitting && !authLoading}
               />
             </View>
           </View>
@@ -137,12 +110,12 @@ export default function LoginScreen() {
                 placeholderTextColor="#9ca3af"
                 secureTextEntry={obscurePassword}
                 autoComplete="password"
-                editable={!isLoading}
+                editable={!isSubmitting && !authLoading}
               />
               <TouchableOpacity
                 onPress={() => setObscurePassword(!obscurePassword)}
                 style={styles.eyeIcon}
-                disabled={isLoading}
+                disabled={isSubmitting || authLoading}
               >
                 {obscurePassword ? (
                   <Eye color="#9ca3af" size={20} />
@@ -154,11 +127,11 @@ export default function LoginScreen() {
           </View>
 
           <TouchableOpacity
-            style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
+            style={[styles.loginButton, (isSubmitting || authLoading) && styles.loginButtonDisabled]}
             onPress={handleLogin}
-            disabled={isLoading}
+            disabled={isSubmitting || authLoading}
           >
-            {isLoading ? (
+            {(isSubmitting || authLoading) ? (
               <ActivityIndicator color="#fff" size="small" />
             ) : (
               <Text style={styles.loginButtonText}>Inloggen</Text>
@@ -169,7 +142,7 @@ export default function LoginScreen() {
             <Text style={styles.registerText}>Nog geen account? </Text>
             <TouchableOpacity 
               onPress={() => router.push('/register')}
-              disabled={isLoading}
+              disabled={isSubmitting || authLoading}
             >
               <Text style={styles.registerLink}>Registreren</Text>
             </TouchableOpacity>

@@ -1,12 +1,31 @@
-// template
 import { Tabs, useRouter, useSegments } from "expo-router";
 import { Calendar, LayoutDashboard, Settings, Users } from "lucide-react-native";
-import React from "react";
-import { Platform } from "react-native";
+import React, { useEffect } from "react";
+import { Platform, View, ActivityIndicator, StyleSheet } from "react-native";
+import { useAuth } from "@/components/auth/AuthStore";
 
 export default function TabLayout() {
   const router = useRouter();
   const segments = useSegments();
+  const { isAuthenticated, isLoading } = useAuth();
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.replace('/login');
+    }
+  }, [isAuthenticated, isLoading, router]);
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#2563EB" />
+      </View>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <Tabs
@@ -75,3 +94,12 @@ export default function TabLayout() {
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f9fafb',
+  },
+});
