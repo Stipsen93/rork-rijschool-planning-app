@@ -1,26 +1,30 @@
 import { useEffect } from "react";
-import { useRouter, useSegments } from "expo-router";
+import { useRouter } from "expo-router";
 import { View, ActivityIndicator, StyleSheet } from "react-native";
 import { useAuth } from "@/components/auth/AuthStore";
 
 export default function Index() {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
-  const segments = useSegments();
 
   useEffect(() => {
-    if (isLoading) return;
+    console.log('[Index] State:', { isLoading, isAuthenticated });
+    
+    if (isLoading) {
+      console.log('[Index] Still loading, waiting...');
+      return;
+    }
 
-    const inAuthGroup = segments[0] === '(tabs)';
-
-    if (!isAuthenticated && inAuthGroup) {
-      router.replace('/login');
-    } else if (isAuthenticated && !inAuthGroup) {
+    console.log('[Index] Not loading anymore, navigating...');
+    
+    if (isAuthenticated) {
+      console.log('[Index] User is authenticated, going to /overview');
       router.replace('/(tabs)/overview');
-    } else if (!isAuthenticated && !inAuthGroup) {
+    } else {
+      console.log('[Index] User not authenticated, going to /login');
       router.replace('/login');
     }
-  }, [isAuthenticated, isLoading, segments, router]);
+  }, [isAuthenticated, isLoading, router]);
 
   return (
     <View style={styles.container}>
