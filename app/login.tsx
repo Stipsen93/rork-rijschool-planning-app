@@ -52,7 +52,8 @@ export default function LoginScreen() {
         return;
       }
 
-      console.log(`[Login:${Date.now() - startTime}ms] ✓ Login success, navigating...`);
+      console.log(`[Login:${Date.now() - startTime}ms] ✓ Login success, will navigate via useEffect`);
+      setIsSubmitting(false);
     } catch (error) {
       console.error(`[Login:${Date.now() - startTime}ms] ✗ Unexpected error:`, error);
       Alert.alert('Fout', 'Er is een onverwachte fout opgetreden');
