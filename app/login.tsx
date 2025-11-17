@@ -33,13 +33,16 @@ export default function LoginScreen() {
 
     setIsLoading(true);
     
-    const result = await login(email.trim(), password.trim());
-    
-    if (result.success) {
-      router.replace('/(tabs)/overview');
-    } else {
+    try {
+      const result = await login(email.trim(), password.trim());
+      
+      if (result.success) {
+        router.replace('/(tabs)/overview');
+      } else {
+        Alert.alert('Inloggen mislukt', result.error || 'Er is een fout opgetreden');
+      }
+    } finally {
       setIsLoading(false);
-      Alert.alert('Inloggen mislukt', result.error || 'Er is een fout opgetreden');
     }
   };
 
