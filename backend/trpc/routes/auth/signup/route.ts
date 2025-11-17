@@ -17,10 +17,11 @@ export const signupProcedure = publicProcedure
       role: z.enum(['instructor', 'student']),
       phone: z.string().optional(),
       wrmNumber: z.string().regex(/^\d+$/, 'WRM nummer mag alleen cijfers bevatten').min(5, 'WRM nummer moet minimaal 5 cijfers bevatten').optional(),
+      drivingschoolId: z.string().uuid().optional(),
     })
   )
   .mutation(async ({ ctx, input }) => {
-    const { email, password, firstName, lastName, role, phone } = input;
+    const { email, password, firstName, lastName, role, phone, drivingschoolId } = input;
     const fullName = `${firstName} ${lastName}`;
 
     const { data: authData, error: authError } = await ctx.supabase.auth.signUp({
@@ -33,6 +34,7 @@ export const signupProcedure = publicProcedure
           last_name: lastName,
           role: role,
           phone: phone || null,
+          drivingschool_id: drivingschoolId || null,
         }
       }
     });

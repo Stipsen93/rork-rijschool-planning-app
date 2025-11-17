@@ -11,6 +11,8 @@ import {
   ActivityIndicator,
   Alert,
   Switch,
+  Modal,
+  Pressable,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useAuth } from "@/components/auth/AuthStore";
@@ -26,9 +28,11 @@ import {
   ArrowLeft,
   GraduationCap,
   Building,
+  ChevronDown,
 } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import { trpc } from "@/lib/trpc";
 
 export default function RegisterScreen() {
   const [firstName, setFirstName] = useState<string>("");
@@ -40,7 +44,8 @@ export default function RegisterScreen() {
   const [birthdate, setBirthdate] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
   const [certificationNumber, setCertificationNumber] = useState<string>("");
-  const [schoolName, setSchoolName] = useState<string>("");
+  const [selectedDrivingschool, setSelectedDrivingschool] = useState<{ id: string; name: string } | null>(null);
+  const [showDrivingschoolPicker, setShowDrivingschoolPicker] = useState<boolean>(false);
   const [obscurePassword, setObscurePassword] = useState<boolean>(true);
   const [obscureConfirmPassword, setObscureConfirmPassword] = useState<boolean>(true);
   const [termsAccepted, setTermsAccepted] = useState<boolean>(false);
@@ -49,6 +54,9 @@ export default function RegisterScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { signup } = useAuth();
+  
+  const drivingschoolsQuery = trpc.drivingschools.list.useQuery();
+  const drivingschools = drivingschoolsQuery.data || [];
 
   const validateForm = (): string | null => {
     if (!firstName.trim()) return "Voornaam is verplicht";
@@ -65,7 +73,7 @@ export default function RegisterScreen() {
     if (!certificationNumber.trim()) return "WRM Pasnummer is verplicht";
     if (!/^\d+$/.test(certificationNumber)) return "WRM Pasnummer mag alleen cijfers bevatten";
     if (certificationNumber.length < 5) return "WRM Pasnummer moet minimaal 5 cijfers bevatten";
-    if (!schoolName.trim()) return "Rijschool naam is verplicht";
+    if (!selectedDrivingschool) return "Rijschool is verplicht";
     if (!termsAccepted) return "Je moet de algemene voorwaarden accepteren om door te gaan";
 
     return null;
@@ -87,7 +95,8 @@ export default function RegisterScreen() {
         firstName.trim(),
         lastName.trim(),
         "instructor",
-        phone.trim()
+        phone.trim(),
+        selectedDrivingschool!.id
       );
 
       if (!result.success) {
@@ -319,21 +328,26 @@ export default function RegisterScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Rijschool naam</Text>
-            <View style={styles.inputContainer}>
+            <Text style={styles.label}>Rijschool</Text>
+            <TouchableOpacity
+              style={styles.inputContainer}
+              onPress={() => setShowDrivingschoolPicker(true)}
+            >
               <Building
                 color="#9ca3af"
                 size={20}
                 style={styles.inputIcon}
               />
-              <TextInput
-                style={styles.input}
-                value={schoolName}
-                onChangeText={setSchoolName}
-                placeholder="Voer je rijschool naam in"
-                placeholderTextColor="#9ca3af"
-              />
-            </View>
+              <Text
+                style={[
+                  styles.pickerText,
+                  !selectedDrivingschool && styles.pickerTextPlaceholder,
+                ]}
+              >
+                {selectedDrivingschool ? selectedDrivingschool.name : "Selecteer je rijschool"}
+              </Text>
+              <ChevronDown color="#9ca3af" size={20} />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -432,6 +446,62 @@ export default function RegisterScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      <Modal
+        visible={showDrivingschoolPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowDrivingschoolPicker(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setShowDrivingschoolPicker(false)}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Selecteer Rijschool</Text>
+              <TouchableOpacity
+                onPress={() => setShowDrivingschoolPicker(false)}
+                style={styles.modalCloseButton}
+              >
+                <Text style={styles.modalCloseText}>Sluiten</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalList}>
+              {drivingschoolsQuery.isLoading ? (
+                <View style={styles.modalLoading}>
+                  <ActivityIndicator color="#2563EB" size="small" />
+                </View>
+              ) : (
+                drivingschools.map((school) => (
+                  <TouchableOpacity
+                    key={school.id}
+                    style={[
+                      styles.modalItem,
+                      selectedDrivingschool?.id === school.id &&
+                        styles.modalItemSelected,
+                    ]}
+                    onPress={() => {
+                      setSelectedDrivingschool(school);
+                      setShowDrivingschoolPicker(false);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.modalItemText,
+                        selectedDrivingschool?.id === school.id &&
+                          styles.modalItemTextSelected,
+                      ]}
+                    >
+                      {school.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))
+              )}
+            </ScrollView>
+          </View>
+        </Pressable>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -590,6 +660,75 @@ const styles = StyleSheet.create({
   },
   loginLink: {
     fontSize: 14,
+    color: "#2563EB",
+    fontWeight: "600" as const,
+  },
+  pickerText: {
+    flex: 1,
+    paddingVertical: 14,
+    fontSize: 16,
+    color: "#111827",
+  },
+  pickerTextPlaceholder: {
+    color: "#9ca3af",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+  },
+  modalContent: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: "70%",
+    paddingBottom: 24,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "700" as const,
+    color: "#111827",
+  },
+  modalCloseButton: {
+    padding: 8,
+  },
+  modalCloseText: {
+    fontSize: 16,
+    color: "#2563EB",
+    fontWeight: "600" as const,
+  },
+  modalList: {
+    paddingHorizontal: 24,
+  },
+  modalLoading: {
+    paddingVertical: 32,
+    alignItems: "center",
+  },
+  modalItem: {
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginTop: 8,
+    backgroundColor: "#f9fafb",
+  },
+  modalItemSelected: {
+    backgroundColor: "#dbeafe",
+  },
+  modalItemText: {
+    fontSize: 16,
+    color: "#111827",
+  },
+  modalItemTextSelected: {
     color: "#2563EB",
     fontWeight: "600" as const,
   },

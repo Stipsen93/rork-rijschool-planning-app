@@ -17,6 +17,7 @@ export interface Database {
           role: 'instructor' | 'student'
           phone: string | null
           avatar_url: string | null
+          drivingschool_id: string | null
           is_active: boolean
           created_at: string
           updated_at: string
@@ -28,6 +29,7 @@ export interface Database {
           role: 'instructor' | 'student'
           phone?: string | null
           avatar_url?: string | null
+          drivingschool_id?: string | null
           is_active?: boolean
           created_at?: string
           updated_at?: string
@@ -39,6 +41,42 @@ export interface Database {
           role?: 'instructor' | 'student'
           phone?: string | null
           avatar_url?: string | null
+          drivingschool_id?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      drivingschools: {
+        Row: {
+          id: string
+          name: string
+          address: string | null
+          phone: string | null
+          email: string | null
+          website: string | null
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          address?: string | null
+          phone?: string | null
+          email?: string | null
+          website?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          address?: string | null
+          phone?: string | null
+          email?: string | null
+          website?: string | null
           is_active?: boolean
           created_at?: string
           updated_at?: string
