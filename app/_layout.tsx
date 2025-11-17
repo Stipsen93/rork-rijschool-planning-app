@@ -13,7 +13,6 @@ import { ProfileProvider } from "@/components/settings/ProfileStore";
 import { LessonCardProvider } from "@/components/settings/LessonCardStore";
 import { LessonCardDataProvider } from "@/components/lesson-card/LessonCardDataStore";
 import { NotificationsProvider } from "@/components/settings/NotificationsStore";
-import { StudentProvider } from "@/components/student/StudentStore";
 import { AuthProvider } from "@/components/auth/AuthStore";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
@@ -52,9 +51,7 @@ export default function RootLayout() {
                     <WorkingHoursProvider>
                       <AgendaProvider>
                         <StudentsProvider>
-                          <StudentProvider>
-                            <RootLayoutNav />
-                          </StudentProvider>
+                          <RootLayoutNav />
                         </StudentsProvider>
                       </AgendaProvider>
                     </WorkingHoursProvider>
