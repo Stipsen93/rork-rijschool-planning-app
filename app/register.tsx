@@ -234,6 +234,9 @@ export default function RegisterScreen() {
   };
 
   const handleRegister = async () => {
+    const startTime = Date.now();
+    console.log(`[Register:${Date.now() - startTime}ms] START handleRegister`);
+
     const error = validateForm();
     if (error) {
       Alert.alert("Validatiefout", error);
@@ -241,8 +244,10 @@ export default function RegisterScreen() {
     }
 
     setIsLoading(true);
+    console.log(`[Register:${Date.now() - startTime}ms] ✓ Spinner started`);
 
     try {
+      console.log(`[Register:${Date.now() - startTime}ms] → Calling signup()`);
       const result = await signup(
         email.trim(),
         password.trim(),
@@ -251,20 +256,26 @@ export default function RegisterScreen() {
         "instructor",
         phone.trim()
       );
+      console.log(`[Register:${Date.now() - startTime}ms] ✓ signup() resolved, success=${result.success}`);
 
       if (result.success) {
+        console.log(`[Register:${Date.now() - startTime}ms] → Pushing route to overview`);
         await router.replace("/(tabs)/overview");
+        console.log(`[Register:${Date.now() - startTime}ms] ✓ Route push complete`);
       } else {
+        const errorMsg = 'error' in result ? result.error : 'Er is een fout opgetreden';
+        console.error(`[Register:${Date.now() - startTime}ms] ✗ Signup failed:`, errorMsg);
         Alert.alert(
           "Registratie mislukt",
-          result.error || "Er is een fout opgetreden"
+          errorMsg
         );
       }
     } catch (error) {
-      console.error('[Register] Error:', error);
+      console.error(`[Register:${Date.now() - startTime}ms] ✗✗✗ Catch error:`, error instanceof Error ? error.message : String(error));
       Alert.alert('Fout', 'Er is een onverwachte fout opgetreden');
     } finally {
       setIsLoading(false);
+      console.log(`[Register:${Date.now() - startTime}ms] ✓ Spinner stopped (total: ${Date.now() - startTime}ms)`);
     }
   };
 

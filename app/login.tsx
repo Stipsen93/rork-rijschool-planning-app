@@ -26,26 +26,37 @@ export default function LoginScreen() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const handleLogin = async () => {
+    const startTime = Date.now();
+    console.log(`[Login:${Date.now() - startTime}ms] START handleLogin`);
+
     if (!email.trim() || !password.trim()) {
       Alert.alert("Validatiefout", "Vul alle velden in");
       return;
     }
 
     setIsLoading(true);
+    console.log(`[Login:${Date.now() - startTime}ms] ✓ Spinner started`);
     
     try {
+      console.log(`[Login:${Date.now() - startTime}ms] → Calling login()`);
       const result = await login(email.trim(), password.trim());
+      console.log(`[Login:${Date.now() - startTime}ms] ✓ login() resolved, success=${result.success}`);
       
       if (result.success) {
+        console.log(`[Login:${Date.now() - startTime}ms] → Pushing route to overview`);
         await router.replace('/(tabs)/overview');
+        console.log(`[Login:${Date.now() - startTime}ms] ✓ Route push complete`);
       } else {
-        Alert.alert('Inloggen mislukt', result.error || 'Er is een fout opgetreden');
+        const errorMsg = 'error' in result ? result.error : 'Er is een fout opgetreden';
+        console.error(`[Login:${Date.now() - startTime}ms] ✗ Login failed:`, errorMsg);
+        Alert.alert('Inloggen mislukt', errorMsg);
       }
     } catch (error) {
-      console.error('[Login] Error:', error);
+      console.error(`[Login:${Date.now() - startTime}ms] ✗✗✗ Catch error:`, error instanceof Error ? error.message : String(error));
       Alert.alert('Fout', 'Er is een onverwachte fout opgetreden');
     } finally {
       setIsLoading(false);
+      console.log(`[Login:${Date.now() - startTime}ms] ✓ Spinner stopped (total: ${Date.now() - startTime}ms)`);
     }
   };
 
