@@ -25,6 +25,13 @@ export const signupProcedure = publicProcedure
     const { data: authData, error: authError } = await ctx.supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: {
+          full_name: fullName,
+          role: role,
+          phone: phone || null,
+        }
+      }
     });
 
     if (authError || !authData.user) {
@@ -34,26 +41,7 @@ export const signupProcedure = publicProcedure
       });
     }
 
-    const profileData: ProfileInsert = {
-      id: authData.user.id,
-      email,
-      full_name: fullName,
-      role,
-      phone: phone || null,
-      is_active: true,
-    };
-
-    const { error: profileError } = await ctx.supabase
-      .from('profiles')
-      .insert(profileData as any);
-
-    if (profileError) {
-      await ctx.supabase.auth.admin.deleteUser(authData.user.id);
-      throw new TRPCError({
-        code: 'INTERNAL_SERVER_ERROR',
-        message: 'Failed to create user profile',
-      });
-    }
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     if (role === 'instructor') {
       const instructorData: InstructorProfileInsert = {
@@ -63,9 +51,13 @@ export const signupProcedure = publicProcedure
         rating: 0,
         total_lessons: 0,
       };
-      await ctx.supabase
+      const { error: instructorError } = await ctx.supabase
         .from('instructor_profiles')
         .insert(instructorData as any);
+      
+      if (instructorError) {
+        console.error('Error creating instructor profile:', instructorError);
+      }
     } else if (role === 'student') {
       const studentData: StudentProfileInsert = {
         user_id: authData.user.id,
@@ -74,9 +66,13 @@ export const signupProcedure = publicProcedure
         hours_driven: 0,
         overall_progress: 0,
       };
-      await ctx.supabase
+      const { error: studentError } = await ctx.supabase
         .from('student_profiles')
         .insert(studentData as any);
+      
+      if (studentError) {
+        console.error('Error creating student profile:', studentError);
+      }
     }
 
     return {

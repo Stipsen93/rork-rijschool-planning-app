@@ -210,31 +210,25 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     phone?: string
   ) => {
     try {
+      const fullName = `${firstName} ${lastName}`;
+      
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            full_name: fullName,
+            role: role,
+            phone: phone || null,
+          }
+        }
       });
 
       if (authError || !authData.user) {
         throw authError || new Error('Signup failed');
       }
 
-      const fullName = `${firstName} ${lastName}`;
-      
-      const profileData: ProfileInsert = {
-        id: authData.user.id,
-        email,
-        full_name: fullName,
-        role,
-        phone: phone || null,
-        is_active: true,
-      };
-
-      const { error: profileError } = await supabase.from('profiles').insert(profileData as any);
-
-      if (profileError) {
-        throw profileError;
-      }
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       if (role === 'instructor') {
         const instructorData: InstructorProfileInsert = {
@@ -244,7 +238,11 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
           rating: 0,
           total_lessons: 0,
         };
-        await supabase.from('instructor_profiles').insert(instructorData as any);
+        const { error: instructorError } = await supabase.from('instructor_profiles').insert(instructorData as any);
+        
+        if (instructorError) {
+          console.error('AuthStore: Error creating instructor profile:', instructorError);
+        }
       } else {
         const studentData: StudentProfileInsert = {
           user_id: authData.user.id,
@@ -253,7 +251,11 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
           hours_driven: 0,
           overall_progress: 0,
         };
-        await supabase.from('student_profiles').insert(studentData as any);
+        const { error: studentError } = await supabase.from('student_profiles').insert(studentData as any);
+        
+        if (studentError) {
+          console.error('AuthStore: Error creating student profile:', studentError);
+        }
       }
 
       return {
