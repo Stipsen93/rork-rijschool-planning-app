@@ -246,7 +246,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         }
       });
 
-      if (authError || !authData.user) {
+      if (authError || !authData.user || !authData.session) {
         console.error('Signup error:', authError);
         throw authError || new Error('Signup failed');
       }
@@ -255,9 +255,43 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       console.log('AuthStore: Metadata sent:', authData.user.user_metadata);
       console.log('AuthStore: Waiting for database trigger to create profile and role-specific profile...');
       
-      // Wait a bit for the trigger to complete
-      // The trigger should create both profiles and instructor_profiles/student_profiles
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Wait for profile to be created by trigger
+      let profile = null;
+      let retryCount = 0;
+      const maxRetries = 10;
+      
+      while (retryCount < maxRetries && !profile) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', authData.user.id)
+          .maybeSingle();
+        
+        if (profileData) {
+          profile = profileData;
+          console.log('AuthStore: Profile found after retry', retryCount + 1);
+          break;
+        }
+        
+        retryCount++;
+      }
+      
+      if (!profile) {
+        console.error('AuthStore: Profile not created by trigger after', maxRetries, 'retries');
+        throw new Error('Failed to create user profile');
+      }
+      
+      // Update auth state immediately
+      await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authData.session));
+      setAuthState({
+        user: authData.user,
+        profile: profile as Profile,
+        session: authData.session,
+        isLoading: false,
+        isAuthenticated: true,
+      });
 
       return {
         success: true,

@@ -45,9 +45,8 @@ export default function LoginScreen() {
       console.log('Login result:', result);
       
       if (result.success) {
-        console.log('Login successful, waiting for auth state update...');
-        // Don't set isLoading to false - let useEffect handle navigation
-        // The onAuthStateChange listener will update isAuthenticated
+        console.log('Login successful, navigating to dashboard...');
+        router.replace('/(tabs)/overview');
       } else {
         setIsLoading(false);
         Alert.alert('Inloggen mislukt', result.error || 'Er is een fout opgetreden');

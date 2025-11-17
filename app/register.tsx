@@ -258,9 +258,11 @@ export default function RegisterScreen() {
           result.error || "Er is een fout opgetreden. Probeer het opnieuw.",
           [{ text: "OK" }]
         );
+        setIsLoading(false);
         return;
       }
 
+      console.log('Registration successful, navigating to dashboard...');
       router.replace("/(tabs)/overview");
     } catch (error) {
       console.error("Registration error:", error);
@@ -269,7 +271,6 @@ export default function RegisterScreen() {
         "Er is een fout opgetreden. Probeer het opnieuw.",
         [{ text: "OK" }]
       );
-    } finally {
       setIsLoading(false);
     }
   };
