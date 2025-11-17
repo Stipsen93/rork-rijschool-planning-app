@@ -80,7 +80,13 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         .single();
 
       if (profileError) {
-        console.error('AuthStore: Error loading profile:', profileError);
+        console.error('AuthStore: Error loading profile:', JSON.stringify(profileError, null, 2));
+        console.error('AuthStore: Profile error details:', {
+          message: profileError.message,
+          code: profileError.code,
+          details: profileError.details,
+          hint: profileError.hint,
+        });
       }
       
       console.log('AuthStore: Profile loaded:', profile);
