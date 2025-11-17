@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Stack } from "expo-router";
 import { Save } from "lucide-react-native";
+import { useStudentConfig } from "@/components/settings/StudentConfigStore";
 
 function useSliderState(initial: number) {
   const [value, setValue] = React.useState<number>(initial);
@@ -9,27 +10,68 @@ function useSliderState(initial: number) {
 }
 
 export default function StudentConfigurationScreen() {
-  const maxPerWeek = useSliderState(3);
-  const maxPerDay = useSliderState(2);
-  const consecutive = useSliderState(1);
-  const advanceDays = useSliderState(7);
-  const cancellationHours = useSliderState(24);
-  const reminderHours = useSliderState(2);
+  const { studentConfig, updateStudentConfig } = useStudentConfig();
 
-  const [allowWeekend, setAllowWeekend] = React.useState<boolean>(true);
-  const [requireParentApproval, setRequireParentApproval] = React.useState<boolean>(false);
-  const [allowStudentCancellation, setAllowStudentCancellation] = React.useState<boolean>(true);
-  const [penaltyLate, setPenaltyLate] = React.useState<boolean>(false);
-  const [penaltyAmount, setPenaltyAmount] = React.useState<number>(25);
-  const [requirePaymentBefore, setRequirePaymentBefore] = React.useState<boolean>(false);
-  const [allowPaymentPlans, setAllowPaymentPlans] = React.useState<boolean>(true);
-  const maxUnpaid = useSliderState(2);
-  const [sendReminders, setSendReminders] = React.useState<boolean>(true);
-  const [sendReports, setSendReports] = React.useState<boolean>(true);
-  const [allowDirectContact, setAllowDirectContact] = React.useState<boolean>(true);
+  const maxPerWeek = useSliderState(studentConfig.maxPerWeek);
+  const maxPerDay = useSliderState(studentConfig.maxPerDay);
+  const consecutive = useSliderState(studentConfig.consecutive);
+  const advanceDays = useSliderState(studentConfig.advanceDays);
+  const cancellationHours = useSliderState(studentConfig.cancellationHours);
+  const reminderHours = useSliderState(studentConfig.reminderHours);
 
-  const save = () => {
+  const [allowWeekend, setAllowWeekend] = React.useState<boolean>(studentConfig.allowWeekend);
+  const [requireParentApproval, setRequireParentApproval] = React.useState<boolean>(studentConfig.requireParentApproval);
+  const [allowStudentCancellation, setAllowStudentCancellation] = React.useState<boolean>(studentConfig.allowStudentCancellation);
+  const [penaltyLate, setPenaltyLate] = React.useState<boolean>(studentConfig.penaltyLate);
+  const [penaltyAmount, setPenaltyAmount] = React.useState<number>(studentConfig.penaltyAmount);
+  const [requirePaymentBefore, setRequirePaymentBefore] = React.useState<boolean>(studentConfig.requirePaymentBefore);
+  const [allowPaymentPlans, setAllowPaymentPlans] = React.useState<boolean>(studentConfig.allowPaymentPlans);
+  const maxUnpaid = useSliderState(studentConfig.maxUnpaid);
+  const [sendReminders, setSendReminders] = React.useState<boolean>(studentConfig.sendReminders);
+  const [sendReports, setSendReports] = React.useState<boolean>(studentConfig.sendReports);
+  const [allowDirectContact, setAllowDirectContact] = React.useState<boolean>(studentConfig.allowDirectContact);
+
+  useEffect(() => {
+    maxPerWeek.setValue(studentConfig.maxPerWeek);
+    maxPerDay.setValue(studentConfig.maxPerDay);
+    consecutive.setValue(studentConfig.consecutive);
+    advanceDays.setValue(studentConfig.advanceDays);
+    cancellationHours.setValue(studentConfig.cancellationHours);
+    reminderHours.setValue(studentConfig.reminderHours);
+    setAllowWeekend(studentConfig.allowWeekend);
+    setRequireParentApproval(studentConfig.requireParentApproval);
+    setAllowStudentCancellation(studentConfig.allowStudentCancellation);
+    setPenaltyLate(studentConfig.penaltyLate);
+    setPenaltyAmount(studentConfig.penaltyAmount);
+    setRequirePaymentBefore(studentConfig.requirePaymentBefore);
+    setAllowPaymentPlans(studentConfig.allowPaymentPlans);
+    maxUnpaid.setValue(studentConfig.maxUnpaid);
+    setSendReminders(studentConfig.sendReminders);
+    setSendReports(studentConfig.sendReports);
+    setAllowDirectContact(studentConfig.allowDirectContact);
+  }, [studentConfig]);
+
+  const save = async () => {
     console.log("[StudentConfig] Save tapped");
+    await updateStudentConfig({
+      maxPerWeek: maxPerWeek.value,
+      maxPerDay: maxPerDay.value,
+      consecutive: consecutive.value,
+      advanceDays: advanceDays.value,
+      allowWeekend,
+      requireParentApproval,
+      allowStudentCancellation,
+      cancellationHours: cancellationHours.value,
+      penaltyLate,
+      penaltyAmount,
+      requirePaymentBefore,
+      allowPaymentPlans,
+      maxUnpaid: maxUnpaid.value,
+      sendReminders,
+      reminderHours: reminderHours.value,
+      sendReports,
+      allowDirectContact,
+    });
     Alert.alert("Opgeslagen", "Leerling configuratie opgeslagen");
   };
 

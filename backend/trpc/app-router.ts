@@ -17,6 +17,8 @@ import { searchInstructorsProcedure } from "./routes/instructors/search/route";
 import { getStudentProfileProcedure } from "./routes/students/profile/route";
 import { updateStudentProfileProcedure } from "./routes/students/update-profile/route";
 import { studentPackagesProcedure } from "./routes/students/packages/route";
+import { syncSettingsProcedure } from "./routes/instructor/sync-settings/route";
+import { fetchSettingsProcedure } from "./routes/instructor/fetch-settings/route";
 
 export const appRouter = createTRPCRouter({
   example: createTRPCRouter({
@@ -43,6 +45,10 @@ export const appRouter = createTRPCRouter({
   }),
   instructors: createTRPCRouter({
     search: searchInstructorsProcedure,
+  }),
+  instructor: createTRPCRouter({
+    syncSettings: syncSettingsProcedure,
+    fetchSettings: fetchSettingsProcedure,
   }),
   students: createTRPCRouter({
     profile: getStudentProfileProcedure,

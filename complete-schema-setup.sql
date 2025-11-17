@@ -46,16 +46,76 @@ CREATE TABLE IF NOT EXISTS profiles (
 CREATE TABLE IF NOT EXISTS instructor_profiles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  
+  -- Persoonlijke gegevens
+  first_name TEXT,
+  last_name TEXT,
+  phone TEXT,
+  birth_date DATE,
+  instructor_number VARCHAR(7) UNIQUE,
+  wrm_pass_number TEXT,
+  driving_school_name TEXT,
+  driving_school_affiliation TEXT[],
+  years_experience INTEGER,
+  tax_id TEXT,
+  business_address TEXT,
+  iban TEXT,
+  specializations TEXT[],
+  
+  -- Legacy fields
   company_name TEXT,
   license_number TEXT,
   bio TEXT,
   rating DECIMAL(3, 2) DEFAULT 0,
   total_lessons INTEGER DEFAULT 0,
-  years_experience INTEGER,
-  specializations TEXT[],
+  
+  -- Werkuren en vakanties
   working_hours JSONB,
+  vacation_periods JSONB,
+  
+  -- Lesconfiguratie
+  base_lesson_duration INTEGER DEFAULT 60,
+  product_durations JSONB,
+  break_between_lessons INTEGER DEFAULT 15,
+  automatic_breaks BOOLEAN DEFAULT false,
+  require_confirmation BOOLEAN DEFAULT true,
+  cancellation_notice_hours INTEGER DEFAULT 24,
+  
+  -- Producten en pakketten
+  products JSONB,
+  packages JSONB,
+  hourly_rate DECIMAL(10, 2),
+  hourly_vat_status TEXT DEFAULT 'incl',
+  
+  -- Leerlingconfiguratie
+  max_lessons_per_week INTEGER DEFAULT 3,
+  max_lessons_per_day INTEGER DEFAULT 2,
+  consecutive_lessons INTEGER DEFAULT 1,
+  advance_booking_days INTEGER DEFAULT 7,
+  allow_weekend_booking BOOLEAN DEFAULT true,
+  require_parent_approval BOOLEAN DEFAULT false,
+  allow_student_cancellation BOOLEAN DEFAULT true,
+  student_cancellation_hours INTEGER DEFAULT 24,
+  late_cancellation_penalty BOOLEAN DEFAULT false,
+  penalty_amount DECIMAL(10, 2) DEFAULT 0,
+  require_prepayment BOOLEAN DEFAULT false,
+  allow_payment_plans BOOLEAN DEFAULT true,
+  max_unpaid_lessons INTEGER DEFAULT 2,
+  send_reminders BOOLEAN DEFAULT true,
+  reminder_hours INTEGER DEFAULT 2,
+  send_progress_reports BOOLEAN DEFAULT true,
+  allow_direct_contact BOOLEAN DEFAULT true,
+  
+  -- Leskaart
+  lesson_card_categories JSONB,
+  lesson_card_status_config JSONB,
+  
+  -- Meldingen
+  notification_settings JSONB,
+  
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
+  synced_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(user_id)
 );
 
@@ -349,9 +409,7 @@ CREATE TRIGGER on_auth_user_created
 -- PART 2: INSTRUCTOR LINKING SCHEMA
 -- ========================================
 
--- Add instructor_number column to instructor_profiles table
-ALTER TABLE instructor_profiles 
-ADD COLUMN IF NOT EXISTS instructor_number VARCHAR(7) UNIQUE;
+-- Instructor number is already added above
 
 -- Create instructor_link_requests table
 CREATE TABLE IF NOT EXISTS instructor_link_requests (

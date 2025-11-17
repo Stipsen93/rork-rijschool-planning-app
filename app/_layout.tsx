@@ -14,6 +14,8 @@ import { LessonCardProvider } from "@/components/settings/LessonCardStore";
 import { LessonCardDataProvider } from "@/components/lesson-card/LessonCardDataStore";
 import { NotificationsProvider } from "@/components/settings/NotificationsStore";
 import { AuthProvider } from "@/components/auth/AuthStore";
+import { AutoSyncProvider } from "@/components/sync/AutoSyncStore";
+import { StudentConfigProvider } from "@/components/settings/StudentConfigStore";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -45,19 +47,23 @@ export default function RootLayout() {
           <AuthProvider>
             <ProfileProvider>
             <SettingsProvider>
-              <NotificationsProvider>
-                <LessonCardProvider>
-                  <LessonCardDataProvider>
-                    <WorkingHoursProvider>
-                      <AgendaProvider>
-                        <StudentsProvider>
-                          <RootLayoutNav />
-                        </StudentsProvider>
-                      </AgendaProvider>
-                    </WorkingHoursProvider>
-                  </LessonCardDataProvider>
-                </LessonCardProvider>
-              </NotificationsProvider>
+              <StudentConfigProvider>
+                <NotificationsProvider>
+                  <LessonCardProvider>
+                    <LessonCardDataProvider>
+                      <WorkingHoursProvider>
+                        <AgendaProvider>
+                          <StudentsProvider>
+                            <AutoSyncProvider>
+                              <RootLayoutNav />
+                            </AutoSyncProvider>
+                          </StudentsProvider>
+                        </AgendaProvider>
+                      </WorkingHoursProvider>
+                    </LessonCardDataProvider>
+                  </LessonCardProvider>
+                </NotificationsProvider>
+              </StudentConfigProvider>
             </SettingsProvider>
             </ProfileProvider>
           </AuthProvider>
