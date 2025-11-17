@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -24,12 +24,19 @@ export default function LoginScreen() {
   const [obscurePassword, setObscurePassword] = useState<boolean>(true);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const { isAuthenticated, isLoading: authLoading, login } = useAuth();
+  const hasNavigated = useRef(false);
 
   useEffect(() => {
-    if (!authLoading && isAuthenticated) {
-      router.replace('/(tabs)/overview');
+    console.log('[LoginScreen] Auth state:', { isAuthenticated, authLoading, hasNavigated: hasNavigated.current });
+    
+    if (!authLoading && isAuthenticated && !hasNavigated.current) {
+      console.log('[LoginScreen] Navigating to overview');
+      hasNavigated.current = true;
+      setTimeout(() => {
+        router.replace('/(tabs)/overview');
+      }, 100);
     }
-  }, [isAuthenticated, authLoading, router]);
+  }, [isAuthenticated, authLoading]);
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -52,8 +59,9 @@ export default function LoginScreen() {
         return;
       }
 
-      console.log(`[Login:${Date.now() - startTime}ms] ✓ Login success, will navigate via useEffect`);
+      console.log(`[Login:${Date.now() - startTime}ms] ✓ Login success`);
       setIsSubmitting(false);
+      hasNavigated.current = false;
     } catch (error) {
       console.error(`[Login:${Date.now() - startTime}ms] ✗ Unexpected error:`, error);
       Alert.alert('Fout', 'Er is een onverwachte fout opgetreden');
