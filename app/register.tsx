@@ -30,10 +30,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import DateTimePicker from "@react-native-community/datetimepicker";
 
-type UserRole = "student" | "instructor" | "";
-
 export default function RegisterScreen() {
-  const [selectedRole, setSelectedRole] = useState<UserRole>("");
   const [fullName, setFullName] = useState<string>("");
   const [email, setEmail] = useState<string>("");
   const [phone, setPhone] = useState<string>("");
@@ -44,8 +41,7 @@ export default function RegisterScreen() {
   const [certificationNumber, setCertificationNumber] = useState<string>("");
   const [schoolName, setSchoolName] = useState<string>("");
   const [obscurePassword, setObscurePassword] = useState<boolean>(true);
-  const [obscureConfirmPassword, setObscureConfirmPassword] =
-    useState<boolean>(true);
+  const [obscureConfirmPassword, setObscureConfirmPassword] = useState<boolean>(true);
   const [termsAccepted, setTermsAccepted] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
@@ -61,20 +57,12 @@ export default function RegisterScreen() {
     if (!phone.trim()) return "Telefoonnummer is verplicht";
     if (!birthdate) return "Geboortedatum is verplicht";
     if (!password.trim()) return "Wachtwoord is verplicht";
-    if (password.length < 8)
-      return "Wachtwoord moet minimaal 8 karakters bevatten";
-
-    if (selectedRole === "instructor") {
-      if (!certificationNumber.trim()) return "WRM Pasnummer is verplicht";
-      if (!schoolName.trim()) return "Rijschool naam is verplicht";
-      if (!confirmPassword.trim())
-        return "Wachtwoord bevestiging is verplicht";
-      if (password !== confirmPassword)
-        return "Wachtwoorden komen niet overeen";
-    }
-
-    if (!termsAccepted)
-      return "Je moet de algemene voorwaarden accepteren om door te gaan";
+    if (password.length < 8) return "Wachtwoord moet minimaal 8 karakters bevatten";
+    if (!confirmPassword.trim()) return "Wachtwoord bevestiging is verplicht";
+    if (password !== confirmPassword) return "Wachtwoorden komen niet overeen";
+    if (!certificationNumber.trim()) return "WRM Pasnummer is verplicht";
+    if (!schoolName.trim()) return "Rijschool naam is verplicht";
+    if (!termsAccepted) return "Je moet de algemene voorwaarden accepteren om door te gaan";
 
     return null;
   };
@@ -93,7 +81,7 @@ export default function RegisterScreen() {
         email.trim(),
         password.trim(),
         fullName.trim(),
-        selectedRole as "instructor" | "student",
+        "instructor",
         phone.trim()
       );
 
@@ -108,16 +96,12 @@ export default function RegisterScreen() {
 
       Alert.alert(
         "Registratie succesvol!",
-        `Welkom bij DrivePlan${selectedRole === "instructor" ? ", instructeur" : ""}!`,
+        "Welkom bij DrivePlan!",
         [
           {
             text: "OK",
             onPress: () => {
-              if (selectedRole === "student") {
-                router.replace("/(student-tabs)/student-overview");
-              } else {
-                router.replace("/(tabs)/overview");
-              }
+              router.replace("/(tabs)/overview");
             },
           },
         ]
@@ -142,39 +126,6 @@ export default function RegisterScreen() {
     return `${day}/${month}/${year}`;
   };
 
-  const RoleCard = ({
-    role,
-    title,
-    description,
-  }: {
-    role: UserRole;
-    title: string;
-    description: string;
-  }) => {
-    const isSelected = selectedRole === role;
-    return (
-      <TouchableOpacity
-        style={[styles.roleCard, isSelected && styles.roleCardSelected]}
-        onPress={() => setSelectedRole(role)}
-      >
-        <View style={styles.roleCardHeader}>
-          <View
-            style={[
-              styles.radioOuter,
-              isSelected && styles.radioOuterSelected,
-            ]}
-          >
-            {isSelected && <View style={styles.radioInner} />}
-          </View>
-          <Text style={[styles.roleTitle, isSelected && styles.roleTextSelected]}>
-            {title}
-          </Text>
-        </View>
-        <Text style={styles.roleDescription}>{description}</Text>
-      </TouchableOpacity>
-    );
-  };
-
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -195,7 +146,7 @@ export default function RegisterScreen() {
           >
             <ArrowLeft color="#1f2937" size={24} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Account aanmaken</Text>
+          <Text style={styles.headerTitle}>Instructeur Registratie</Text>
           <View style={styles.backButton} />
         </View>
 
@@ -206,245 +157,223 @@ export default function RegisterScreen() {
         </View>
 
         <View style={styles.welcomeSection}>
-          <Text style={styles.welcomeTitle}>Welkom bij DrivePlan</Text>
+          <Text style={styles.welcomeTitle}>Word Instructeur bij DrivePlan</Text>
           <Text style={styles.welcomeSubtitle}>
-            Maak een account aan om te beginnen met het plannen van je rijlessen.
+            Maak een account aan om te beginnen met het beheren van je rijlessen en studenten.
           </Text>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Selecteer je rol</Text>
-          <RoleCard
-            role="student"
-            title="Leerling"
-            description="Ik wil rijlessen boeken en mijn voortgang volgen"
-          />
-          <RoleCard
-            role="instructor"
-            title="Instructeur"
-            description="Ik wil rijlessen geven en studenten beheren"
-          />
+          <Text style={styles.sectionTitle}>Persoonlijke gegevens</Text>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Volledige naam</Text>
+            <View style={styles.inputContainer}>
+              <User color="#9ca3af" size={20} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                value={fullName}
+                onChangeText={setFullName}
+                placeholder="Voer je volledige naam in"
+                placeholderTextColor="#9ca3af"
+                autoCapitalize="words"
+              />
+            </View>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>E-mailadres</Text>
+            <View style={styles.inputContainer}>
+              <Mail color="#9ca3af" size={20} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                value={email}
+                onChangeText={setEmail}
+                placeholder="Voer je e-mailadres in"
+                placeholderTextColor="#9ca3af"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
+              />
+            </View>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Telefoonnummer</Text>
+            <View style={styles.inputContainer}>
+              <Phone color="#9ca3af" size={20} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                value={phone}
+                onChangeText={setPhone}
+                placeholder="Voer je telefoonnummer in"
+                placeholderTextColor="#9ca3af"
+                keyboardType="phone-pad"
+              />
+            </View>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Geboortedatum</Text>
+            <TouchableOpacity
+              style={styles.inputContainer}
+              onPress={() => setShowDatePicker(true)}
+            >
+              <Calendar color="#9ca3af" size={20} style={styles.inputIcon} />
+              <Text
+                style={[
+                  styles.dateText,
+                  !birthdate && styles.dateTextPlaceholder,
+                ]}
+              >
+                {formatDate(birthdate)}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {showDatePicker && (
+            <DateTimePicker
+              value={birthdate || new Date()}
+              mode="date"
+              display={Platform.OS === "ios" ? "spinner" : "default"}
+              onChange={(event, selectedDate) => {
+                setShowDatePicker(Platform.OS === "ios");
+                if (selectedDate) {
+                  setBirthdate(selectedDate);
+                }
+              }}
+              maximumDate={new Date()}
+            />
+          )}
         </View>
 
-        {selectedRole && (
-          <>
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Persoonlijke gegevens</Text>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Instructeur gegevens</Text>
 
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Volledige naam</Text>
-                <View style={styles.inputContainer}>
-                  <User color="#9ca3af" size={20} style={styles.inputIcon} />
-                  <TextInput
-                    style={styles.input}
-                    value={fullName}
-                    onChangeText={setFullName}
-                    placeholder="Voer je volledige naam in"
-                    placeholderTextColor="#9ca3af"
-                    autoCapitalize="words"
-                  />
-                </View>
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>E-mailadres</Text>
-                <View style={styles.inputContainer}>
-                  <Mail color="#9ca3af" size={20} style={styles.inputIcon} />
-                  <TextInput
-                    style={styles.input}
-                    value={email}
-                    onChangeText={setEmail}
-                    placeholder="Voer je e-mailadres in"
-                    placeholderTextColor="#9ca3af"
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    autoComplete="email"
-                  />
-                </View>
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Telefoonnummer</Text>
-                <View style={styles.inputContainer}>
-                  <Phone color="#9ca3af" size={20} style={styles.inputIcon} />
-                  <TextInput
-                    style={styles.input}
-                    value={phone}
-                    onChangeText={setPhone}
-                    placeholder="Voer je telefoonnummer in"
-                    placeholderTextColor="#9ca3af"
-                    keyboardType="phone-pad"
-                  />
-                </View>
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Geboortedatum</Text>
-                <TouchableOpacity
-                  style={styles.inputContainer}
-                  onPress={() => setShowDatePicker(true)}
-                >
-                  <Calendar color="#9ca3af" size={20} style={styles.inputIcon} />
-                  <Text
-                    style={[
-                      styles.dateText,
-                      !birthdate && styles.dateTextPlaceholder,
-                    ]}
-                  >
-                    {formatDate(birthdate)}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {showDatePicker && (
-                <DateTimePicker
-                  value={birthdate || new Date()}
-                  mode="date"
-                  display={Platform.OS === "ios" ? "spinner" : "default"}
-                  onChange={(event, selectedDate) => {
-                    setShowDatePicker(Platform.OS === "ios");
-                    if (selectedDate) {
-                      setBirthdate(selectedDate);
-                    }
-                  }}
-                  maximumDate={new Date()}
-                />
-              )}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>WRM Pasnummer</Text>
+            <View style={styles.inputContainer}>
+              <GraduationCap
+                color="#9ca3af"
+                size={20}
+                style={styles.inputIcon}
+              />
+              <TextInput
+                style={styles.input}
+                value={certificationNumber}
+                onChangeText={setCertificationNumber}
+                placeholder="Voer je WRM pasnummer in"
+                placeholderTextColor="#9ca3af"
+              />
             </View>
+          </View>
 
-            {selectedRole === "instructor" && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Instructeur gegevens</Text>
-
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>WRM Pasnummer</Text>
-                  <View style={styles.inputContainer}>
-                    <GraduationCap
-                      color="#9ca3af"
-                      size={20}
-                      style={styles.inputIcon}
-                    />
-                    <TextInput
-                      style={styles.input}
-                      value={certificationNumber}
-                      onChangeText={setCertificationNumber}
-                      placeholder="Voer je WRM pasnummer in"
-                      placeholderTextColor="#9ca3af"
-                    />
-                  </View>
-                </View>
-
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Rijschool naam</Text>
-                  <View style={styles.inputContainer}>
-                    <Building
-                      color="#9ca3af"
-                      size={20}
-                      style={styles.inputIcon}
-                    />
-                    <TextInput
-                      style={styles.input}
-                      value={schoolName}
-                      onChangeText={setSchoolName}
-                      placeholder="Voer je rijschool naam in"
-                      placeholderTextColor="#9ca3af"
-                    />
-                  </View>
-                </View>
-              </View>
-            )}
-
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Wachtwoord</Text>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Wachtwoord</Text>
-                <View style={styles.inputContainer}>
-                  <Lock color="#9ca3af" size={20} style={styles.inputIcon} />
-                  <TextInput
-                    style={styles.input}
-                    value={password}
-                    onChangeText={setPassword}
-                    placeholder="Minimaal 8 karakters"
-                    placeholderTextColor="#9ca3af"
-                    secureTextEntry={obscurePassword}
-                    autoComplete="password"
-                  />
-                  <TouchableOpacity
-                    onPress={() => setObscurePassword(!obscurePassword)}
-                    style={styles.eyeIcon}
-                  >
-                    {obscurePassword ? (
-                      <Eye color="#9ca3af" size={20} />
-                    ) : (
-                      <EyeOff color="#9ca3af" size={20} />
-                    )}
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              {selectedRole === "instructor" && (
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Bevestig wachtwoord</Text>
-                  <View style={styles.inputContainer}>
-                    <Lock color="#9ca3af" size={20} style={styles.inputIcon} />
-                    <TextInput
-                      style={styles.input}
-                      value={confirmPassword}
-                      onChangeText={setConfirmPassword}
-                      placeholder="Herhaal je wachtwoord"
-                      placeholderTextColor="#9ca3af"
-                      secureTextEntry={obscureConfirmPassword}
-                      autoComplete="password"
-                    />
-                    <TouchableOpacity
-                      onPress={() =>
-                        setObscureConfirmPassword(!obscureConfirmPassword)
-                      }
-                      style={styles.eyeIcon}
-                    >
-                      {obscureConfirmPassword ? (
-                        <Eye color="#9ca3af" size={20} />
-                      ) : (
-                        <EyeOff color="#9ca3af" size={20} />
-                      )}
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              )}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Rijschool naam</Text>
+            <View style={styles.inputContainer}>
+              <Building
+                color="#9ca3af"
+                size={20}
+                style={styles.inputIcon}
+              />
+              <TextInput
+                style={styles.input}
+                value={schoolName}
+                onChangeText={setSchoolName}
+                placeholder="Voer je rijschool naam in"
+                placeholderTextColor="#9ca3af"
+              />
             </View>
+          </View>
+        </View>
 
-            <View style={styles.termsSection}>
-              <View style={styles.termsRow}>
-                <Switch
-                  value={termsAccepted}
-                  onValueChange={setTermsAccepted}
-                  trackColor={{ false: "#d1d5db", true: "#93c5fd" }}
-                  thumbColor={termsAccepted ? "#2563EB" : "#f3f4f6"}
-                />
-                <Text style={styles.termsText}>
-                  Ik accepteer de <Text style={styles.termsLink}>Algemene Voorwaarden</Text> en het <Text style={styles.termsLink}>Privacybeleid</Text>
-                </Text>
-              </View>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Wachtwoord</Text>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Wachtwoord</Text>
+            <View style={styles.inputContainer}>
+              <Lock color="#9ca3af" size={20} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                value={password}
+                onChangeText={setPassword}
+                placeholder="Minimaal 8 karakters"
+                placeholderTextColor="#9ca3af"
+                secureTextEntry={obscurePassword}
+                autoComplete="password"
+              />
+              <TouchableOpacity
+                onPress={() => setObscurePassword(!obscurePassword)}
+                style={styles.eyeIcon}
+              >
+                {obscurePassword ? (
+                  <Eye color="#9ca3af" size={20} />
+                ) : (
+                  <EyeOff color="#9ca3af" size={20} />
+                )}
+              </TouchableOpacity>
             </View>
+          </View>
 
-            <TouchableOpacity
-              style={[
-                styles.registerButton,
-                (!termsAccepted || isLoading) &&
-                  styles.registerButtonDisabled,
-              ]}
-              onPress={handleRegister}
-              disabled={!termsAccepted || isLoading}
-            >
-              {isLoading ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <Text style={styles.registerButtonText}>Account aanmaken</Text>
-              )}
-            </TouchableOpacity>
-          </>
-        )}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Bevestig wachtwoord</Text>
+            <View style={styles.inputContainer}>
+              <Lock color="#9ca3af" size={20} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                placeholder="Herhaal je wachtwoord"
+                placeholderTextColor="#9ca3af"
+                secureTextEntry={obscureConfirmPassword}
+                autoComplete="password"
+              />
+              <TouchableOpacity
+                onPress={() =>
+                  setObscureConfirmPassword(!obscureConfirmPassword)
+                }
+                style={styles.eyeIcon}
+              >
+                {obscureConfirmPassword ? (
+                  <Eye color="#9ca3af" size={20} />
+                ) : (
+                  <EyeOff color="#9ca3af" size={20} />
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.termsSection}>
+          <View style={styles.termsRow}>
+            <Switch
+              value={termsAccepted}
+              onValueChange={setTermsAccepted}
+              trackColor={{ false: "#d1d5db", true: "#93c5fd" }}
+              thumbColor={termsAccepted ? "#2563EB" : "#f3f4f6"}
+            />
+            <Text style={styles.termsText}>
+              Ik accepteer de <Text style={styles.termsLink}>Algemene Voorwaarden</Text> en het <Text style={styles.termsLink}>Privacybeleid</Text>
+            </Text>
+          </View>
+        </View>
+
+        <TouchableOpacity
+          style={[
+            styles.registerButton,
+            (!termsAccepted || isLoading) &&
+              styles.registerButtonDisabled,
+          ]}
+          onPress={handleRegister}
+          disabled={!termsAccepted || isLoading}
+        >
+          {isLoading ? (
+            <ActivityIndicator color="#fff" size="small" />
+          ) : (
+            <Text style={styles.registerButtonText}>Account aanmaken</Text>
+          )}
+        </TouchableOpacity>
 
         <View style={styles.loginSection}>
           <Text style={styles.loginText}>Heb je al een account? </Text>
@@ -521,54 +450,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "600" as const,
     color: "#111827",
-  },
-  roleCard: {
-    backgroundColor: "#fff",
-    borderWidth: 2,
-    borderColor: "#e5e7eb",
-    borderRadius: 12,
-    padding: 16,
-    gap: 8,
-  },
-  roleCardSelected: {
-    borderColor: "#2563EB",
-    backgroundColor: "#eff6ff",
-  },
-  roleCardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  radioOuter: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: "#d1d5db",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  radioOuterSelected: {
-    borderColor: "#2563EB",
-  },
-  radioInner: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: "#2563EB",
-  },
-  roleTitle: {
-    fontSize: 16,
-    fontWeight: "600" as const,
-    color: "#1f2937",
-  },
-  roleTextSelected: {
-    color: "#2563EB",
-  },
-  roleDescription: {
-    fontSize: 14,
-    color: "#6b7280",
-    marginLeft: 36,
   },
   inputGroup: {
     gap: 8,
