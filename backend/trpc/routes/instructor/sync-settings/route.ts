@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { protectedProcedure } from "../../../create-context";
-import { supabase } from "@/lib/supabase";
 
 export const syncSettingsProcedure = protectedProcedure
   .input(
@@ -114,10 +113,12 @@ export const syncSettingsProcedure = protectedProcedure
       updateData.notification_settings = input.notifications;
     }
 
-    const { error } = await supabase
+    const response: any = await (ctx.supabase as any)
       .from("instructor_profiles")
       .update(updateData)
       .eq("user_id", userId);
+    
+    const { error } = response;
 
     if (error) {
       console.error("[syncSettings] Error syncing to Supabase:", error);
