@@ -37,10 +37,13 @@ export default function LoginScreen() {
       const result = await login(email.trim(), password.trim());
       
       if (result.success) {
-        router.replace('/(tabs)/overview');
+        await router.replace('/(tabs)/overview');
       } else {
         Alert.alert('Inloggen mislukt', result.error || 'Er is een fout opgetreden');
       }
+    } catch (error) {
+      console.error('[Login] Error:', error);
+      Alert.alert('Fout', 'Er is een onverwachte fout opgetreden');
     } finally {
       setIsLoading(false);
     }

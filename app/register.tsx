@@ -253,13 +253,16 @@ export default function RegisterScreen() {
       );
 
       if (result.success) {
-        router.replace("/(tabs)/overview");
+        await router.replace("/(tabs)/overview");
       } else {
         Alert.alert(
           "Registratie mislukt",
           result.error || "Er is een fout opgetreden"
         );
       }
+    } catch (error) {
+      console.error('[Register] Error:', error);
+      Alert.alert('Fout', 'Er is een onverwachte fout opgetreden');
     } finally {
       setIsLoading(false);
     }
