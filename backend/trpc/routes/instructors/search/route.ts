@@ -23,7 +23,8 @@ export const searchInstructorsProcedure = studentProcedure
         total_lessons,
         specializations,
         profiles!instructor_profiles_user_id_fkey (
-          full_name,
+          first_name,
+          last_name,
           avatar_url,
           phone
         )
@@ -35,7 +36,7 @@ export const searchInstructorsProcedure = studentProcedure
       const searchTerm = input.query.toLowerCase().trim();
       
       query = query.or(
-        `instructor_number.ilike.%${searchTerm}%,company_name.ilike.%${searchTerm}%,profiles.full_name.ilike.%${searchTerm}%`
+        `instructor_number.ilike.%${searchTerm}%,company_name.ilike.%${searchTerm}%,profiles.first_name.ilike.%${searchTerm}%,profiles.last_name.ilike.%${searchTerm}%`
       );
     }
 
@@ -48,7 +49,7 @@ export const searchInstructorsProcedure = studentProcedure
 
     console.log("[searchInstructors] Found:", data?.length, "instructors");
 
-    const instructors = (data || []).map((instructor) => {
+    const instructors = (data || []).map((instructor: any) => {
       const profile = Array.isArray(instructor.profiles)
         ? instructor.profiles[0]
         : instructor.profiles;
@@ -56,7 +57,7 @@ export const searchInstructorsProcedure = studentProcedure
       return {
         id: instructor.user_id,
         instructorProfileId: instructor.id,
-        name: profile?.full_name || "Onbekende instructeur",
+        name: `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || "Onbekende instructeur",
         photo: profile?.avatar_url || `https://i.pravatar.cc/150?u=${instructor.user_id}`,
         rating: instructor.rating || 0,
         reviewCount: instructor.total_lessons || 0,

@@ -9,7 +9,8 @@ export const myLinkRequestsProcedure = studentProcedure.query(async ({ ctx }) =>
         *,
         instructor:profiles!instructor_id (
           id,
-          full_name,
+          first_name,
+          last_name,
           email,
           avatar_url
         )

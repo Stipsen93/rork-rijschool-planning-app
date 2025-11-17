@@ -31,15 +31,18 @@ export const getStudentProfileProcedure = protectedProcedure.query(async ({ ctx 
     console.error("[getStudentProfileProcedure] Error fetching student profile:", studentError);
   }
 
+  const profileData = profile as any;
+  const studentData = studentProfile as any;
+
   return {
-    first_name: studentProfile?.first_name || profile.full_name?.split(" ")[0] || "",
-    last_name: studentProfile?.last_name || profile.full_name?.split(" ").slice(1).join(" ") || "",
-    birth_date: studentProfile?.birth_date || null,
-    email: profile.email || "",
-    address: studentProfile?.address || null,
-    phone: profile.phone || null,
-    parent_name: studentProfile?.parent_name || null,
-    parent_phone: studentProfile?.parent_phone || null,
-    avatar_url: profile.avatar_url || null,
+    first_name: studentData?.first_name || profileData?.first_name || "",
+    last_name: studentData?.last_name || profileData?.last_name || "",
+    birth_date: studentData?.birth_date || null,
+    email: profileData?.email || "",
+    address: studentData?.address || null,
+    phone: profileData?.phone || null,
+    parent_name: studentData?.parent_name || null,
+    parent_phone: studentData?.parent_phone || null,
+    avatar_url: profileData?.avatar_url || null,
   };
 });

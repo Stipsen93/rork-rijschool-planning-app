@@ -2,6 +2,10 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { protectedProcedure } from "../../../create-context";
 import { supabase } from "@/lib/supabase";
+import { Database } from "@/types/supabase";
+
+type StudentProfileUpdate = Database['public']['Tables']['student_profiles']['Update'];
+type ProfileUpdate = Database['public']['Tables']['profiles']['Update'];
 
 const updateStudentProfileSchema = z.object({
   first_name: z.string().min(1),
@@ -37,17 +41,19 @@ export const updateStudentProfileProcedure = protectedProcedure
     }
 
     if (existingProfile) {
-      const { error: updateError } = await supabase
+      const studentUpdate: StudentProfileUpdate = {
+        first_name: input.first_name,
+        last_name: input.last_name,
+        birth_date: input.birth_date,
+        address: input.address,
+        parent_name: input.parent_name,
+        parent_phone: input.parent_phone,
+        updated_at: new Date().toISOString(),
+      };
+
+      const { error: updateError } = await (ctx.supabase as any)
         .from("student_profiles")
-        .update({
-          first_name: input.first_name,
-          last_name: input.last_name,
-          birth_date: input.birth_date,
-          address: input.address,
-          parent_name: input.parent_name,
-          parent_phone: input.parent_phone,
-          updated_at: new Date().toISOString(),
-        })
+        .update(studentUpdate)
         .eq("user_id", userId);
 
       if (updateError) {
@@ -58,7 +64,7 @@ export const updateStudentProfileProcedure = protectedProcedure
         });
       }
     } else {
-      const { error: insertError } = await supabase
+      const { error: insertError } = await (ctx.supabase as any)
         .from("student_profiles")
         .insert({
           user_id: userId,
@@ -79,14 +85,17 @@ export const updateStudentProfileProcedure = protectedProcedure
       }
     }
 
-    const { error: profileUpdateError } = await supabase
+    const profileUpdate: ProfileUpdate = {
+      first_name: input.first_name,
+      last_name: input.last_name,
+      phone: input.phone,
+      avatar_url: input.avatar_url,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error: profileUpdateError } = await (ctx.supabase as any)
       .from("profiles")
-      .update({
-        full_name: `${input.first_name} ${input.last_name}`,
-        phone: input.phone,
-        avatar_url: input.avatar_url,
-        updated_at: new Date().toISOString(),
-      })
+      .update(profileUpdate)
       .eq("id", userId);
 
     if (profileUpdateError) {

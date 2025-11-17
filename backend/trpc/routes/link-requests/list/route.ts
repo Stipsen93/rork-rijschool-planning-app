@@ -10,7 +10,8 @@ export const listLinkRequestsProcedure = instructorProcedure.query(
         *,
         student:profiles!student_id (
           id,
-          full_name,
+          first_name,
+          last_name,
           email,
           avatar_url,
           phone

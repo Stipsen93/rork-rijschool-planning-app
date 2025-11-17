@@ -13,7 +13,8 @@ export interface Database {
         Row: {
           id: string
           email: string
-          full_name: string | null
+          first_name: string | null
+          last_name: string | null
           role: 'instructor' | 'student'
           phone: string | null
           avatar_url: string | null
@@ -24,7 +25,8 @@ export interface Database {
         Insert: {
           id: string
           email: string
-          full_name?: string | null
+          first_name?: string | null
+          last_name?: string | null
           role: 'instructor' | 'student'
           phone?: string | null
           avatar_url?: string | null
@@ -35,7 +37,8 @@ export interface Database {
         Update: {
           id?: string
           email?: string
-          full_name?: string | null
+          first_name?: string | null
+          last_name?: string | null
           role?: 'instructor' | 'student'
           phone?: string | null
           avatar_url?: string | null

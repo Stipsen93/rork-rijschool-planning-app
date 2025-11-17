@@ -17,8 +17,8 @@ export const listLessonsProcedure = protectedProcedure
       .select(
         `
         *,
-        instructor:instructor_id(id, full_name, avatar_url, phone),
-        student:student_id(id, full_name, avatar_url, phone)
+        instructor:instructor_id(id, first_name, last_name, avatar_url, phone),
+        student:student_id(id, first_name, last_name, avatar_url, phone)
       `
       );
 
