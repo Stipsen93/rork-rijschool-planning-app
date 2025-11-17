@@ -6,9 +6,6 @@ import { supabase } from '@/lib/supabase';
 import { Database } from '@/types/supabase';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
-type ProfileInsert = Database['public']['Tables']['profiles']['Insert'];
-type InstructorProfileInsert = Database['public']['Tables']['instructor_profiles']['Insert'];
-type StudentProfileInsert = Database['public']['Tables']['student_profiles']['Insert'];
 
 interface AuthState {
   user: User | null;
@@ -83,46 +80,36 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
       if (profileError) {
         console.error('AuthStore: Error loading profile:', JSON.stringify(profileError, null, 2));
+        console.error('AuthStore: Profile error details:', profileError);
       } else if (!existingProfile) {
-        console.log('AuthStore: No profile found, creating one for user:', session.user.id);
+        console.log('AuthStore: No profile found yet for user:', session.user.id);
+        console.log('AuthStore: Waiting for trigger to create profile...');
         
-        const newProfile: ProfileInsert = {
-          id: session.user.id,
-          email: session.user.email || '',
-          full_name: session.user.user_metadata?.full_name || '',
-          role: session.user.user_metadata?.role || 'instructor',
-          phone: session.user.user_metadata?.phone || null,
-          is_active: true,
-        };
-
-        const { data: createdProfile, error: createError } = await supabase
-          .from('profiles')
-          .insert(newProfile as any)
-          .select()
-          .single();
-
-        if (createError) {
-          console.error('AuthStore: Error creating profile:', createError);
-        } else {
-          profile = createdProfile;
-          console.log('AuthStore: Profile created successfully');
+        // Wait for the database trigger to create the profile
+        // Retry a few times with exponential backoff
+        let retryCount = 0;
+        const maxRetries = 5;
+        
+        while (retryCount < maxRetries && !profile) {
+          await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, retryCount)));
           
-          if (newProfile.role === 'instructor') {
-            const instructorData: InstructorProfileInsert = {
-              user_id: session.user.id,
-              rating: 0,
-              total_lessons: 0,
-            };
-            const { error: instructorError } = await supabase
-              .from('instructor_profiles')
-              .insert(instructorData as any);
-            
-            if (instructorError) {
-              console.error('AuthStore: Error creating instructor profile:', instructorError);
-            } else {
-              console.log('AuthStore: Instructor profile created successfully');
-            }
+          const { data: retryProfile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .maybeSingle();
+          
+          if (retryProfile) {
+            profile = retryProfile;
+            console.log('AuthStore: Profile found after retry', retryCount + 1);
+            break;
           }
+          
+          retryCount++;
+        }
+        
+        if (!profile) {
+          console.error('AuthStore: Profile not created by trigger after', maxRetries, 'retries');
         }
       } else {
         profile = existingProfile;
@@ -218,6 +205,8 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         options: {
           data: {
             full_name: fullName,
+            first_name: firstName,
+            last_name: lastName,
             role: role,
             phone: phone || null,
           }
@@ -225,38 +214,17 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       });
 
       if (authError || !authData.user) {
+        console.error('Signup error:', authError);
         throw authError || new Error('Signup failed');
       }
 
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      if (role === 'instructor') {
-        const instructorData: InstructorProfileInsert = {
-          user_id: authData.user.id,
-          first_name: firstName,
-          last_name: lastName,
-          rating: 0,
-          total_lessons: 0,
-        };
-        const { error: instructorError } = await supabase.from('instructor_profiles').insert(instructorData as any);
-        
-        if (instructorError) {
-          console.error('AuthStore: Error creating instructor profile:', instructorError);
-        }
-      } else {
-        const studentData: StudentProfileInsert = {
-          user_id: authData.user.id,
-          lesson_streak: 0,
-          total_lessons_completed: 0,
-          hours_driven: 0,
-          overall_progress: 0,
-        };
-        const { error: studentError } = await supabase.from('student_profiles').insert(studentData as any);
-        
-        if (studentError) {
-          console.error('AuthStore: Error creating student profile:', studentError);
-        }
-      }
+      console.log('AuthStore: User created successfully, user ID:', authData.user.id);
+      console.log('AuthStore: Metadata sent:', authData.user.user_metadata);
+      console.log('AuthStore: Waiting for database trigger to create profile and role-specific profile...');
+      
+      // Wait a bit for the trigger to complete
+      // The trigger should create both profiles and instructor_profiles/student_profiles
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
       return {
         success: true,
