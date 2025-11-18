@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import createContextHook from "@nkzw/create-context-hook";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { supabase } from "@/lib/supabase";
 import { trpc } from "@/lib/trpc";
 
 export type InstructorProfile = {
@@ -46,6 +47,7 @@ type RemoteExtendedInstructorProfile = Partial<{
   wrm_pass_number: string | null;
   driving_school_name: string | null;
   driving_school_affiliation: string[] | null;
+  driving_school_id: string | null;
   years_experience: number | null;
   tax_id: string | null;
   business_address: string | null;
@@ -89,6 +91,55 @@ export const [ProfileProvider, useProfile] = createContextHook(() => {
             metadataDrivingSchoolName = userMetadata["driving_school_name"] as string;
           }
 
+          let resolvedDrivingSchoolName = extended?.driving_school_name ?? metadataDrivingSchoolName ?? mergedProfile.drivingSchoolName;
+          const drivingSchoolId = extended?.driving_school_id && typeof extended.driving_school_id === "string" ? extended.driving_school_id : null;
+          const rawAffiliations = Array.isArray(extended?.driving_school_affiliation)
+            ? (extended?.driving_school_affiliation.filter((item) => typeof item === "string") as string[])
+            : [];
+          let resolvedAffiliations = rawAffiliations;
+
+          if (
+            (!resolvedDrivingSchoolName || resolvedDrivingSchoolName.length === 0 || (resolvedDrivingSchoolName === mergedProfile.drivingSchoolName && rawAffiliations.length > 0)) ||
+            rawAffiliations.some((value) => /^[0-9a-fA-F-]{32,36}$/.test(value)) ||
+            Boolean(drivingSchoolId)
+          ) {
+            const identifiersToLookup = [
+              ...rawAffiliations.filter((value) => /^[0-9a-fA-F-]{32,36}$/.test(value)),
+              ...(drivingSchoolId ? [drivingSchoolId] : []),
+            ];
+            if (identifiersToLookup.length > 0) {
+              try {
+                console.log("[ProfileStore] Resolving driving school names from Supabase", identifiersToLookup);
+                const { data: schoolRows, error: schoolError } = await (supabase.from("driving_schools") as any)
+                  .select("id,name")
+                  .in("id", identifiersToLookup);
+                if (!schoolError && Array.isArray(schoolRows)) {
+                  const map = new Map<string, string>();
+                  schoolRows.forEach((row: { id?: string; name?: string }) => {
+                    if (row && typeof row.id === "string" && typeof row.name === "string") {
+                      map.set(row.id, row.name);
+                    }
+                  });
+                  resolvedAffiliations = rawAffiliations.map((value) => map.get(value) ?? value);
+                  if (drivingSchoolId && map.has(drivingSchoolId)) {
+                    resolvedDrivingSchoolName = map.get(drivingSchoolId) ?? resolvedDrivingSchoolName;
+                  }
+                  if (!resolvedDrivingSchoolName && resolvedAffiliations.length > 0) {
+                    resolvedDrivingSchoolName = resolvedAffiliations[0];
+                  }
+                } else if (schoolError) {
+                  console.error("[ProfileStore] Failed to resolve driving school names", schoolError);
+                }
+              } catch (resolveError) {
+                console.error("[ProfileStore] Error while resolving driving school names", resolveError);
+              }
+            }
+          }
+
+          if (!resolvedDrivingSchoolName && rawAffiliations.length > 0) {
+            resolvedDrivingSchoolName = rawAffiliations[0];
+          }
+
           const updatedProfile: InstructorProfile = {
             ...mergedProfile,
             firstName: remoteProfile?.first_name ?? mergedProfile.firstName,
@@ -97,7 +148,7 @@ export const [ProfileProvider, useProfile] = createContextHook(() => {
             phoneNumber: remoteProfile?.phone ?? mergedProfile.phoneNumber,
             birthDate: remoteProfile?.birth_date ?? mergedProfile.birthDate,
             certificationNumber: extended?.wrm_pass_number ?? metadataWrm ?? mergedProfile.certificationNumber,
-            drivingSchoolName: extended?.driving_school_name ?? metadataDrivingSchoolName ?? mergedProfile.drivingSchoolName,
+            drivingSchoolName: resolvedDrivingSchoolName ?? mergedProfile.drivingSchoolName,
             instructorNumber: extended?.instructor_number ?? mergedProfile.instructorNumber,
             experienceYears:
               extended?.years_experience !== undefined && extended?.years_experience !== null
@@ -107,8 +158,8 @@ export const [ProfileProvider, useProfile] = createContextHook(() => {
             address: extended?.business_address ?? mergedProfile.address,
             iban: extended?.iban ?? mergedProfile.iban,
             drivingSchools:
-              Array.isArray(extended?.driving_school_affiliation) && extended.driving_school_affiliation.length > 0
-                ? extended.driving_school_affiliation
+              resolvedAffiliations.length > 0
+                ? resolvedAffiliations
                 : metadataDrivingSchoolName
                 ? [metadataDrivingSchoolName]
                 : mergedProfile.drivingSchools,
