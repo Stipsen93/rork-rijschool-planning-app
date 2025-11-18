@@ -77,6 +77,17 @@ export const [ProfileProvider, useProfile] = createContextHook(() => {
         if (meQuery.data) {
           const remoteProfile = meQuery.data.profile;
           const extended = (meQuery.data.extendedProfile ?? null) as RemoteExtendedInstructorProfile | null;
+          const userMetadata = (meQuery.data.user?.user_metadata ?? null) as Record<string, unknown> | null;
+
+          let metadataWrm: string | undefined;
+          if (userMetadata && typeof userMetadata["wrm_pass_number"] === "string") {
+            metadataWrm = userMetadata["wrm_pass_number"] as string;
+          }
+
+          let metadataDrivingSchoolName: string | undefined;
+          if (userMetadata && typeof userMetadata["driving_school_name"] === "string") {
+            metadataDrivingSchoolName = userMetadata["driving_school_name"] as string;
+          }
 
           const updatedProfile: InstructorProfile = {
             ...mergedProfile,
@@ -85,8 +96,8 @@ export const [ProfileProvider, useProfile] = createContextHook(() => {
             email: remoteProfile?.email ?? mergedProfile.email,
             phoneNumber: remoteProfile?.phone ?? mergedProfile.phoneNumber,
             birthDate: remoteProfile?.birth_date ?? mergedProfile.birthDate,
-            certificationNumber: extended?.wrm_pass_number ?? mergedProfile.certificationNumber,
-            drivingSchoolName: extended?.driving_school_name ?? mergedProfile.drivingSchoolName,
+            certificationNumber: extended?.wrm_pass_number ?? metadataWrm ?? mergedProfile.certificationNumber,
+            drivingSchoolName: extended?.driving_school_name ?? metadataDrivingSchoolName ?? mergedProfile.drivingSchoolName,
             instructorNumber: extended?.instructor_number ?? mergedProfile.instructorNumber,
             experienceYears:
               extended?.years_experience !== undefined && extended?.years_experience !== null
@@ -98,6 +109,8 @@ export const [ProfileProvider, useProfile] = createContextHook(() => {
             drivingSchools:
               Array.isArray(extended?.driving_school_affiliation) && extended.driving_school_affiliation.length > 0
                 ? extended.driving_school_affiliation
+                : metadataDrivingSchoolName
+                ? [metadataDrivingSchoolName]
                 : mergedProfile.drivingSchools,
             specializations: Array.isArray(extended?.specializations)
               ? extended.specializations
