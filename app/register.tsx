@@ -245,14 +245,17 @@ export default function RegisterScreen() {
     console.log(`[Register:${Date.now() - startTime}ms] Starting registration...`);
 
     try {
-      const result = await signup(
-        email.trim(),
-        password.trim(),
-        firstName.trim(),
-        lastName.trim(),
-        'instructor',
-        phone.trim()
-      );
+      const result = await signup({
+        email: email.trim(),
+        password: password.trim(),
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        role: 'instructor',
+        phone: phone.trim(),
+        birthDate: birthdate ? birthdate.toISOString().split('T')[0] : null,
+        wrmNumber: certificationNumber.trim(),
+        drivingSchoolName: schoolName.trim(),
+      });
 
       console.log(`[Register:${Date.now() - startTime}ms] Registration result:`, result);
 

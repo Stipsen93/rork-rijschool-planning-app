@@ -13,10 +13,12 @@ export interface Database {
         Row: {
           id: string
           email: string
+          full_name: string | null
           first_name: string | null
           last_name: string | null
           role: 'instructor' | 'student'
           phone: string | null
+          birth_date: string | null
           avatar_url: string | null
           is_active: boolean
           created_at: string
@@ -25,10 +27,12 @@ export interface Database {
         Insert: {
           id: string
           email: string
+          full_name?: string | null
           first_name?: string | null
           last_name?: string | null
           role: 'instructor' | 'student'
           phone?: string | null
+          birth_date?: string | null
           avatar_url?: string | null
           is_active?: boolean
           created_at?: string
@@ -37,10 +41,12 @@ export interface Database {
         Update: {
           id?: string
           email?: string
+          full_name?: string | null
           first_name?: string | null
           last_name?: string | null
           role?: 'instructor' | 'student'
           phone?: string | null
+          birth_date?: string | null
           avatar_url?: string | null
           is_active?: boolean
           created_at?: string
@@ -51,47 +57,173 @@ export interface Database {
         Row: {
           id: string
           user_id: string
+          first_name: string | null
+          last_name: string | null
+          phone: string | null
+          birth_date: string | null
           instructor_number: string | null
+          wrm_pass_number: string | null
+          driving_school_name: string | null
+          driving_school_affiliation: string[] | null
+          years_experience: number | null
+          tax_id: string | null
+          business_address: string | null
+          iban: string | null
+          specializations: string[] | null
           company_name: string | null
           license_number: string | null
           bio: string | null
           rating: number
           total_lessons: number
-          years_experience: number | null
-          specializations: string[] | null
           working_hours: Json | null
+          vacation_periods: Json | null
+          base_lesson_duration: number | null
+          product_durations: Json | null
+          break_between_lessons: number | null
+          automatic_breaks: boolean | null
+          require_confirmation: boolean | null
+          cancellation_notice_hours: number | null
+          products: Json | null
+          packages: Json | null
+          hourly_rate: number | null
+          hourly_vat_status: string | null
+          max_lessons_per_week: number | null
+          max_lessons_per_day: number | null
+          consecutive_lessons: number | null
+          advance_booking_days: number | null
+          allow_weekend_booking: boolean | null
+          require_parent_approval: boolean | null
+          allow_student_cancellation: boolean | null
+          student_cancellation_hours: number | null
+          late_cancellation_penalty: boolean | null
+          penalty_amount: number | null
+          require_prepayment: boolean | null
+          allow_payment_plans: boolean | null
+          max_unpaid_lessons: number | null
+          send_reminders: boolean | null
+          reminder_hours: number | null
+          send_progress_reports: boolean | null
+          allow_direct_contact: boolean | null
+          lesson_card_categories: Json | null
+          lesson_card_status_config: Json | null
+          notification_settings: Json | null
           created_at: string
           updated_at: string
+          synced_at: string | null
         }
         Insert: {
           id?: string
           user_id: string
+          first_name?: string | null
+          last_name?: string | null
+          phone?: string | null
+          birth_date?: string | null
           instructor_number?: string | null
+          wrm_pass_number?: string | null
+          driving_school_name?: string | null
+          driving_school_affiliation?: string[] | null
+          years_experience?: number | null
+          tax_id?: string | null
+          business_address?: string | null
+          iban?: string | null
+          specializations?: string[] | null
           company_name?: string | null
           license_number?: string | null
           bio?: string | null
           rating?: number
           total_lessons?: number
-          years_experience?: number | null
-          specializations?: string[] | null
           working_hours?: Json | null
+          vacation_periods?: Json | null
+          base_lesson_duration?: number | null
+          product_durations?: Json | null
+          break_between_lessons?: number | null
+          automatic_breaks?: boolean | null
+          require_confirmation?: boolean | null
+          cancellation_notice_hours?: number | null
+          products?: Json | null
+          packages?: Json | null
+          hourly_rate?: number | null
+          hourly_vat_status?: string | null
+          max_lessons_per_week?: number | null
+          max_lessons_per_day?: number | null
+          consecutive_lessons?: number | null
+          advance_booking_days?: number | null
+          allow_weekend_booking?: boolean | null
+          require_parent_approval?: boolean | null
+          allow_student_cancellation?: boolean | null
+          student_cancellation_hours?: number | null
+          late_cancellation_penalty?: boolean | null
+          penalty_amount?: number | null
+          require_prepayment?: boolean | null
+          allow_payment_plans?: boolean | null
+          max_unpaid_lessons?: number | null
+          send_reminders?: boolean | null
+          reminder_hours?: number | null
+          send_progress_reports?: boolean | null
+          allow_direct_contact?: boolean | null
+          lesson_card_categories?: Json | null
+          lesson_card_status_config?: Json | null
+          notification_settings?: Json | null
           created_at?: string
           updated_at?: string
+          synced_at?: string | null
         }
         Update: {
           id?: string
           user_id?: string
+          first_name?: string | null
+          last_name?: string | null
+          phone?: string | null
+          birth_date?: string | null
           instructor_number?: string | null
+          wrm_pass_number?: string | null
+          driving_school_name?: string | null
+          driving_school_affiliation?: string[] | null
+          years_experience?: number | null
+          tax_id?: string | null
+          business_address?: string | null
+          iban?: string | null
+          specializations?: string[] | null
           company_name?: string | null
           license_number?: string | null
           bio?: string | null
           rating?: number
           total_lessons?: number
-          years_experience?: number | null
-          specializations?: string[] | null
           working_hours?: Json | null
+          vacation_periods?: Json | null
+          base_lesson_duration?: number | null
+          product_durations?: Json | null
+          break_between_lessons?: number | null
+          automatic_breaks?: boolean | null
+          require_confirmation?: boolean | null
+          cancellation_notice_hours?: number | null
+          products?: Json | null
+          packages?: Json | null
+          hourly_rate?: number | null
+          hourly_vat_status?: string | null
+          max_lessons_per_week?: number | null
+          max_lessons_per_day?: number | null
+          consecutive_lessons?: number | null
+          advance_booking_days?: number | null
+          allow_weekend_booking?: boolean | null
+          require_parent_approval?: boolean | null
+          allow_student_cancellation?: boolean | null
+          student_cancellation_hours?: number | null
+          late_cancellation_penalty?: boolean | null
+          penalty_amount?: number | null
+          require_prepayment?: boolean | null
+          allow_payment_plans?: boolean | null
+          max_unpaid_lessons?: number | null
+          send_reminders?: boolean | null
+          reminder_hours?: number | null
+          send_progress_reports?: boolean | null
+          allow_direct_contact?: boolean | null
+          lesson_card_categories?: Json | null
+          lesson_card_status_config?: Json | null
+          notification_settings?: Json | null
           created_at?: string
           updated_at?: string
+          synced_at?: string | null
         }
       }
       student_profiles: {

@@ -28,6 +28,18 @@ interface SessionUpdateOptions {
   retryOptions?: ResolveProfileOptions;
 }
 
+interface SignupPayload {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  role: 'instructor' | 'student';
+  phone?: string | null;
+  birthDate?: string | null;
+  wrmNumber?: string | null;
+  drivingSchoolName?: string | null;
+}
+
 export const [AuthProvider, useAuth] = createContextHook(() => {
   const [authState, setAuthState] = useState<AuthState>({
     user: null,
@@ -325,14 +337,17 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   );
 
   const signup = useCallback(
-    async (
-      email: string,
-      password: string,
-      firstName: string,
-      lastName: string,
-      role: 'instructor' | 'student',
-      phone?: string,
-    ) => {
+    async ({
+      email,
+      password,
+      firstName,
+      lastName,
+      role,
+      phone,
+      birthDate,
+      wrmNumber,
+      drivingSchoolName,
+    }: SignupPayload) => {
       const startTime = Date.now();
       let timeoutId: NodeJS.Timeout | null = null;
 
@@ -350,21 +365,33 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         }
       };
 
+      const normalizedEmail = email.trim().toLowerCase();
+      const trimmedFirstName = firstName.trim();
+      const trimmedLastName = lastName.trim();
+      const sanitizedPhone = phone && phone.trim().length > 0 ? phone.trim() : null;
+      const normalizedBirthDate = birthDate && birthDate.trim().length > 0 ? birthDate : null;
+      const sanitizedWrm = wrmNumber && wrmNumber.trim().length > 0 ? wrmNumber.trim() : null;
+      const sanitizedDrivingSchoolName =
+        drivingSchoolName && drivingSchoolName.trim().length > 0 ? drivingSchoolName.trim() : null;
+
       try {
-        console.log(`[Auth:${Date.now() - startTime}ms] START signup for ${email}`);
+        console.log(`[Auth:${Date.now() - startTime}ms] START signup for ${normalizedEmail}`);
 
         const signupPromise = (async () => {
           console.log(`[Auth:${Date.now() - startTime}ms] → Calling signUp`);
           const { data: authData, error: authError } = await supabase.auth.signUp({
-            email,
+            email: normalizedEmail,
             password,
             options: {
               data: {
-                full_name: `${firstName} ${lastName}`,
-                first_name: firstName,
-                last_name: lastName,
+                full_name: `${trimmedFirstName} ${trimmedLastName}`.trim(),
+                first_name: trimmedFirstName,
+                last_name: trimmedLastName,
                 role,
-                phone: phone || null,
+                phone: sanitizedPhone,
+                birth_date: normalizedBirthDate,
+                wrm_pass_number: sanitizedWrm,
+                driving_school_name: sanitizedDrivingSchoolName,
               },
             },
           });
@@ -373,6 +400,47 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
           if (authError || !authData.user || !authData.session) {
             console.error(`[Auth:${Date.now() - startTime}ms] ✗ signUp error:`, authError?.message ?? 'Geen gebruiker of sessie');
             throw authError ?? new Error('Registratie mislukt');
+          }
+
+          const profileUpsert = {
+            id: authData.user.id,
+            email: normalizedEmail,
+            role,
+            first_name: trimmedFirstName,
+            last_name: trimmedLastName,
+            full_name: `${trimmedFirstName} ${trimmedLastName}`.trim(),
+            phone: sanitizedPhone,
+            birth_date: normalizedBirthDate,
+          } satisfies Database['public']['Tables']['profiles']['Insert'];
+
+          const { error: profileError } = await (supabase.from('profiles') as any).upsert(profileUpsert);
+
+          if (profileError) {
+            console.error(`[Auth:${Date.now() - startTime}ms] ✗ Profile upsert error:`, profileError.message);
+            throw new Error('Profielgegevens konden niet opgeslagen worden');
+          }
+
+          const instructorUpsert = {
+            user_id: authData.user.id,
+            first_name: trimmedFirstName,
+            last_name: trimmedLastName,
+            phone: sanitizedPhone,
+            birth_date: normalizedBirthDate,
+            wrm_pass_number: sanitizedWrm,
+            driving_school_name: sanitizedDrivingSchoolName,
+            driving_school_affiliation: sanitizedDrivingSchoolName ? [sanitizedDrivingSchoolName] : [],
+          } satisfies Database['public']['Tables']['instructor_profiles']['Insert'];
+
+          const { error: instructorError } = await (supabase.from('instructor_profiles') as any).upsert(
+            instructorUpsert,
+            {
+              onConflict: 'user_id',
+            },
+          );
+
+          if (instructorError) {
+            console.error(`[Auth:${Date.now() - startTime}ms] ✗ Instructor upsert error:`, instructorError.message);
+            throw new Error('Instructeursgegevens konden niet opgeslagen worden');
           }
 
           const profileResult = await resolveProfile(authData.user.id, {
@@ -404,7 +472,10 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         return result;
       } catch (error) {
         clearPendingTimeout();
-        console.error(`[Auth:${Date.now() - startTime}ms] ✗✗✗ FINAL ERROR:`, error instanceof Error ? error.message : String(error));
+        console.error(
+          `[Auth:${Date.now() - startTime}ms] ✗✗✗ FINAL ERROR:`,
+          error instanceof Error ? error.message : String(error),
+        );
         await handleSessionEnd();
         return {
           success: false,

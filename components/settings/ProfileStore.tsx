@@ -41,6 +41,18 @@ const defaultProfile: InstructorProfile = {
   profileImageUrl: null,
 };
 
+type RemoteExtendedInstructorProfile = Partial<{
+  instructor_number: string | null;
+  wrm_pass_number: string | null;
+  driving_school_name: string | null;
+  driving_school_affiliation: string[] | null;
+  years_experience: number | null;
+  tax_id: string | null;
+  business_address: string | null;
+  iban: string | null;
+  specializations: string[] | null;
+}>;
+
 export const [ProfileProvider, useProfile] = createContextHook(() => {
   const [profile, setProfile] = useState<InstructorProfile>(defaultProfile);
   const [loading, setLoading] = useState<boolean>(true);
@@ -52,30 +64,66 @@ export const [ProfileProvider, useProfile] = createContextHook(() => {
   });
 
   useEffect(() => {
+    let cancelled = false;
+
     (async () => {
       console.log("[ProfileStore] Loading instructor profile...");
       try {
         const stored = await AsyncStorage.getItem(PROFILE_KEY);
-        let parsedProfile = stored ? JSON.parse(stored) as InstructorProfile : defaultProfile;
+        let mergedProfile = stored ? (JSON.parse(stored) as InstructorProfile) : defaultProfile;
 
-        if (meQuery.data?.extendedProfile) {
-          const instructorNumber = meQuery.data.extendedProfile.instructor_number || "";
-          console.log("[ProfileStore] Syncing instructor number from backend:", instructorNumber);
-          parsedProfile = {
-            ...parsedProfile,
-            instructorNumber,
+        if (meQuery.data) {
+          const remoteProfile = meQuery.data.profile;
+          const extended = (meQuery.data.extendedProfile ?? null) as RemoteExtendedInstructorProfile | null;
+
+          const updatedProfile: InstructorProfile = {
+            ...mergedProfile,
+            firstName: remoteProfile?.first_name ?? mergedProfile.firstName,
+            lastName: remoteProfile?.last_name ?? mergedProfile.lastName,
+            email: remoteProfile?.email ?? mergedProfile.email,
+            phoneNumber: remoteProfile?.phone ?? mergedProfile.phoneNumber,
+            birthDate: remoteProfile?.birth_date ?? mergedProfile.birthDate,
+            certificationNumber: extended?.wrm_pass_number ?? mergedProfile.certificationNumber,
+            drivingSchoolName: extended?.driving_school_name ?? mergedProfile.drivingSchoolName,
+            instructorNumber: extended?.instructor_number ?? mergedProfile.instructorNumber,
+            experienceYears:
+              extended?.years_experience !== undefined && extended?.years_experience !== null
+                ? extended.years_experience.toString()
+                : mergedProfile.experienceYears,
+            taxId: extended?.tax_id ?? mergedProfile.taxId,
+            address: extended?.business_address ?? mergedProfile.address,
+            iban: extended?.iban ?? mergedProfile.iban,
+            drivingSchools:
+              Array.isArray(extended?.driving_school_affiliation) && extended.driving_school_affiliation.length > 0
+                ? extended.driving_school_affiliation
+                : mergedProfile.drivingSchools,
+            specializations: Array.isArray(extended?.specializations)
+              ? extended.specializations
+              : mergedProfile.specializations,
           };
-          await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(parsedProfile));
+
+          mergedProfile = updatedProfile;
         }
 
-        setProfile(parsedProfile);
-        console.log("[ProfileStore] Loaded profile", parsedProfile);
+        if (!cancelled) {
+          setProfile(mergedProfile);
+          await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(mergedProfile));
+          console.log("[ProfileStore] Loaded profile", mergedProfile);
+        }
       } catch (e) {
-        console.error("[ProfileStore] Failed to load profile", e);
+        if (!cancelled) {
+          console.error("[ProfileStore] Failed to load profile", e);
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [meQuery.data]);
 
   const updateProfile = useCallback(async (newProfile: InstructorProfile) => {
