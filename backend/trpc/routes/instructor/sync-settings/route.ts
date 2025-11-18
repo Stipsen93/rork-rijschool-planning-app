@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { protectedProcedure } from "../../../create-context";
+import { instructorProcedure } from "../../../create-context";
 
-export const syncSettingsProcedure = protectedProcedure
+export const syncSettingsProcedure = instructorProcedure
   .input(
     z.object({
       profile: z.object({

@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useRef } from "react";
+import { useEffect, useCallback, useMemo, useRef, useState } from "react";
 import createContextHook from "@nkzw/create-context-hook";
 import { AppState, AppStateStatus } from "react-native";
 import { trpc } from "@/lib/trpc";
@@ -20,6 +20,7 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
   const { categories: lessonCardCategories, statusConfig } = useLessonCard();
   const { notificationSettings } = useNotifications();
   const { studentConfig } = useStudentConfig();
+  const isInstructor = authProfile?.role === "instructor";
 
   const syncMutation = trpc.instructor.syncSettings.useMutation();
   const fetchSettingsQuery = trpc.instructor.fetchSettings.useQuery(undefined, {
@@ -30,15 +31,29 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
   const appState = useRef<AppStateStatus>(AppState.currentState);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastSyncRef = useRef<number>(0);
+  const skippedRoleLogRef = useRef<boolean>(false);
+  const [lastSyncTime, setLastSyncTime] = useState<number>(0);
 
   const syncToSupabase = useCallback(async () => {
     if (!isAuthenticated || !authProfile) {
       return;
     }
 
+    if (!isInstructor) {
+      if (!skippedRoleLogRef.current) {
+        console.log(
+          `[AutoSync] Skipping sync because current role is ${authProfile.role ?? "unknown"}`,
+        );
+        skippedRoleLogRef.current = true;
+      }
+      return;
+    }
+
+    skippedRoleLogRef.current = false;
+
     try {
       console.log("[AutoSync] Syncing settings to Supabase...");
-      
+
       await syncMutation.mutateAsync({
         profile: {
           firstName: profile.firstName,
@@ -88,13 +103,20 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
       });
 
       lastSyncRef.current = Date.now();
+      setLastSyncTime(lastSyncRef.current);
       console.log("[AutoSync] Successfully synced to Supabase");
     } catch (error) {
-      console.error("[AutoSync] Failed to sync:", error);
+      const message = error instanceof Error ? error.message : String(error);
+      console.error("[AutoSync] Failed to sync:", message);
+      console.error("[AutoSync] Sync error details:", error);
+      if (message.includes("Failed to fetch")) {
+        console.error("[AutoSync] Network request failed while syncing settings");
+      }
     }
   }, [
     isAuthenticated,
     authProfile,
+    isInstructor,
     profile,
     workingHours,
     vacationPeriods,
@@ -114,23 +136,44 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
       return;
     }
 
+    if (!isInstructor) {
+      if (!skippedRoleLogRef.current) {
+        console.log(
+          `[AutoSync] Skipping fetch because current role is ${authProfile.role ?? "unknown"}`,
+        );
+        skippedRoleLogRef.current = true;
+      }
+      return;
+    }
+
+    skippedRoleLogRef.current = false;
+
     try {
       console.log("[AutoSync] Fetching settings from Supabase...");
       const result = await fetchSettingsQuery.refetch();
-      
+
       if (result.data) {
         console.log("[AutoSync] Successfully fetched from Supabase");
       }
+
+      if (result.error) {
+        console.error("[AutoSync] Fetch error payload:", result.error);
+      }
     } catch (error) {
-      console.error("[AutoSync] Failed to fetch:", error);
+      const message = error instanceof Error ? error.message : String(error);
+      console.error("[AutoSync] Failed to fetch:", message);
+      console.error("[AutoSync] Fetch error details:", error);
+      if (message.includes("Failed to fetch")) {
+        console.error("[AutoSync] Network request failed while fetching settings");
+      }
     }
-  }, [isAuthenticated, authProfile, fetchSettingsQuery]);
+  }, [isAuthenticated, authProfile, isInstructor, fetchSettingsQuery]);
 
   const startSync = useCallback(() => {
-    if (!isAuthenticated || !authProfile || intervalRef.current) {
+    if (!isAuthenticated || !authProfile || !isInstructor || intervalRef.current) {
       return;
     }
-    
+
     intervalRef.current = setInterval(() => {
       const now = Date.now();
       if (now - lastSyncRef.current >= SYNC_INTERVAL) {
@@ -139,7 +182,7 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
     }, SYNC_INTERVAL);
 
     void syncToSupabase();
-  }, [isAuthenticated, authProfile, syncToSupabase]);
+  }, [isAuthenticated, authProfile, isInstructor, syncToSupabase]);
 
   const stopSync = useCallback(() => {
     if (intervalRef.current) {
@@ -149,7 +192,7 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
   }, []);
 
   useEffect(() => {
-    if (!isAuthenticated || !authProfile) {
+    if (!isAuthenticated || !authProfile || !isInstructor) {
       stopSync();
       return;
     }
@@ -172,7 +215,7 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
       stopSync();
       subscription.remove();
     };
-  }, [isAuthenticated, authProfile, startSync, stopSync]);
+  }, [isAuthenticated, authProfile, isInstructor, startSync, stopSync]);
 
   const manualSync = useCallback(async () => {
     await syncToSupabase();
@@ -182,11 +225,22 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
     await fetchFromSupabase();
   }, [fetchFromSupabase]);
 
-  return {
-    isSyncing: syncMutation.isPending,
-    isFetching: fetchSettingsQuery.isLoading,
-    lastSyncTime: lastSyncRef.current,
-    manualSync,
-    manualFetch,
-  };
+  const value = useMemo(
+    () => ({
+      isSyncing: syncMutation.isPending,
+      isFetching: fetchSettingsQuery.isLoading,
+      lastSyncTime,
+      manualSync,
+      manualFetch,
+    }),
+    [
+      syncMutation.isPending,
+      fetchSettingsQuery.isLoading,
+      manualSync,
+      manualFetch,
+      lastSyncTime,
+    ],
+  );
+
+  return value;
 });

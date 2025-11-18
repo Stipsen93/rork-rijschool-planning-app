@@ -1,6 +1,6 @@
-import { protectedProcedure } from "../../../create-context";
+import { instructorProcedure } from "../../../create-context";
 
-export const fetchSettingsProcedure = protectedProcedure.query(async ({ ctx }) => {
+export const fetchSettingsProcedure = instructorProcedure.query(async ({ ctx }) => {
   const userId = ctx.user.id;
 
   const response: any = await ctx.supabase
