@@ -1,5 +1,5 @@
 import createContextHook from '@nkzw/create-context-hook';
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
@@ -16,6 +16,7 @@ interface AuthState {
 }
 
 const AUTH_STORAGE_KEY = 'auth_session';
+const HYDRATION_GUARD_TIMEOUT = 4500;
 
 interface ResolveProfileOptions {
   attempts?: number;
@@ -36,11 +37,10 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     isAuthenticated: false,
   });
 
-  const lifecycle = useMemo(() => ({ active: true }), []);
-  lifecycle.active = true;
+  const isMountedRef = useRef(true);
 
   const applyUnauthenticatedState = useCallback(() => {
-    if (!lifecycle.active) {
+    if (!isMountedRef.current) {
       return;
     }
 
@@ -51,7 +51,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       isLoading: false,
       isAuthenticated: false,
     });
-  }, [lifecycle]);
+  }, [setAuthState]);
 
   const persistSession = useCallback(async (session: Session | null) => {
     try {
@@ -137,7 +137,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
         await persistSession(session);
 
-        if (!lifecycle.active) {
+        if (!isMountedRef.current) {
           return { success: true };
         }
 
@@ -157,7 +157,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         return { success: false, error: 'Sessieverwerking mislukt' };
       }
     },
-    [resolveProfile, persistSession, applyUnauthenticatedState, lifecycle],
+    [resolveProfile, persistSession, applyUnauthenticatedState],
   );
 
   const handleSessionEnd = useCallback(async () => {
@@ -173,6 +173,14 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
   const initializeAuth = useCallback(async () => {
     console.log('[Auth] Initialization started');
+    let completed = false;
+
+    const guardTimeout = setTimeout(() => {
+      if (!completed && isMountedRef.current) {
+        console.warn('[Auth] Initialization guard triggered, enforcing unauthenticated state');
+        applyUnauthenticatedState();
+      }
+    }, HYDRATION_GUARD_TIMEOUT);
 
     try {
       const { data, error } = await supabase.auth.getSession();
@@ -231,6 +239,9 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     } catch (error) {
       console.error('[Auth] initializeAuth error:', error instanceof Error ? error.message : String(error));
       await handleSessionEnd();
+    } finally {
+      completed = true;
+      clearTimeout(guardTimeout);
     }
   }, [handleSessionUpdate, handleSessionEnd, applyUnauthenticatedState]);
 
@@ -248,10 +259,9 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     });
 
     return () => {
-      lifecycle.active = false;
       listener.subscription.unsubscribe();
     };
-  }, [initializeAuth, handleSessionUpdate, handleSessionEnd, lifecycle]);
+  }, [initializeAuth, handleSessionUpdate, handleSessionEnd]);
 
   const login = useCallback(
     async (email: string, password: string) => {
@@ -439,19 +449,19 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       return;
     }
 
-    if (profile && lifecycle.active) {
+    if (profile && isMountedRef.current) {
       setAuthState((prev) => ({
         ...prev,
         profile,
       }));
     }
-  }, [userId, resolveProfile, lifecycle]);
+  }, [userId, resolveProfile]);
 
   useEffect(() => {
     return () => {
-      lifecycle.active = false;
+      isMountedRef.current = false;
     };
-  }, [lifecycle]);
+  }, []);
 
   return useMemo(
     () => ({
