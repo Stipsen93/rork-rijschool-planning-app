@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -24,6 +24,13 @@ export default function LoginScreen() {
   const [obscurePassword, setObscurePassword] = useState<boolean>(true);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const { login } = useAuth();
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -40,7 +47,6 @@ export default function LoginScreen() {
       if (!result.success) {
         console.log('[LoginScreen] ✗ Login failed:', result.error);
         Alert.alert('Inloggen mislukt', result.error || 'Onbekende fout');
-        setIsSubmitting(false);
         return;
       }
 
@@ -49,7 +55,10 @@ export default function LoginScreen() {
     } catch (error) {
       console.error('[LoginScreen] ✗ Unexpected error:', error);
       Alert.alert('Fout', 'Er is een onverwachte fout opgetreden');
-      setIsSubmitting(false);
+    } finally {
+      if (isMountedRef.current) {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -81,6 +90,7 @@ export default function LoginScreen() {
                 style={styles.input}
                 value={email}
                 onChangeText={setEmail}
+                testID="login-email-input"
                 placeholder="Voer je e-mailadres in"
                 placeholderTextColor="#9ca3af"
                 keyboardType="email-address"
@@ -99,6 +109,7 @@ export default function LoginScreen() {
                 style={styles.input}
                 value={password}
                 onChangeText={setPassword}
+                testID="login-password-input"
                 placeholder="Voer je wachtwoord in"
                 placeholderTextColor="#9ca3af"
                 secureTextEntry={obscurePassword}
@@ -123,6 +134,7 @@ export default function LoginScreen() {
             style={[styles.loginButton, isSubmitting && styles.loginButtonDisabled]}
             onPress={handleLogin}
             disabled={isSubmitting}
+            testID="login-submit-button"
           >
             {isSubmitting ? (
               <ActivityIndicator color="#fff" size="small" />
