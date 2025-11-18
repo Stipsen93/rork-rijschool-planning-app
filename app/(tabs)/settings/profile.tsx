@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Alert, FlatList, Image, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useFocusEffect } from "expo-router";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { CalendarDays, Camera, Check, Plus, Trash2, User, X } from "lucide-react-native";
@@ -58,13 +59,13 @@ function CalendarPicker({ initialDate, onSelectDate, testID, maximumDate }: Cale
   }, [cursor]);
 
   const yearRange = React.useMemo(() => {
-    const currentYear = today.getFullYear();
+    const currentYear = new Date().getFullYear();
     const years = [];
     for (let year = currentYear - 100; year <= currentYear + 50; year++) {
       years.push(year);
     }
     return years;
-  }, [today]);
+  }, []);
 
   return (
     <View testID={testID}>
@@ -280,7 +281,8 @@ const DRAFT_KEY = "instructor_profile_draft" as const;
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { profile, updateProfile } = useProfile();
+  const { profile, updateProfile, syncing } = useProfile();
+  const insets = useSafeAreaInsets();
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [localProfile, setLocalProfile] = useState(profile);
   const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
@@ -297,6 +299,11 @@ export default function ProfileScreen() {
   }, []);
 
   const handleSave = useCallback(async () => {
+    if (syncing) {
+      console.log("[ProfileScreen] Save already in progress");
+      return;
+    }
+
     console.log("Saving profile...", localProfile);
     if (!localProfile.firstName || !localProfile.lastName || !localProfile.email.match(/^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/)) {
       Alert.alert("Ongeldige gegevens", "Vul een geldige voornaam, achternaam en e-mail in.");
@@ -307,7 +314,6 @@ export default function ProfileScreen() {
       console.log("Profile saved successfully");
       setIsEditing(false);
       try {
-        // Clear draft after successful save
         const { default: AsyncStorage } = await import("@react-native-async-storage/async-storage");
         await AsyncStorage.removeItem(DRAFT_KEY);
         console.log("[ProfileScreen] Cleared draft after save");
@@ -318,9 +324,10 @@ export default function ProfileScreen() {
       router.replace("/(tabs)/settings");
     } catch (error) {
       console.error("Failed to save profile", error);
-      Alert.alert("Fout", "Kon profiel niet opslaan");
+      const message = error instanceof Error && error.message ? error.message : "Kon profiel niet opslaan";
+      Alert.alert("Fout", message);
     }
-  }, [localProfile, updateProfile, router]);
+  }, [localProfile, updateProfile, router, syncing]);
 
   const pickImage = useCallback(() => {
     Alert.alert(
@@ -438,7 +445,11 @@ export default function ProfileScreen() {
     <ErrorBoundary>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <ScrollView contentContainerStyle={styles.container} testID="profile-screen" keyboardShouldPersistTaps="handled">
+          <ScrollView
+            contentContainerStyle={[styles.container, { paddingTop: 16 + insets.top }]}
+            testID="profile-screen"
+            keyboardShouldPersistTaps="handled"
+          >
           <View style={styles.avatarWrap}>
             {localProfile.profileImageUrl ? (
               <Image source={{ uri: localProfile.profileImageUrl }} style={styles.avatar} resizeMode="cover" />
@@ -616,10 +627,11 @@ export default function ProfileScreen() {
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={handleSave}
-                  style={styles.saveCta}
+                  style={[styles.saveCta, syncing && styles.saveCtaDisabled]}
                   testID="save-btn"
+                  disabled={syncing}
                 >
-                  <Text style={styles.saveCtaText}>Opslaan</Text>
+                  <Text style={styles.saveCtaText}>{syncing ? "Opslaan..." : "Opslaan"}</Text>
                 </TouchableOpacity>
               </View>
             )}

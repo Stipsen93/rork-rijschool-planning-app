@@ -7,6 +7,7 @@ export const syncSettingsProcedure = protectedProcedure
       profile: z.object({
         firstName: z.string().optional(),
         lastName: z.string().optional(),
+        email: z.string().optional(),
         phoneNumber: z.string().optional(),
         birthDate: z.string().nullable().optional(),
         instructorNumber: z.string().optional(),
@@ -37,21 +38,119 @@ export const syncSettingsProcedure = protectedProcedure
       synced_at: new Date().toISOString(),
     };
 
+    const profileUpdate: Record<string, any> = {};
+
     if (input.profile) {
-      updateData.first_name = input.profile.firstName;
-      updateData.last_name = input.profile.lastName;
-      updateData.phone = input.profile.phoneNumber;
-      updateData.birth_date = input.profile.birthDate;
-      updateData.wrm_pass_number = input.profile.certificationNumber;
-      updateData.driving_school_name = input.profile.drivingSchoolName;
-      updateData.driving_school_affiliation = input.profile.drivingSchools;
-      updateData.years_experience = input.profile.experienceYears
-        ? parseInt(input.profile.experienceYears, 10)
-        : null;
-      updateData.tax_id = input.profile.taxId;
-      updateData.business_address = input.profile.address;
-      updateData.iban = input.profile.iban;
-      updateData.specializations = input.profile.specializations;
+      const {
+        firstName,
+        lastName,
+        email,
+        phoneNumber,
+        birthDate,
+        instructorNumber,
+        certificationNumber,
+        drivingSchoolName,
+        drivingSchools,
+        experienceYears,
+        taxId,
+        address,
+        iban,
+        specializations,
+      } = input.profile;
+
+      let normalizedFirstName: string | null | undefined;
+      if (firstName !== undefined) {
+        const trimmedFirstName = firstName.trim();
+        normalizedFirstName = trimmedFirstName.length > 0 ? trimmedFirstName : null;
+        updateData.first_name = normalizedFirstName;
+        profileUpdate.first_name = normalizedFirstName;
+      }
+
+      let normalizedLastName: string | null | undefined;
+      if (lastName !== undefined) {
+        const trimmedLastName = lastName.trim();
+        normalizedLastName = trimmedLastName.length > 0 ? trimmedLastName : null;
+        updateData.last_name = normalizedLastName;
+        profileUpdate.last_name = normalizedLastName;
+      }
+
+      if (email !== undefined) {
+        const normalizedEmail = email.trim().toLowerCase();
+        profileUpdate.email = normalizedEmail.length > 0 ? normalizedEmail : null;
+      }
+
+      if (phoneNumber !== undefined) {
+        const sanitizedPhone = phoneNumber.trim();
+        const phoneValue = sanitizedPhone.length > 0 ? sanitizedPhone : null;
+        updateData.phone = phoneValue;
+        profileUpdate.phone = phoneValue;
+      }
+
+      if (birthDate !== undefined) {
+        updateData.birth_date = birthDate ?? null;
+        profileUpdate.birth_date = birthDate ?? null;
+      }
+
+      if (instructorNumber !== undefined) {
+        const sanitizedInstructorNumber = instructorNumber.trim();
+        updateData.instructor_number = sanitizedInstructorNumber.length > 0 ? sanitizedInstructorNumber : null;
+      }
+
+      if (certificationNumber !== undefined) {
+        const sanitizedCertification = certificationNumber.trim();
+        updateData.wrm_pass_number = sanitizedCertification.length > 0 ? sanitizedCertification : null;
+      }
+
+      if (drivingSchoolName !== undefined) {
+        const sanitizedDrivingSchoolName = drivingSchoolName.trim();
+        updateData.driving_school_name =
+          sanitizedDrivingSchoolName.length > 0 ? sanitizedDrivingSchoolName : null;
+      }
+
+      if (drivingSchools !== undefined) {
+        const sanitizedDrivingSchools = drivingSchools
+          .map((school) => school.trim())
+          .filter((school) => school.length > 0);
+        updateData.driving_school_affiliation = sanitizedDrivingSchools;
+      }
+
+      if (experienceYears !== undefined) {
+        const trimmedYears = experienceYears.trim();
+        const parsedYears = trimmedYears.length > 0 ? parseInt(trimmedYears, 10) : null;
+        updateData.years_experience = Number.isNaN(parsedYears) ? null : parsedYears;
+      }
+
+      if (taxId !== undefined) {
+        const sanitizedTaxId = taxId.trim();
+        updateData.tax_id = sanitizedTaxId.length > 0 ? sanitizedTaxId : null;
+      }
+
+      if (address !== undefined) {
+        const sanitizedAddress = address.trim();
+        updateData.business_address = sanitizedAddress.length > 0 ? sanitizedAddress : null;
+      }
+
+      if (iban !== undefined) {
+        const sanitizedIban = iban.trim();
+        updateData.iban = sanitizedIban.length > 0 ? sanitizedIban : null;
+      }
+
+      if (specializations !== undefined) {
+        const sanitizedSpecializations = specializations
+          .map((specialization) => specialization.trim())
+          .filter((specialization) => specialization.length > 0);
+        updateData.specializations = sanitizedSpecializations;
+      }
+
+      if (normalizedFirstName !== undefined || normalizedLastName !== undefined) {
+        const finalFirstName =
+          normalizedFirstName !== undefined ? normalizedFirstName : ctx.profile.first_name;
+        const finalLastName = normalizedLastName !== undefined ? normalizedLastName : ctx.profile.last_name;
+        const nameParts = [finalFirstName, finalLastName]
+          .filter((part): part is string => Boolean(part && part.trim().length > 0))
+          .map((part) => part.trim());
+        profileUpdate.full_name = nameParts.length > 0 ? nameParts.join(" ") : null;
+      }
     }
 
     if (input.workingHours) {
@@ -118,11 +217,22 @@ export const syncSettingsProcedure = protectedProcedure
       .update(updateData)
       .eq("user_id", userId);
     
-    const { error } = response;
+    const { error: instructorError } = response;
 
-    if (error) {
-      console.error("[syncSettings] Error syncing to Supabase:", error);
+    if (instructorError) {
+      console.error("[syncSettings] Error syncing to Supabase:", instructorError);
       throw new Error("Failed to sync settings");
+    }
+
+    if (Object.keys(profileUpdate).length > 0) {
+      const { error: profileError } = await (ctx.supabase.from("profiles") as any)
+        .update(profileUpdate)
+        .eq("id", userId);
+
+      if (profileError) {
+        console.error("[syncSettings] Error syncing profile table:", profileError);
+        throw new Error("Failed to sync profile");
+      }
     }
 
     console.log("[syncSettings] Successfully synced settings to Supabase");

@@ -63,6 +63,8 @@ export const [ProfileProvider, useProfile] = createContextHook(() => {
     refetchOnWindowFocus: false,
   });
 
+  const syncProfileMutation = trpc.instructor.syncSettings.useMutation();
+
   useEffect(() => {
     let cancelled = false;
 
@@ -126,13 +128,45 @@ export const [ProfileProvider, useProfile] = createContextHook(() => {
     };
   }, [meQuery.data]);
 
-  const updateProfile = useCallback(async (newProfile: InstructorProfile) => {
-    console.log("[ProfileStore] Updating profile", newProfile);
-    console.log("[ProfileStore] Saving to AsyncStorage...", newProfile);
-    await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(newProfile));
-    console.log("[ProfileStore] Successfully saved to AsyncStorage");
-    setProfile(newProfile);
-  }, []);
+  const updateProfile = useCallback(
+    async (newProfile: InstructorProfile) => {
+      console.log("[ProfileStore] Updating profile", newProfile);
+      try {
+        await syncProfileMutation.mutateAsync({
+          profile: {
+            firstName: newProfile.firstName,
+            lastName: newProfile.lastName,
+            email: newProfile.email,
+            phoneNumber: newProfile.phoneNumber,
+            birthDate: newProfile.birthDate,
+            instructorNumber: newProfile.instructorNumber,
+            certificationNumber: newProfile.certificationNumber,
+            drivingSchoolName: newProfile.drivingSchoolName,
+            drivingSchools: newProfile.drivingSchools,
+            experienceYears: newProfile.experienceYears,
+            taxId: newProfile.taxId,
+            address: newProfile.address,
+            iban: newProfile.iban,
+            specializations: newProfile.specializations,
+          },
+        });
+
+        setProfile(newProfile);
+        await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(newProfile));
+        console.log("[ProfileStore] Profile persisted locally and remotely");
+
+        try {
+          await meQuery.refetch();
+        } catch (refetchError) {
+          console.log("[ProfileStore] Refetch after sync failed", refetchError);
+        }
+      } catch (error) {
+        console.error("[ProfileStore] Failed to sync profile", error);
+        throw (error instanceof Error ? error : new Error("Failed to sync profile"));
+      }
+    },
+    [syncProfileMutation, meQuery],
+  );
 
   const fullName = useMemo(() => {
     return `${profile.firstName} ${profile.lastName}`.trim() || "Instructeur";
@@ -144,8 +178,9 @@ export const [ProfileProvider, useProfile] = createContextHook(() => {
       loading: loading || meQuery.isLoading,
       fullName,
       updateProfile,
+      syncing: syncProfileMutation.isPending,
     }),
-    [profile, loading, meQuery.isLoading, fullName, updateProfile]
+    [profile, loading, meQuery.isLoading, fullName, updateProfile, syncProfileMutation.isPending]
   );
 
   return value;
