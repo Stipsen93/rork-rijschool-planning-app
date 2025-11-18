@@ -553,6 +553,85 @@ export default function ProfileScreen() {
             </View>
           </Section>
 
+          <View style={styles.dangerCard} testID="delete-account-panel">
+            <View style={styles.dangerHeader}>
+              <View style={styles.dangerIconWrap}>
+                <Trash2 size={24} color="#ef4444" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.dangerTitle}>Verwijder account</Text>
+                <Text style={styles.dangerCopy}>
+                  Dit verwijdert al je persoonlijke gegevens, lesinstellingen en gekoppelde data. Deze actie kan niet ongedaan gemaakt worden.
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              onPress={openDeletePrompt}
+              style={[styles.dangerButton, isDeletingAccount && styles.dangerButtonDisabled]}
+              disabled={isDeletingAccount}
+              testID="delete-account-button"
+            >
+              <Text style={styles.dangerButtonText}>{isDeletingAccount ? "Verwijderen..." : "Verwijder mijn account"}</Text>
+            </TouchableOpacity>
+          </View>
+
+          {showDeletePrompt && (
+            <Modal visible animationType="fade" transparent onRequestClose={closeDeletePrompt}>
+              <View style={styles.modalBackdrop} testID="delete-confirmation-modal">
+                <View style={styles.modalCard}>
+                  <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>Weet je het zeker?</Text>
+                    <TouchableOpacity accessibilityRole="button" onPress={closeDeletePrompt}>
+                      <X size={20} color="#111827" />
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={styles.modalCopy}>
+                    Je staat op het punt om je account en alle opgeslagen gegevens te verwijderen. Je kunt dit niet terugdraaien. Wil je doorgaan?
+                  </Text>
+                  <View style={styles.modalActions}>
+                    <TouchableOpacity onPress={closeDeletePrompt} style={styles.modalSecondaryButton} testID="delete-cancel-first">
+                      <Text style={styles.modalSecondaryText}>Annuleren</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={proceedToFinalDeletion} style={styles.modalPrimaryButton} testID="delete-continue">
+                      <Text style={styles.modalPrimaryText}>Ja, ga verder</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            </Modal>
+          )}
+
+          {showFinalDeletePrompt && (
+            <Modal visible animationType="fade" transparent onRequestClose={closeDeletePrompt}>
+              <View style={styles.modalBackdrop} testID="delete-final-modal">
+                <View style={[styles.modalCard, styles.modalCardDestructive]}>
+                  <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>Verwijder definitief?</Text>
+                    <TouchableOpacity accessibilityRole="button" onPress={closeDeletePrompt}>
+                      <X size={20} color="#111827" />
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={styles.modalCopy}>
+                    Wanneer je bevestigt, wordt je account onmiddellijk verwijderd en worden alle gegevens uit Supabase gewist. Je wordt hierna automatisch uitgelogd.
+                  </Text>
+                  <View style={styles.modalActions}>
+                    <TouchableOpacity onPress={closeDeletePrompt} style={styles.modalSecondaryButton} testID="delete-cancel-final">
+                      <Text style={styles.modalSecondaryText}>Nee, terug</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={handleDeleteAccountRequest}
+                      style={[styles.modalPrimaryButton, styles.modalPrimaryButtonDestructive]}
+                      testID="delete-confirm-final"
+                      disabled={isDeletingAccount}
+                    >
+                      <Text style={styles.modalPrimaryText}>{isDeletingAccount ? "Bezig..." : "Verwijder alles"}</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            </Modal>
+          )}
+
           <Section title="Professionele Informatie">
             <Field label="WRM Pasnummer" value={localProfile.certificationNumber} onChangeText={(t) => onChange("certificationNumber", t)} editable={isEditing} testID="field-cert" />
             <Field label="Naam Rijschool" value={localProfile.drivingSchoolName} onChangeText={(t) => onChange("drivingSchoolName", t)} editable={isEditing} testID="field-school-name" />
@@ -864,5 +943,94 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: "hidden",
     backgroundColor: "#fff",
+  },
+  dangerCard: {
+    backgroundColor: "#fff5f5",
+    borderRadius: 14,
+    padding: 18,
+    gap: 16,
+    borderWidth: 1,
+    borderColor: "#fecaca",
+  },
+  dangerHeader: {
+    flexDirection: "row",
+    gap: 16,
+    alignItems: "flex-start",
+  },
+  dangerIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(239,68,68,0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dangerTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#b91c1c",
+    marginBottom: 4,
+  },
+  dangerCopy: {
+    fontSize: 14,
+    color: "#7f1d1d",
+    lineHeight: 20,
+  },
+  dangerButton: {
+    backgroundColor: "#ef4444",
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  dangerButtonDisabled: {
+    backgroundColor: "#fca5a5",
+  },
+  dangerButtonText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 16,
+  },
+  modalCopy: {
+    fontSize: 14,
+    color: "#374151",
+    lineHeight: 20,
+    marginTop: 12,
+  },
+  modalActions: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 20,
+  },
+  modalSecondaryButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    alignItems: "center",
+    backgroundColor: "#fff",
+  },
+  modalSecondaryText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#111827",
+  },
+  modalPrimaryButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+    backgroundColor: "#2563eb",
+  },
+  modalPrimaryButtonDestructive: {
+    backgroundColor: "#ef4444",
+  },
+  modalPrimaryText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#fff",
+  },
+  modalCardDestructive: {
+    borderColor: "#fecaca",
   },
 });
