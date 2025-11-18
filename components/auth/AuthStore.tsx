@@ -1,5 +1,5 @@
 import createContextHook from '@nkzw/create-context-hook';
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
@@ -36,10 +36,11 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     isAuthenticated: false,
   });
 
-  const isMountedRef = useRef(true);
+  const lifecycle = useMemo(() => ({ active: true }), []);
+  lifecycle.active = true;
 
   const applyUnauthenticatedState = useCallback(() => {
-    if (!isMountedRef.current) {
+    if (!lifecycle.active) {
       return;
     }
 
@@ -50,7 +51,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       isLoading: false,
       isAuthenticated: false,
     });
-  }, []);
+  }, [lifecycle]);
 
   const persistSession = useCallback(async (session: Session | null) => {
     try {
@@ -136,15 +137,17 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
         await persistSession(session);
 
-        if (isMountedRef.current) {
-          setAuthState({
-            user: session.user,
-            profile: profileRecord,
-            session,
-            isLoading: false,
-            isAuthenticated: true,
-          });
+        if (!lifecycle.active) {
+          return { success: true };
         }
+
+        setAuthState({
+          user: session.user,
+          profile: profileRecord,
+          session,
+          isLoading: false,
+          isAuthenticated: true,
+        });
 
         return { success: true };
       } catch (error) {
@@ -154,7 +157,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         return { success: false, error: 'Sessieverwerking mislukt' };
       }
     },
-    [resolveProfile, persistSession, applyUnauthenticatedState],
+    [resolveProfile, persistSession, applyUnauthenticatedState, lifecycle],
   );
 
   const handleSessionEnd = useCallback(async () => {
@@ -245,10 +248,10 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     });
 
     return () => {
-      isMountedRef.current = false;
+      lifecycle.active = false;
       listener.subscription.unsubscribe();
     };
-  }, [initializeAuth, handleSessionUpdate, handleSessionEnd]);
+  }, [initializeAuth, handleSessionUpdate, handleSessionEnd, lifecycle]);
 
   const login = useCallback(
     async (email: string, password: string) => {
@@ -436,19 +439,19 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       return;
     }
 
-    if (profile && isMountedRef.current) {
+    if (profile && lifecycle.active) {
       setAuthState((prev) => ({
         ...prev,
         profile,
       }));
     }
-  }, [userId, resolveProfile]);
+  }, [userId, resolveProfile, lifecycle]);
 
   useEffect(() => {
     return () => {
-      isMountedRef.current = false;
+      lifecycle.active = false;
     };
-  }, []);
+  }, [lifecycle]);
 
   return useMemo(
     () => ({
