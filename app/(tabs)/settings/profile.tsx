@@ -5,6 +5,7 @@ import { useRouter, useFocusEffect } from "expo-router";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { CalendarDays, Camera, Check, Plus, Trash2, User, X } from "lucide-react-native";
 import { useProfile } from "@/components/settings/ProfileStore";
+import { useAuth } from "@/components/auth/AuthStore";
 
 const monthNames = [
   "januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december",
@@ -282,12 +283,15 @@ const DRAFT_KEY = "instructor_profile_draft" as const;
 export default function ProfileScreen() {
   const router = useRouter();
   const { profile, updateProfile, syncing } = useProfile();
+  const { deleteAccount, isDeletingAccount } = useAuth();
   const insets = useSafeAreaInsets();
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [localProfile, setLocalProfile] = useState(profile);
   const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
   const [newSpecialization, setNewSpecialization] = useState<string>("");
   const [newSchool, setNewSchool] = useState<string>("");
+  const [showDeletePrompt, setShowDeletePrompt] = useState<boolean>(false);
+  const [showFinalDeletePrompt, setShowFinalDeletePrompt] = useState<boolean>(false);
 
   useEffect(() => {
     console.log("[ProfileScreen] Mount - loading initial data");
@@ -357,6 +361,37 @@ export default function ProfileScreen() {
       return "Selecteer datum";
     }
   }, []);
+
+  const openDeletePrompt = useCallback(() => {
+    if (isDeletingAccount) {
+      return;
+    }
+    setShowDeletePrompt(true);
+  }, [isDeletingAccount]);
+
+  const closeDeletePrompt = useCallback(() => {
+    setShowDeletePrompt(false);
+    setShowFinalDeletePrompt(false);
+  }, []);
+
+  const proceedToFinalDeletion = useCallback(() => {
+    setShowDeletePrompt(false);
+    setShowFinalDeletePrompt(true);
+  }, []);
+
+  const handleDeleteAccountRequest = useCallback(async () => {
+    setShowDeletePrompt(false);
+    setShowFinalDeletePrompt(false);
+    try {
+      await deleteAccount();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Account verwijderen mislukt";
+      Alert.alert("Fout", message, [
+        { text: "Opnieuw", onPress: () => setShowFinalDeletePrompt(true) },
+        { text: "Annuleren", style: "cancel" },
+      ]);
+    }
+  }, [deleteAccount]);
 
   const addSpecialization = useCallback(() => {
     if (!newSpecialization.trim()) return;

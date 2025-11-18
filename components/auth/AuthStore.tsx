@@ -1,8 +1,11 @@
 import createContextHook from '@nkzw/create-context-hook';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
+import * as FileSystem from 'expo-file-system/legacy';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
+import { trpc } from '@/lib/trpc';
 import { Database } from '@/types/supabase';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
@@ -50,6 +53,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   });
 
   const isMountedRef = useRef(true);
+  const deleteAccountMutation = trpc.auth.deleteAccount.useMutation();
 
   const applyUnauthenticatedState = useCallback(() => {
     if (!isMountedRef.current) {
@@ -349,7 +353,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       drivingSchoolName,
     }: SignupPayload) => {
       const startTime = Date.now();
-      let timeoutId: NodeJS.Timeout | null = null;
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
       const createTimeout = () =>
         new Promise<never>((_, reject) => {
@@ -506,6 +510,57 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     }
   }, [handleSessionEnd]);
 
+  const deleteAccount = useCallback(async () => {
+    console.log('[Auth] Delete account initiated');
+
+    try {
+      const result = await deleteAccountMutation.mutateAsync();
+      console.log('[Auth] Remote deletion completed', result);
+    } catch (error) {
+      console.error('[Auth] Delete account failed on server:', error instanceof Error ? error.message : String(error));
+      throw (error instanceof Error ? error : new Error('Account verwijderen mislukt'));
+    }
+
+    try {
+      await AsyncStorage.clear();
+    } catch (storageError) {
+      console.error('[Auth] AsyncStorage clear error:', storageError instanceof Error ? storageError.message : String(storageError));
+    }
+
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined') {
+        const webKeys = ['lesson_configuration'];
+        webKeys.forEach((key) => {
+          try {
+            window.localStorage.removeItem(key);
+          } catch (storageError) {
+            console.error('[Auth] LocalStorage purge error:', storageError instanceof Error ? storageError.message : String(storageError));
+          }
+        });
+      }
+    } else if (FileSystem.documentDirectory) {
+      const targets = ['lesson_configuration.json'];
+      await Promise.all(
+        targets.map(async (file) => {
+          const path = `${FileSystem.documentDirectory}${file}`;
+          try {
+            await FileSystem.deleteAsync(path, { idempotent: true });
+          } catch (fsError) {
+            console.error('[Auth] File purge error:', fsError instanceof Error ? fsError.message : String(fsError));
+          }
+        }),
+      );
+    }
+
+    try {
+      await supabase.auth.signOut();
+    } catch (signOutError) {
+      console.error('[Auth] Sign out after deletion failed:', signOutError instanceof Error ? signOutError.message : String(signOutError));
+    }
+
+    await handleSessionEnd();
+  }, [deleteAccountMutation, handleSessionEnd]);
+
   const userId = authState.user?.id ?? null;
 
   const refreshProfile = useCallback(async () => {
@@ -541,7 +596,9 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       signup,
       logout,
       refreshProfile,
+      deleteAccount,
+      isDeletingAccount: deleteAccountMutation.isPending,
     }),
-    [authState, login, signup, logout, refreshProfile],
+    [authState, login, signup, logout, refreshProfile, deleteAccount, deleteAccountMutation.isPending],
   );
 });
