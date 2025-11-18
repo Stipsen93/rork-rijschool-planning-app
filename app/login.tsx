@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -23,20 +23,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState<string>("");
   const [obscurePassword, setObscurePassword] = useState<boolean>(true);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const { isAuthenticated, isLoading: authLoading, login } = useAuth();
-  const hasNavigated = useRef(false);
-
-  useEffect(() => {
-    console.log('[LoginScreen] Auth state:', { isAuthenticated, authLoading, hasNavigated: hasNavigated.current });
-    
-    if (!authLoading && isAuthenticated && !hasNavigated.current) {
-      console.log('[LoginScreen] Navigating to overview');
-      hasNavigated.current = true;
-      setTimeout(() => {
-        router.replace('/(tabs)/overview');
-      }, 100);
-    }
-  }, [isAuthenticated, authLoading]);
+  const { login } = useAuth();
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -45,25 +32,22 @@ export default function LoginScreen() {
     }
 
     setIsSubmitting(true);
-    const startTime = Date.now();
-    console.log(`[Login:${Date.now() - startTime}ms] Starting login...`);
+    console.log('[LoginScreen] Starting login...');
     
     try {
       const result = await login(email.trim(), password.trim());
-      console.log(`[Login:${Date.now() - startTime}ms] Login result:`, result);
 
       if (!result.success) {
-        console.log(`[Login:${Date.now() - startTime}ms] ✗ Login failed:`, result.error);
+        console.log('[LoginScreen] ✗ Login failed:', result.error);
         Alert.alert('Inloggen mislukt', result.error || 'Onbekende fout');
         setIsSubmitting(false);
         return;
       }
 
-      console.log(`[Login:${Date.now() - startTime}ms] ✓ Login success`);
-      setIsSubmitting(false);
-      hasNavigated.current = false;
+      console.log('[LoginScreen] ✓ Login success, navigating...');
+      router.replace('/(tabs)/overview');
     } catch (error) {
-      console.error(`[Login:${Date.now() - startTime}ms] ✗ Unexpected error:`, error);
+      console.error('[LoginScreen] ✗ Unexpected error:', error);
       Alert.alert('Fout', 'Er is een onverwachte fout opgetreden');
       setIsSubmitting(false);
     }
@@ -102,7 +86,7 @@ export default function LoginScreen() {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoComplete="email"
-                editable={!isSubmitting && !authLoading}
+                editable={!isSubmitting}
               />
             </View>
           </View>
@@ -119,12 +103,12 @@ export default function LoginScreen() {
                 placeholderTextColor="#9ca3af"
                 secureTextEntry={obscurePassword}
                 autoComplete="password"
-                editable={!isSubmitting && !authLoading}
+                editable={!isSubmitting}
               />
               <TouchableOpacity
                 onPress={() => setObscurePassword(!obscurePassword)}
                 style={styles.eyeIcon}
-                disabled={isSubmitting || authLoading}
+                disabled={isSubmitting}
               >
                 {obscurePassword ? (
                   <Eye color="#9ca3af" size={20} />
@@ -136,11 +120,11 @@ export default function LoginScreen() {
           </View>
 
           <TouchableOpacity
-            style={[styles.loginButton, (isSubmitting || authLoading) && styles.loginButtonDisabled]}
+            style={[styles.loginButton, isSubmitting && styles.loginButtonDisabled]}
             onPress={handleLogin}
-            disabled={isSubmitting || authLoading}
+            disabled={isSubmitting}
           >
-            {(isSubmitting || authLoading) ? (
+            {isSubmitting ? (
               <ActivityIndicator color="#fff" size="small" />
             ) : (
               <Text style={styles.loginButtonText}>Inloggen</Text>
@@ -151,7 +135,7 @@ export default function LoginScreen() {
             <Text style={styles.registerText}>Nog geen account? </Text>
             <TouchableOpacity 
               onPress={() => router.push('/register')}
-              disabled={isSubmitting || authLoading}
+              disabled={isSubmitting}
             >
               <Text style={styles.registerLink}>Registreren</Text>
             </TouchableOpacity>

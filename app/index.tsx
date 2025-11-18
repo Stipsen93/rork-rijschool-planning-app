@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { useRouter } from "expo-router";
 import { View, ActivityIndicator, StyleSheet } from "react-native";
 import { useAuth } from "@/components/auth/AuthStore";
@@ -6,32 +6,27 @@ import { useAuth } from "@/components/auth/AuthStore";
 export default function Index() {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
-  const hasNavigated = useRef(false);
 
   useEffect(() => {
-    console.log('[Index] State:', { isLoading, isAuthenticated, hasNavigated: hasNavigated.current });
-    
-    if (hasNavigated.current) {
-      console.log('[Index] Already navigated, skipping');
-      return;
-    }
-    
     if (isLoading) {
-      console.log('[Index] Still loading, waiting...');
+      console.log('[Index] Still loading auth state...');
       return;
     }
 
-    console.log('[Index] Not loading anymore, navigating...');
-    hasNavigated.current = true;
+    console.log('[Index] Auth loaded:', { isAuthenticated });
     
-    if (isAuthenticated) {
-      console.log('[Index] User is authenticated, going to /overview');
-      router.replace('/(tabs)/overview');
-    } else {
-      console.log('[Index] User not authenticated, going to /login');
-      router.replace('/login');
-    }
-  }, [isAuthenticated, isLoading]);
+    const timeout = setTimeout(() => {
+      if (isAuthenticated) {
+        console.log('[Index] ✓ Redirecting to overview');
+        router.replace('/(tabs)/overview');
+      } else {
+        console.log('[Index] ✗ Redirecting to login');
+        router.replace('/login');
+      }
+    }, 100);
+
+    return () => clearTimeout(timeout);
+  }, [isAuthenticated, isLoading, router]);
 
   return (
     <View style={styles.container}>

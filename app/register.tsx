@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -210,13 +210,7 @@ export default function RegisterScreen() {
 
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { isAuthenticated, isLoading: authLoading, signup } = useAuth();
-
-  useEffect(() => {
-    if (!authLoading && isAuthenticated) {
-      router.replace('/(tabs)/overview');
-    }
-  }, [isAuthenticated, authLoading, router]);
+  const { signup } = useAuth();
 
   const validateForm = (): string | null => {
     if (!firstName.trim()) return "Voornaam is verplicht";
@@ -271,6 +265,8 @@ export default function RegisterScreen() {
       }
 
       console.log(`[Register:${Date.now() - startTime}ms] ✓ Registration success, navigating...`);
+      router.replace('/(tabs)/overview');
+      setIsSubmitting(false);
     } catch (error) {
       console.error(`[Register:${Date.now() - startTime}ms] ✗ Unexpected error:`, error);
       Alert.alert('Fout', 'Er is een onverwachte fout opgetreden');
@@ -303,7 +299,7 @@ export default function RegisterScreen() {
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => router.back()}
-            disabled={isSubmitting || authLoading}
+            disabled={isSubmitting}
           >
             <ArrowLeft color="#1f2937" size={24} />
           </TouchableOpacity>
@@ -338,7 +334,7 @@ export default function RegisterScreen() {
                 placeholder="Voer je voornaam in"
                 placeholderTextColor="#9ca3af"
                 autoCapitalize="words"
-                editable={!isSubmitting && !authLoading}
+                editable={!isSubmitting}
               />
             </View>
           </View>
@@ -354,7 +350,7 @@ export default function RegisterScreen() {
                 placeholder="Voer je achternaam in"
                 placeholderTextColor="#9ca3af"
                 autoCapitalize="words"
-                editable={!isSubmitting && !authLoading}
+                editable={!isSubmitting}
               />
             </View>
           </View>
@@ -372,7 +368,7 @@ export default function RegisterScreen() {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoComplete="email"
-                editable={!isSubmitting && !authLoading}
+                editable={!isSubmitting}
               />
             </View>
           </View>
@@ -388,7 +384,7 @@ export default function RegisterScreen() {
                 placeholder="Voer je telefoonnummer in"
                 placeholderTextColor="#9ca3af"
                 keyboardType="phone-pad"
-                editable={!isSubmitting && !authLoading}
+                editable={!isSubmitting}
               />
             </View>
           </View>
@@ -398,7 +394,7 @@ export default function RegisterScreen() {
             <TouchableOpacity
               style={styles.inputContainer}
               onPress={() => setShowDatePicker(true)}
-              disabled={isSubmitting || authLoading}
+              disabled={isSubmitting}
             >
               <Calendar color="#9ca3af" size={20} style={styles.inputIcon} />
               <Text
@@ -462,7 +458,7 @@ export default function RegisterScreen() {
                 placeholder="Voer je WRM pasnummer in"
                 placeholderTextColor="#9ca3af"
                 keyboardType="numeric"
-                editable={!isSubmitting && !authLoading}
+                editable={!isSubmitting}
               />
             </View>
           </View>
@@ -481,7 +477,7 @@ export default function RegisterScreen() {
                 onChangeText={setSchoolName}
                 placeholder="Voer je rijschool naam in"
                 placeholderTextColor="#9ca3af"
-                editable={!isSubmitting && !authLoading}
+                editable={!isSubmitting}
               />
             </View>
           </View>
@@ -502,12 +498,12 @@ export default function RegisterScreen() {
                 placeholderTextColor="#9ca3af"
                 secureTextEntry={obscurePassword}
                 autoComplete="password"
-                editable={!isSubmitting && !authLoading}
+                editable={!isSubmitting}
               />
               <TouchableOpacity
                 onPress={() => setObscurePassword(!obscurePassword)}
                 style={styles.eyeIcon}
-                disabled={isSubmitting || authLoading}
+                disabled={isSubmitting}
               >
                 {obscurePassword ? (
                   <Eye color="#9ca3af" size={20} />
@@ -530,14 +526,14 @@ export default function RegisterScreen() {
                 placeholderTextColor="#9ca3af"
                 secureTextEntry={obscureConfirmPassword}
                 autoComplete="password"
-                editable={!isSubmitting && !authLoading}
+                editable={!isSubmitting}
               />
               <TouchableOpacity
                 onPress={() =>
                   setObscureConfirmPassword(!obscureConfirmPassword)
                 }
                 style={styles.eyeIcon}
-                disabled={isSubmitting || authLoading}
+                disabled={isSubmitting}
               >
                 {obscureConfirmPassword ? (
                   <Eye color="#9ca3af" size={20} />
@@ -556,7 +552,7 @@ export default function RegisterScreen() {
               onValueChange={setTermsAccepted}
               trackColor={{ false: "#d1d5db", true: "#93c5fd" }}
               thumbColor={termsAccepted ? "#2563EB" : "#f3f4f6"}
-              disabled={isSubmitting || authLoading}
+              disabled={isSubmitting}
             />
             <Text style={styles.termsText}>
               Ik accepteer de <Text style={styles.termsLink}>Algemene Voorwaarden</Text> en het <Text style={styles.termsLink}>Privacybeleid</Text>
@@ -567,13 +563,13 @@ export default function RegisterScreen() {
         <TouchableOpacity
           style={[
             styles.registerButton,
-            (!termsAccepted || isSubmitting || authLoading) &&
+            (!termsAccepted || isSubmitting) &&
               styles.registerButtonDisabled,
           ]}
           onPress={handleRegister}
-          disabled={!termsAccepted || isSubmitting || authLoading}
+          disabled={!termsAccepted || isSubmitting}
         >
-          {(isSubmitting || authLoading) ? (
+          {isSubmitting ? (
             <ActivityIndicator color="#fff" size="small" />
           ) : (
             <Text style={styles.registerButtonText}>Account aanmaken</Text>
@@ -582,7 +578,7 @@ export default function RegisterScreen() {
 
         <View style={styles.loginSection}>
           <Text style={styles.loginText}>Heb je al een account? </Text>
-          <TouchableOpacity onPress={() => router.back()} disabled={isSubmitting || authLoading}>
+          <TouchableOpacity onPress={() => router.back()} disabled={isSubmitting}>
             <Text style={styles.loginLink}>Inloggen</Text>
           </TouchableOpacity>
         </View>

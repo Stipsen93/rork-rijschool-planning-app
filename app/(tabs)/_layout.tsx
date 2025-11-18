@@ -11,11 +11,13 @@ export default function TabLayout() {
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
+      console.log('[TabLayout] Not authenticated, redirecting to login');
       router.replace('/login');
     }
   }, [isAuthenticated, isLoading, router]);
 
   if (isLoading) {
+    console.log('[TabLayout] Loading auth state...');
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#2563EB" />
@@ -24,8 +26,11 @@ export default function TabLayout() {
   }
 
   if (!isAuthenticated) {
+    console.log('[TabLayout] Not authenticated, showing nothing');
     return null;
   }
+
+  console.log('[TabLayout] Authenticated, showing tabs');
 
   return (
     <Tabs
