@@ -553,85 +553,6 @@ export default function ProfileScreen() {
             </View>
           </Section>
 
-          <View style={styles.dangerCard} testID="delete-account-panel">
-            <View style={styles.dangerHeader}>
-              <View style={styles.dangerIconWrap}>
-                <Trash2 size={24} color="#ef4444" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.dangerTitle}>Verwijder account</Text>
-                <Text style={styles.dangerCopy}>
-                  Dit verwijdert al je persoonlijke gegevens, lesinstellingen en gekoppelde data. Deze actie kan niet ongedaan gemaakt worden.
-                </Text>
-              </View>
-            </View>
-            <TouchableOpacity
-              onPress={openDeletePrompt}
-              style={[styles.dangerButton, isDeletingAccount && styles.dangerButtonDisabled]}
-              disabled={isDeletingAccount}
-              testID="delete-account-button"
-            >
-              <Text style={styles.dangerButtonText}>{isDeletingAccount ? "Verwijderen..." : "Verwijder mijn account"}</Text>
-            </TouchableOpacity>
-          </View>
-
-          {showDeletePrompt && (
-            <Modal visible animationType="fade" transparent onRequestClose={closeDeletePrompt}>
-              <View style={styles.modalBackdrop} testID="delete-confirmation-modal">
-                <View style={styles.modalCard}>
-                  <View style={styles.modalHeader}>
-                    <Text style={styles.modalTitle}>Weet je het zeker?</Text>
-                    <TouchableOpacity accessibilityRole="button" onPress={closeDeletePrompt}>
-                      <X size={20} color="#111827" />
-                    </TouchableOpacity>
-                  </View>
-                  <Text style={styles.modalCopy}>
-                    Je staat op het punt om je account en alle opgeslagen gegevens te verwijderen. Je kunt dit niet terugdraaien. Wil je doorgaan?
-                  </Text>
-                  <View style={styles.modalActions}>
-                    <TouchableOpacity onPress={closeDeletePrompt} style={styles.modalSecondaryButton} testID="delete-cancel-first">
-                      <Text style={styles.modalSecondaryText}>Annuleren</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={proceedToFinalDeletion} style={styles.modalPrimaryButton} testID="delete-continue">
-                      <Text style={styles.modalPrimaryText}>Ja, ga verder</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </View>
-            </Modal>
-          )}
-
-          {showFinalDeletePrompt && (
-            <Modal visible animationType="fade" transparent onRequestClose={closeDeletePrompt}>
-              <View style={styles.modalBackdrop} testID="delete-final-modal">
-                <View style={[styles.modalCard, styles.modalCardDestructive]}>
-                  <View style={styles.modalHeader}>
-                    <Text style={styles.modalTitle}>Verwijder definitief?</Text>
-                    <TouchableOpacity accessibilityRole="button" onPress={closeDeletePrompt}>
-                      <X size={20} color="#111827" />
-                    </TouchableOpacity>
-                  </View>
-                  <Text style={styles.modalCopy}>
-                    Wanneer je bevestigt, wordt je account onmiddellijk verwijderd en worden alle gegevens uit Supabase gewist. Je wordt hierna automatisch uitgelogd.
-                  </Text>
-                  <View style={styles.modalActions}>
-                    <TouchableOpacity onPress={closeDeletePrompt} style={styles.modalSecondaryButton} testID="delete-cancel-final">
-                      <Text style={styles.modalSecondaryText}>Nee, terug</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={handleDeleteAccountRequest}
-                      style={[styles.modalPrimaryButton, styles.modalPrimaryButtonDestructive]}
-                      testID="delete-confirm-final"
-                      disabled={isDeletingAccount}
-                    >
-                      <Text style={styles.modalPrimaryText}>{isDeletingAccount ? "Bezig..." : "Verwijder alles"}</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </View>
-            </Modal>
-          )}
-
           <Section title="Professionele Informatie">
             <Field label="WRM Pasnummer" value={localProfile.certificationNumber} onChangeText={(t) => onChange("certificationNumber", t)} editable={isEditing} testID="field-cert" />
             <Field label="Naam Rijschool" value={localProfile.drivingSchoolName} onChangeText={(t) => onChange("drivingSchoolName", t)} editable={isEditing} testID="field-school-name" />
@@ -712,6 +633,85 @@ export default function ProfileScreen() {
             <Field label="Zakelijk adres" value={localProfile.address} onChangeText={(t) => onChange("address", t)} multiline editable={isEditing} testID="field-address" />
             <Field label="IBAN rekeningnummer" value={localProfile.iban} onChangeText={(t) => onChange("iban", t)} editable={isEditing} testID="field-iban" />
           </Section>
+
+          <View style={styles.dangerCard} testID="delete-account-panel">
+            <View style={styles.dangerHeader}>
+              <View style={styles.dangerIconWrap}>
+                <Trash2 size={24} color="#ef4444" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.dangerTitle}>Verwijder account</Text>
+                <Text style={styles.dangerCopy}>
+                  Dit verwijdert al je persoonlijke gegevens, lesinstellingen en gekoppelde data. Deze actie kan niet ongedaan gemaakt worden.
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              onPress={openDeletePrompt}
+              style={[styles.dangerButton, isDeletingAccount && styles.dangerButtonDisabled]}
+              disabled={isDeletingAccount}
+              testID="delete-account-button"
+            >
+              <Text style={styles.dangerButtonText}>{isDeletingAccount ? "Verwijderen..." : "Verwijder mijn account"}</Text>
+            </TouchableOpacity>
+          </View>
+
+          {showDeletePrompt && (
+            <Modal visible animationType="fade" transparent onRequestClose={closeDeletePrompt}>
+              <View style={styles.modalBackdrop} testID="delete-confirmation-modal">
+                <View style={styles.modalCard}>
+                  <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>Weet je het zeker?</Text>
+                    <TouchableOpacity accessibilityRole="button" onPress={closeDeletePrompt}>
+                      <X size={20} color="#111827" />
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={styles.modalCopy}>
+                    Je staat op het punt om je account en alle opgeslagen gegevens te verwijderen. Je kunt dit niet terugdraaien. Wil je doorgaan?
+                  </Text>
+                  <View style={styles.modalActions}>
+                    <TouchableOpacity onPress={closeDeletePrompt} style={styles.modalSecondaryButton} testID="delete-cancel-first">
+                      <Text style={styles.modalSecondaryText}>Annuleren</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={proceedToFinalDeletion} style={styles.modalPrimaryButton} testID="delete-continue">
+                      <Text style={styles.modalPrimaryText}>Ja, ga verder</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            </Modal>
+          )}
+
+          {showFinalDeletePrompt && (
+            <Modal visible animationType="fade" transparent onRequestClose={closeDeletePrompt}>
+              <View style={styles.modalBackdrop} testID="delete-final-modal">
+                <View style={[styles.modalCard, styles.modalCardDestructive]}>
+                  <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>Verwijder definitief?</Text>
+                    <TouchableOpacity accessibilityRole="button" onPress={closeDeletePrompt}>
+                      <X size={20} color="#111827" />
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={styles.modalCopy}>
+                    Wanneer je bevestigt, wordt je account onmiddellijk verwijderd en worden alle gegevens uit Supabase gewist. Je wordt hierna automatisch uitgelogd.
+                  </Text>
+                  <View style={styles.modalActions}>
+                    <TouchableOpacity onPress={closeDeletePrompt} style={styles.modalSecondaryButton} testID="delete-cancel-final">
+                      <Text style={styles.modalSecondaryText}>Nee, terug</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={handleDeleteAccountRequest}
+                      style={[styles.modalPrimaryButton, styles.modalPrimaryButtonDestructive]}
+                      testID="delete-confirm-final"
+                      disabled={isDeletingAccount}
+                    >
+                      <Text style={styles.modalPrimaryText}>{isDeletingAccount ? "Bezig..." : "Verwijder alles"}</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            </Modal>
+          )}
 
           <View style={styles.footer}>
             {!isEditing ? (
