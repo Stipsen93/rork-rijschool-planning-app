@@ -634,28 +634,6 @@ export default function ProfileScreen() {
             <Field label="IBAN rekeningnummer" value={localProfile.iban} onChangeText={(t) => onChange("iban", t)} editable={isEditing} testID="field-iban" />
           </Section>
 
-          <View style={styles.dangerCard} testID="delete-account-panel">
-            <View style={styles.dangerHeader}>
-              <View style={styles.dangerIconWrap}>
-                <Trash2 size={24} color="#ef4444" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.dangerTitle}>Verwijder account</Text>
-                <Text style={styles.dangerCopy}>
-                  Dit verwijdert al je persoonlijke gegevens, lesinstellingen en gekoppelde data. Deze actie kan niet ongedaan gemaakt worden.
-                </Text>
-              </View>
-            </View>
-            <TouchableOpacity
-              onPress={openDeletePrompt}
-              style={[styles.dangerButton, isDeletingAccount && styles.dangerButtonDisabled]}
-              disabled={isDeletingAccount}
-              testID="delete-account-button"
-            >
-              <Text style={styles.dangerButtonText}>{isDeletingAccount ? "Verwijderen..." : "Verwijder mijn account"}</Text>
-            </TouchableOpacity>
-          </View>
-
           {showDeletePrompt && (
             <Modal visible animationType="fade" transparent onRequestClose={closeDeletePrompt}>
               <View style={styles.modalBackdrop} testID="delete-confirmation-modal">
@@ -749,6 +727,28 @@ export default function ProfileScreen() {
                 </TouchableOpacity>
               </View>
             )}
+          </View>
+
+          <View style={styles.dangerCard} testID="delete-account-panel">
+            <View style={styles.dangerHeader}>
+              <View style={styles.dangerIconWrap}>
+                <Trash2 size={24} color="#ef4444" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.dangerTitle}>Verwijder account</Text>
+                <Text style={styles.dangerCopy}>
+                  Dit verwijdert al je persoonlijke gegevens, lesinstellingen en gekoppelde data. Deze actie kan niet ongedaan gemaakt worden.
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              onPress={openDeletePrompt}
+              style={[styles.dangerButton, isDeletingAccount && styles.dangerButtonDisabled]}
+              disabled={isDeletingAccount}
+              testID="delete-account-button"
+            >
+              <Text style={styles.dangerButtonText}>{isDeletingAccount ? "Verwijderen..." : "Verwijder mijn account"}</Text>
+            </TouchableOpacity>
           </View>
           </ScrollView>
         </TouchableWithoutFeedback>
