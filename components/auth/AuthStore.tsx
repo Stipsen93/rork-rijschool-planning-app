@@ -82,7 +82,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     isAuthenticated: false,
   });
 
-  const isMountedRef = useRef(true);
+  const isMountedRef = useRef(false);
   const deleteAccountMutation = trpc.auth.deleteAccount.useMutation();
 
   const clearApplicationState = useCallback(async () => {
@@ -335,6 +335,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   }, [handleSessionUpdate, handleSessionEnd, applyUnauthenticatedState]);
 
   useEffect(() => {
+    isMountedRef.current = true;
     initializeAuth();
 
     const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -348,6 +349,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     });
 
     return () => {
+      isMountedRef.current = false;
       listener.subscription.unsubscribe();
     };
   }, [initializeAuth, handleSessionUpdate, handleSessionEnd]);
@@ -663,12 +665,6 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       }));
     }
   }, [userId, resolveProfile]);
-
-  useEffect(() => {
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
 
   return useMemo(
     () => ({
