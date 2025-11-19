@@ -22,7 +22,13 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
   const { studentConfig } = useStudentConfig();
   const isInstructor = authProfile?.role === "instructor";
 
-  const syncMutation = trpc.instructor.syncSettings.useMutation();
+  const syncMutation = trpc.instructor.syncSettings.useMutation({
+    onError: (error) => {
+      if (error.message.includes('logged in')) {
+        console.log('[AutoSync] Sync skipped - user not authenticated');
+      }
+    },
+  });
   const fetchSettingsQuery = trpc.instructor.fetchSettings.useQuery(undefined, {
     enabled: false,
     retry: false,
@@ -50,6 +56,11 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
     }
 
     skippedRoleLogRef.current = false;
+
+    if (syncMutation.isPending) {
+      console.log('[AutoSync] Sync already in progress, skipping...');
+      return;
+    }
 
     try {
       console.log("[AutoSync] Syncing settings to Supabase...");
@@ -107,8 +118,14 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
       console.log("[AutoSync] Successfully synced to Supabase");
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      
+      if (message.includes('logged in') || message.includes('UNAUTHORIZED')) {
+        console.log('[AutoSync] Sync cancelled - authentication required');
+        return;
+      }
+      
       console.error("[AutoSync] Failed to sync:", message);
-      console.error("[AutoSync] Sync error details:", error);
+      
       if (message.includes("Failed to fetch")) {
         console.error("[AutoSync] Network request failed while syncing settings");
       }
