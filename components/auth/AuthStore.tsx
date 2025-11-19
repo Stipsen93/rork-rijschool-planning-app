@@ -43,6 +43,18 @@ interface SignupPayload {
   drivingSchoolName?: string | null;
 }
 
+interface SignupSuccessResult {
+  success: true;
+  requiresEmailVerification?: boolean;
+}
+
+interface SignupErrorResult {
+  success: false;
+  error: string;
+}
+
+type SignupResult = SignupSuccessResult | SignupErrorResult;
+
 export const [AuthProvider, useAuth] = createContextHook(() => {
   const [authState, setAuthState] = useState<AuthState>({
     user: null,
@@ -351,7 +363,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       birthDate,
       wrmNumber,
       drivingSchoolName,
-    }: SignupPayload) => {
+    }: SignupPayload): Promise<SignupResult> => {
       const startTime = Date.now();
       let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
@@ -401,9 +413,17 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
           });
           console.log(`[Auth:${Date.now() - startTime}ms] ✓ signUp resolved`);
 
-          if (authError || !authData.user || !authData.session) {
-            console.error(`[Auth:${Date.now() - startTime}ms] ✗ signUp error:`, authError?.message ?? 'Geen gebruiker of sessie');
+          if (authError || !authData.user) {
+            console.error(`[Auth:${Date.now() - startTime}ms] ✗ signUp error:`, authError?.message ?? 'Geen gebruiker');
             throw authError ?? new Error('Registratie mislukt');
+          }
+
+          if (!authData.session) {
+            console.warn(`[Auth:${Date.now() - startTime}ms] ⚠ signUp returned no session; email verification likely required`);
+            return {
+              success: true,
+              requiresEmailVerification: true,
+            } satisfies SignupSuccessResult;
           }
 
           const profileUpsert = {
@@ -468,7 +488,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
           }
 
           console.log(`[Auth:${Date.now() - startTime}ms] ✓✓✓ SIGNUP COMPLETE (total: ${Date.now() - startTime}ms)`);
-          return { success: true };
+          return { success: true } satisfies SignupSuccessResult;
         })();
 
         const result = await Promise.race([signupPromise, createTimeout()]);

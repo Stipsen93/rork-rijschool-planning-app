@@ -267,9 +267,20 @@ export default function RegisterScreen() {
         return;
       }
 
+      setIsSubmitting(false);
+
+      if (result.requiresEmailVerification) {
+        console.log(`[Register:${Date.now() - startTime}ms] ✓ Registration deferred pending email verification`);
+        Alert.alert(
+          'Account aangemaakt',
+          'Controleer je e-mail om je account te bevestigen voordat je inlogt.',
+        );
+        router.replace('/login');
+        return;
+      }
+
       console.log(`[Register:${Date.now() - startTime}ms] ✓ Registration success, navigating...`);
       router.replace('/(tabs)/overview');
-      setIsSubmitting(false);
     } catch (error) {
       console.error(`[Register:${Date.now() - startTime}ms] ✗ Unexpected error:`, error);
       Alert.alert('Fout', 'Er is een onverwachte fout opgetreden');
