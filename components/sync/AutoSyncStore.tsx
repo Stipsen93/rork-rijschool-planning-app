@@ -1,7 +1,6 @@
 import { useEffect, useCallback, useMemo, useRef, useState } from "react";
 import createContextHook from "@nkzw/create-context-hook";
 import { AppState, AppStateStatus } from "react-native";
-import { TRPCClientError } from "@trpc/client";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "../auth/AuthStore";
 import { useProfile } from "../settings/ProfileStore";
@@ -12,8 +11,6 @@ import { useNotifications } from "../settings/NotificationsStore";
 import { useStudentConfig } from "../settings/StudentConfigStore";
 
 const SYNC_INTERVAL = 60000;
-const FAILURE_COOLDOWN_INTERVAL = 5 * 60 * 1000;
-const FAILURE_THRESHOLD = 3;
 
 export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
   const { isAuthenticated, profile: authProfile } = useAuth();
@@ -35,9 +32,6 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastSyncRef = useRef<number>(0);
   const skippedRoleLogRef = useRef<boolean>(false);
-  const failureCountRef = useRef<number>(0);
-  const lastFailureRef = useRef<number>(0);
-  const cooldownLoggedRef = useRef<boolean>(false);
   const [lastSyncTime, setLastSyncTime] = useState<number>(0);
 
   const syncToSupabase = useCallback(async () => {
@@ -56,29 +50,6 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
     }
 
     skippedRoleLogRef.current = false;
-
-    const now = Date.now();
-
-    if (syncMutation.isPending) {
-      console.log("[AutoSync] Skipping sync because a sync operation is already in progress");
-      return;
-    }
-
-    const isCoolingDown =
-      failureCountRef.current >= FAILURE_THRESHOLD &&
-      now - lastFailureRef.current < FAILURE_COOLDOWN_INTERVAL;
-
-    if (isCoolingDown) {
-      if (!cooldownLoggedRef.current) {
-        console.warn(
-          `[AutoSync] Skipping sync attempts for ${(FAILURE_COOLDOWN_INTERVAL / 60000).toFixed(1)} minutes after ${failureCountRef.current} consecutive failures`,
-        );
-        cooldownLoggedRef.current = true;
-      }
-      return;
-    }
-
-    cooldownLoggedRef.current = false;
 
     try {
       console.log("[AutoSync] Syncing settings to Supabase...");
@@ -133,33 +104,14 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
 
       lastSyncRef.current = Date.now();
       setLastSyncTime(lastSyncRef.current);
-      failureCountRef.current = 0;
-      lastFailureRef.current = 0;
       console.log("[AutoSync] Successfully synced to Supabase");
     } catch (error) {
-      const extractedMessage = (() => {
-        if (error instanceof TRPCClientError) {
-          const shapeMessage = typeof error.shape?.message === "string" ? error.shape.message : undefined;
-          const dataMessage = typeof error.data?.message === "string" ? error.data.message : undefined;
-          return dataMessage ?? shapeMessage ?? error.message;
-        }
-
-        if (error instanceof Error) {
-          return error.message;
-        }
-
-        return String(error);
-      })();
-
-      console.error("[AutoSync] Failed to sync:", extractedMessage);
+      const message = error instanceof Error ? error.message : String(error);
+      console.error("[AutoSync] Failed to sync:", message);
       console.error("[AutoSync] Sync error details:", error);
-
-      if (extractedMessage.includes("Failed to fetch")) {
+      if (message.includes("Failed to fetch")) {
         console.error("[AutoSync] Network request failed while syncing settings");
       }
-
-      failureCountRef.current += 1;
-      lastFailureRef.current = now;
     }
   }, [
     isAuthenticated,
@@ -207,9 +159,6 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
       if (result.error) {
         console.error("[AutoSync] Fetch error payload:", result.error);
       }
-
-      failureCountRef.current = 0;
-      cooldownLoggedRef.current = false;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error("[AutoSync] Failed to fetch:", message);
@@ -217,8 +166,6 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
       if (message.includes("Failed to fetch")) {
         console.error("[AutoSync] Network request failed while fetching settings");
       }
-      failureCountRef.current += 1;
-      lastFailureRef.current = Date.now();
     }
   }, [isAuthenticated, authProfile, isInstructor, fetchSettingsQuery]);
 
@@ -227,19 +174,9 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
       return;
     }
 
-    const now = Date.now();
-    const isCoolingDown =
-      failureCountRef.current >= FAILURE_THRESHOLD &&
-      now - lastFailureRef.current < FAILURE_COOLDOWN_INTERVAL;
-
-    if (isCoolingDown) {
-      console.log("[AutoSync] Not starting sync due to active failure cooldown");
-      return;
-    }
-
     intervalRef.current = setInterval(() => {
-      const scheduledNow = Date.now();
-      if (scheduledNow - lastSyncRef.current >= SYNC_INTERVAL) {
+      const now = Date.now();
+      if (now - lastSyncRef.current >= SYNC_INTERVAL) {
         void syncToSupabase();
       }
     }, SYNC_INTERVAL);
@@ -281,12 +218,10 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
   }, [isAuthenticated, authProfile, isInstructor, startSync, stopSync]);
 
   const manualSync = useCallback(async () => {
-    cooldownLoggedRef.current = false;
     await syncToSupabase();
   }, [syncToSupabase]);
 
   const manualFetch = useCallback(async () => {
-    cooldownLoggedRef.current = false;
     await fetchFromSupabase();
   }, [fetchFromSupabase]);
 
