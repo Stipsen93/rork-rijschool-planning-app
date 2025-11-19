@@ -3,6 +3,7 @@ import createContextHook from "@nkzw/create-context-hook";
 import { Platform } from "react-native";
 import * as FileSystem from "expo-file-system/legacy";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useAuth } from "../auth/AuthStore";
 
 type LessonConfig = {
   baseLessonDuration: number;
@@ -63,8 +64,27 @@ export const [SettingsProvider, useSettings] = createContextHook(() => {
   const [packages, setPackages] = useState<PackageItem[]>([]);
   const [hourlyRates, setHourlyRates] = useState<HourlyRates>({ price: 0, vatStatus: "incl" });
   const [loading, setLoading] = useState<boolean>(true);
+  const { isAuthenticated, user } = useAuth();
+  const activeUserId = user?.id ?? null;
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      setLessonConfig(defaultLessonConfig);
+      setProducts([]);
+      setPackages([]);
+      setHourlyRates({ price: 0, vatStatus: "incl" });
+      setLoading(false);
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !activeUserId) {
+      return;
+    }
+
+    let cancelled = false;
+    setLoading(true);
+
     (async () => {
       console.log("[SettingsStore] Loading all settings...");
       try {
@@ -74,6 +94,10 @@ export const [SettingsProvider, useSettings] = createContextHook(() => {
           AsyncStorage.getItem(PACKAGES_KEY),
           AsyncStorage.getItem(HOURLY_RATES_KEY),
         ]);
+
+        if (cancelled) {
+          return;
+        }
 
         if (configStr) {
           try {
@@ -91,6 +115,12 @@ export const [SettingsProvider, useSettings] = createContextHook(() => {
           } catch (e) {
             console.log("[SettingsStore] Failed to parse lesson config", e);
           }
+        } else {
+          setLessonConfig(defaultLessonConfig);
+        }
+
+        if (cancelled) {
+          return;
         }
 
         if (productsStr) {
@@ -109,6 +139,12 @@ export const [SettingsProvider, useSettings] = createContextHook(() => {
             return { ...prev, productDurations: nextDurations };
           });
           console.log("[SettingsStore] Loaded products", list.length);
+        } else {
+          setProducts([]);
+        }
+
+        if (cancelled) {
+          return;
         }
 
         if (packagesStr) {
@@ -123,18 +159,28 @@ export const [SettingsProvider, useSettings] = createContextHook(() => {
             installments: typeof p.installments === "number" && p.installments >= 1 ? p.installments : 1,
           }));
           setPackages(pkgs);
+        } else {
+          setPackages([]);
         }
 
         if (ratesStr) {
           setHourlyRates(JSON.parse(ratesStr) as HourlyRates);
+        } else {
+          setHourlyRates({ price: 0, vatStatus: "incl" });
         }
       } catch (e) {
         console.error("[SettingsStore] Failed to load settings", e);
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     })();
-  }, []);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, activeUserId]);
 
   const updateLessonConfig = useCallback(async (config: LessonConfig) => {
     console.log("[SettingsStore] Updating lesson config", config);

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import createContextHook from "@nkzw/create-context-hook";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useAuth } from "../auth/AuthStore";
 
 export type StudentConfig = {
   maxPerWeek: number;
@@ -47,8 +48,23 @@ const defaultStudentConfig: StudentConfig = {
 export const [StudentConfigProvider, useStudentConfig] = createContextHook(() => {
   const [studentConfig, setStudentConfig] = useState<StudentConfig>(defaultStudentConfig);
   const [loading, setLoading] = useState<boolean>(true);
+  const { isAuthenticated, user } = useAuth();
+  const activeUserId = user?.id ?? null;
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      setStudentConfig(defaultStudentConfig);
+      setLoading(false);
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !activeUserId) {
+      return;
+    }
+
+    setLoading(true);
+
     (async () => {
       console.log("[StudentConfigStore] Loading student configuration...");
       try {
@@ -76,6 +92,8 @@ export const [StudentConfigProvider, useStudentConfig] = createContextHook(() =>
           };
           setStudentConfig(migrated);
           console.log("[StudentConfigStore] Loaded student configuration", migrated);
+        } else {
+          setStudentConfig(defaultStudentConfig);
         }
       } catch (e) {
         console.error("[StudentConfigStore] Failed to load student configuration", e);
@@ -83,7 +101,7 @@ export const [StudentConfigProvider, useStudentConfig] = createContextHook(() =>
         setLoading(false);
       }
     })();
-  }, []);
+  }, [isAuthenticated, activeUserId]);
 
   const updateStudentConfig = useCallback(async (config: StudentConfig) => {
     console.log("[StudentConfigStore] Updating student configuration", config);

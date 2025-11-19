@@ -1,10 +1,11 @@
 // template
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { trpc, trpcClient } from "@/lib/trpc";
+import { queryClient } from "@/lib/queryClient";
 import { AgendaProvider } from "@/components/agenda/AgendaStore";
 import { WorkingHoursProvider } from "@/components/settings/WorkingHoursStore";
 import { SettingsProvider } from "@/components/settings/SettingsStore";
@@ -19,8 +20,6 @@ import { StudentConfigProvider } from "@/components/settings/StudentConfigStore"
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
-
-const queryClient = new QueryClient();
 
 function RootLayoutNav() {
   return (

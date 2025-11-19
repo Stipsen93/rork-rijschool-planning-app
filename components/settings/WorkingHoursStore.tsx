@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import createContextHook from "@nkzw/create-context-hook";
 import { Platform } from "react-native";
 import * as FileSystem from "expo-file-system/legacy";
+import { useAuth } from "../auth/AuthStore";
 
 export type DayKey =
   | "Maandag"
@@ -121,37 +122,66 @@ export const [WorkingHoursProvider, useWorkingHours] = createContextHook(() => {
   const [workingHours, setWorkingHours] = useState<WorkingHours>(defaultWorkingHours);
   const [vacationPeriods, setVacationPeriods] = useState<VacationPeriod[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const { isAuthenticated, user } = useAuth();
+  const activeUserId = user?.id ?? null;
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      setWorkingHours(defaultWorkingHours);
+      setVacationPeriods([]);
+      setLoading(false);
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !activeUserId) {
+      return;
+    }
+
+    let cancelled = false;
+    setLoading(true);
+
     (async () => {
       console.log("WorkingHoursStore: Loading working hours...");
-      const v = await storageGetString(STORAGE_KEY);
-      if (v) {
-        try {
-          const migrated = migrateAny(JSON.parse(v));
-          if (migrated) {
-            setWorkingHours(migrated);
-            console.log("WorkingHoursStore: Loaded from storage (migrated)", migrated);
+      try {
+        const v = await storageGetString(STORAGE_KEY);
+        if (!cancelled && v) {
+          try {
+            const migrated = migrateAny(JSON.parse(v));
+            if (migrated) {
+              setWorkingHours(migrated);
+              console.log("WorkingHoursStore: Loaded from storage (migrated)", migrated);
+            }
+          } catch (e) {
+            console.log("WorkingHoursStore: Failed to parse working hours", e);
           }
-        } catch (e) {
-          console.log("WorkingHoursStore: Failed to parse working hours", e);
+        } else if (!cancelled && !v) {
+          setWorkingHours(defaultWorkingHours);
+        }
+
+        const vacationsStr = await storageGetString("instructor_vacation_periods");
+        if (!cancelled && vacationsStr) {
+          try {
+            const parsed = JSON.parse(vacationsStr) as VacationPeriod[];
+            setVacationPeriods(Array.isArray(parsed) ? parsed : []);
+            console.log("WorkingHoursStore: Loaded vacation periods", parsed);
+          } catch (e) {
+            console.log("WorkingHoursStore: Failed to parse vacation periods", e);
+          }
+        } else if (!cancelled && !vacationsStr) {
+          setVacationPeriods([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
         }
       }
-
-      const vacationsStr = await storageGetString("instructor_vacation_periods");
-      if (vacationsStr) {
-        try {
-          const parsed = JSON.parse(vacationsStr) as VacationPeriod[];
-          setVacationPeriods(Array.isArray(parsed) ? parsed : []);
-          console.log("WorkingHoursStore: Loaded vacation periods", parsed);
-        } catch (e) {
-          console.log("WorkingHoursStore: Failed to parse vacation periods", e);
-        }
-      }
-
-      setLoading(false);
     })();
-  }, []);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, activeUserId]);
 
   const updateWorkingHours = React.useCallback(async (hours: WorkingHours) => {
     console.log("WorkingHoursStore: Updating working hours", hours);

@@ -7,6 +7,7 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { trpc } from '@/lib/trpc';
 import { Database } from '@/types/supabase';
+import { resetQueryClient } from '@/lib/queryClient';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
 
@@ -20,6 +21,23 @@ interface AuthState {
 
 const AUTH_STORAGE_KEY = 'auth_session';
 const HYDRATION_GUARD_TIMEOUT = 4500;
+
+const STORAGE_KEYS_TO_CLEAR = [
+  AUTH_STORAGE_KEY,
+  'instructor_profile',
+  'instructor_products',
+  'instructor_packages',
+  'instructor_hourly_rates',
+  'student_configuration',
+  'notification_settings',
+  'lesson_card_categories',
+  'lesson_card_status_config',
+  'lesson_card_data',
+] as const;
+
+const FILE_STORAGE_KEYS = ['lesson_configuration', 'instructor_working_hours', 'instructor_vacation_periods'] as const;
+
+const WEB_STORAGE_KEYS = [...STORAGE_KEYS_TO_CLEAR, ...FILE_STORAGE_KEYS] as const;
 
 interface ResolveProfileOptions {
   attempts?: number;
@@ -66,6 +84,43 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
   const isMountedRef = useRef(true);
   const deleteAccountMutation = trpc.auth.deleteAccount.useMutation();
+
+  const clearApplicationState = useCallback(async () => {
+    console.log('[Auth] Clearing persisted application state');
+    try {
+      await AsyncStorage.multiRemove([...STORAGE_KEYS_TO_CLEAR]);
+      console.log('[Auth] Cleared AsyncStorage keys');
+    } catch (error) {
+      console.error('[Auth] Failed to clear AsyncStorage keys:', error instanceof Error ? error.message : String(error));
+    }
+
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined') {
+        WEB_STORAGE_KEYS.forEach((key) => {
+          try {
+            window.localStorage.removeItem(key);
+          } catch (storageError) {
+            console.error('[Auth] LocalStorage removal error:', storageError instanceof Error ? storageError.message : String(storageError));
+          }
+        });
+        console.log('[Auth] Cleared web localStorage keys');
+      }
+    } else if (FileSystem.documentDirectory) {
+      await Promise.all(
+        FILE_STORAGE_KEYS.map(async (fileKey) => {
+          const path = `${FileSystem.documentDirectory}${fileKey}.json`;
+          try {
+            await FileSystem.deleteAsync(path, { idempotent: true });
+          } catch (fsError) {
+            console.error('[Auth] File removal error:', fsError instanceof Error ? fsError.message : String(fsError));
+          }
+        }),
+      );
+      console.log('[Auth] Cleared persisted file entries');
+    }
+
+    resetQueryClient();
+  }, []);
 
   const applyUnauthenticatedState = useCallback(() => {
     if (!isMountedRef.current) {
@@ -189,15 +244,21 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   );
 
   const handleSessionEnd = useCallback(async () => {
+    console.log('[Auth] Session end handling');
     try {
-      console.log('[Auth] Session end handling');
       await persistSession(null);
     } catch (error) {
       console.error('[Auth] Session end persist error:', error instanceof Error ? error.message : String(error));
-    } finally {
-      applyUnauthenticatedState();
     }
-  }, [persistSession, applyUnauthenticatedState]);
+
+    try {
+      await clearApplicationState();
+    } catch (clearError) {
+      console.error('[Auth] Session end clear error:', clearError instanceof Error ? clearError.message : String(clearError));
+    }
+
+    applyUnauthenticatedState();
+  }, [persistSession, clearApplicationState, applyUnauthenticatedState]);
 
   const initializeAuth = useCallback(async () => {
     console.log('[Auth] Initialization started');

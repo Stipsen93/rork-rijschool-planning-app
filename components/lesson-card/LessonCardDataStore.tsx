@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import createContextHook from "@nkzw/create-context-hook";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useAuth } from "../auth/AuthStore";
 
 export type ItemStatus = "/" | "T" | "X";
 
@@ -21,16 +22,49 @@ const LESSON_CARD_DATA_KEY = "lesson_card_data" as const;
 export const [LessonCardDataProvider, useLessonCardData] = createContextHook(() => {
   const [allLessonCardData, setAllLessonCardData] = useState<LessonCardData[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const { isAuthenticated, user } = useAuth();
+  const activeUserId = user?.id ?? null;
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      setAllLessonCardData([]);
+      setLoading(false);
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !activeUserId) {
+      return;
+    }
+
+    setLoading(true);
+
     (async () => {
       console.log("[LessonCardDataStore] Loading lesson card data...");
       try {
         const stored = await AsyncStorage.getItem(LESSON_CARD_DATA_KEY);
         if (stored) {
-          const parsed = JSON.parse(stored) as LessonCardData[];
-          setAllLessonCardData(parsed);
-          console.log("[LessonCardDataStore] Loaded lesson card data", parsed.length);
+          try {
+            const parsed = JSON.parse(stored) as
+              | LessonCardData[]
+              | { ownerId?: string | null; data?: LessonCardData[] };
+            if (Array.isArray(parsed)) {
+              setAllLessonCardData(parsed);
+              console.log("[LessonCardDataStore] Loaded lesson card data", parsed.length);
+            } else if (parsed && typeof parsed === "object") {
+              if ((parsed as { ownerId?: string | null }).ownerId === activeUserId && Array.isArray(parsed.data)) {
+                setAllLessonCardData(parsed.data);
+                console.log("[LessonCardDataStore] Loaded lesson card data", parsed.data.length);
+              } else {
+                setAllLessonCardData([]);
+              }
+            }
+          } catch (parseError) {
+            console.error("[LessonCardDataStore] Failed to parse lesson card data", parseError);
+            setAllLessonCardData([]);
+          }
+        } else {
+          setAllLessonCardData([]);
         }
       } catch (e) {
         console.error("[LessonCardDataStore] Failed to load lesson card data", e);
@@ -38,13 +72,17 @@ export const [LessonCardDataProvider, useLessonCardData] = createContextHook(() 
         setLoading(false);
       }
     })();
-  }, []);
+  }, [isAuthenticated, activeUserId]);
 
   const saveLessonCardData = useCallback(async (data: LessonCardData[]) => {
     console.log("[LessonCardDataStore] Saving lesson card data", data.length);
     setAllLessonCardData(data);
-    await AsyncStorage.setItem(LESSON_CARD_DATA_KEY, JSON.stringify(data));
-  }, []);
+    if (activeUserId) {
+      await AsyncStorage.setItem(LESSON_CARD_DATA_KEY, JSON.stringify({ ownerId: activeUserId, data }));
+    } else {
+      await AsyncStorage.setItem(LESSON_CARD_DATA_KEY, JSON.stringify(data));
+    }
+  }, [activeUserId]);
 
   const getLessonCardData = useCallback((studentId: string, lessonId: string): LessonCardData | undefined => {
     return allLessonCardData.find((d) => d.studentId === studentId && d.lessonId === lessonId);

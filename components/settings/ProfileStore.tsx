@@ -3,6 +3,7 @@ import createContextHook from "@nkzw/create-context-hook";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { supabase } from "@/lib/supabase";
 import { trpc } from "@/lib/trpc";
+import { useAuth } from "../auth/AuthStore";
 
 export type InstructorProfile = {
   firstName: string;
@@ -58,9 +59,11 @@ type RemoteExtendedInstructorProfile = Partial<{
 export const [ProfileProvider, useProfile] = createContextHook(() => {
   const [profile, setProfile] = useState<InstructorProfile>(defaultProfile);
   const [loading, setLoading] = useState<boolean>(true);
+  const { isAuthenticated, user } = useAuth();
+  const activeUserId = user?.id ?? null;
 
   const meQuery = trpc.auth.me.useQuery(undefined, {
-    enabled: true,
+    enabled: isAuthenticated,
     retry: false,
     refetchOnWindowFocus: false,
   });
@@ -68,13 +71,42 @@ export const [ProfileProvider, useProfile] = createContextHook(() => {
   const syncProfileMutation = trpc.instructor.syncSettings.useMutation();
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      setProfile(defaultProfile);
+      setLoading(false);
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !activeUserId) {
+      return;
+    }
+
     let cancelled = false;
+    setLoading(true);
 
     (async () => {
       console.log("[ProfileStore] Loading instructor profile...");
       try {
         const stored = await AsyncStorage.getItem(PROFILE_KEY);
-        let mergedProfile = stored ? (JSON.parse(stored) as InstructorProfile) : defaultProfile;
+        let mergedProfile = defaultProfile;
+
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored) as
+              | InstructorProfile
+              | { ownerId?: string | null; profile?: InstructorProfile };
+            if (parsed && typeof parsed === "object" && "profile" in parsed) {
+              if ((parsed as { ownerId?: string | null }).ownerId === activeUserId && parsed.profile) {
+                mergedProfile = parsed.profile;
+              }
+            } else if (parsed && typeof parsed === "object") {
+              mergedProfile = parsed as InstructorProfile;
+            }
+          } catch (parseError) {
+            console.error("[ProfileStore] Failed to parse stored profile", parseError);
+          }
+        }
 
         if (meQuery.data) {
           const remoteProfile = meQuery.data.profile;
@@ -173,7 +205,9 @@ export const [ProfileProvider, useProfile] = createContextHook(() => {
 
         if (!cancelled) {
           setProfile(mergedProfile);
-          await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(mergedProfile));
+          if (activeUserId) {
+            await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify({ ownerId: activeUserId, profile: mergedProfile }));
+          }
           console.log("[ProfileStore] Loaded profile", mergedProfile);
         }
       } catch (e) {
@@ -190,7 +224,7 @@ export const [ProfileProvider, useProfile] = createContextHook(() => {
     return () => {
       cancelled = true;
     };
-  }, [meQuery.data]);
+  }, [isAuthenticated, activeUserId, meQuery.data]);
 
   const updateProfile = useCallback(
     async (newProfile: InstructorProfile) => {
@@ -216,7 +250,9 @@ export const [ProfileProvider, useProfile] = createContextHook(() => {
         });
 
         setProfile(newProfile);
-        await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(newProfile));
+        if (activeUserId) {
+          await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify({ ownerId: activeUserId, profile: newProfile }));
+        }
         console.log("[ProfileStore] Profile persisted locally and remotely");
 
         try {
@@ -229,7 +265,7 @@ export const [ProfileProvider, useProfile] = createContextHook(() => {
         throw (error instanceof Error ? error : new Error("Failed to sync profile"));
       }
     },
-    [syncProfileMutation, meQuery],
+    [syncProfileMutation, meQuery, activeUserId],
   );
 
   const fullName = useMemo(() => {

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import createContextHook from "@nkzw/create-context-hook";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useAuth } from "../auth/AuthStore";
 
 type ReminderOption = 15 | 30 | 45 | 60;
 
@@ -45,8 +46,23 @@ export const [NotificationsProvider, useNotifications] = createContextHook(() =>
     defaultNotificationSettings
   );
   const [loading, setLoading] = useState<boolean>(true);
+  const { isAuthenticated, user } = useAuth();
+  const activeUserId = user?.id ?? null;
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      setNotificationSettings(defaultNotificationSettings);
+      setLoading(false);
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !activeUserId) {
+      return;
+    }
+
+    setLoading(true);
+
     (async () => {
       console.log("[NotificationsStore] Loading notification settings...");
       try {
@@ -88,6 +104,8 @@ export const [NotificationsProvider, useNotifications] = createContextHook(() =>
           } catch (e) {
             console.log("[NotificationsStore] Failed to parse notification settings", e);
           }
+        } else {
+          setNotificationSettings(defaultNotificationSettings);
         }
       } catch (e) {
         console.error("[NotificationsStore] Failed to load notification settings", e);
@@ -95,7 +113,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook(() =>
         setLoading(false);
       }
     })();
-  }, []);
+  }, [isAuthenticated, activeUserId]);
 
   const updateNotificationSettings = useCallback(
     async (settings: NotificationSettings) => {

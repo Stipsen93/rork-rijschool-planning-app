@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import createContextHook from "@nkzw/create-context-hook";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useAuth } from "../auth/AuthStore";
 
 export type LessonCardItem = {
   id: string;
@@ -86,8 +87,24 @@ export const [LessonCardProvider, useLessonCard] = createContextHook(() => {
   const [categories, setCategories] = useState<LessonCardCategory[]>(defaultCategories);
   const [statusConfig, setStatusConfig] = useState<StatusConfig[]>(defaultStatusConfig);
   const [loading, setLoading] = useState<boolean>(true);
+  const { isAuthenticated, user } = useAuth();
+  const activeUserId = user?.id ?? null;
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      setCategories(defaultCategories);
+      setStatusConfig(defaultStatusConfig);
+      setLoading(false);
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !activeUserId) {
+      return;
+    }
+
+    setLoading(true);
+
     (async () => {
       console.log("[LessonCardStore] Loading categories...");
       try {
@@ -96,6 +113,8 @@ export const [LessonCardProvider, useLessonCard] = createContextHook(() => {
           const parsed = JSON.parse(stored) as LessonCardCategory[];
           setCategories(parsed);
           console.log("[LessonCardStore] Loaded categories", parsed.length);
+        } else {
+          setCategories(defaultCategories);
         }
         
         const storedConfig = await AsyncStorage.getItem(STATUS_CONFIG_KEY);
@@ -103,6 +122,8 @@ export const [LessonCardProvider, useLessonCard] = createContextHook(() => {
           const parsedConfig = JSON.parse(storedConfig) as StatusConfig[];
           setStatusConfig(parsedConfig);
           console.log("[LessonCardStore] Loaded status config", parsedConfig.length);
+        } else {
+          setStatusConfig(defaultStatusConfig);
         }
       } catch (e) {
         console.error("[LessonCardStore] Failed to load data", e);
@@ -110,7 +131,7 @@ export const [LessonCardProvider, useLessonCard] = createContextHook(() => {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [isAuthenticated, activeUserId]);
 
   const updateCategories = useCallback(async (cats: LessonCardCategory[]) => {
     console.log("[LessonCardStore] Updating categories", cats.length);
