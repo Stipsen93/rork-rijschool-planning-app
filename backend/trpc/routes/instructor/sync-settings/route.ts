@@ -34,6 +34,24 @@ export const syncSettingsProcedure = instructorProcedure
   .mutation(async ({ ctx, input }) => {
     const userId = ctx.user.id;
 
+    console.log('[syncSettings] Starting sync for user:', userId);
+
+    const { data: existingProfile, error: checkError } = await ctx.supabase
+      .from('instructor_profiles')
+      .select('user_id')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (checkError) {
+      console.error('[syncSettings] Error checking instructor profile:', checkError);
+      throw new Error(`Failed to check instructor profile: ${checkError.message}`);
+    }
+
+    if (!existingProfile) {
+      console.log('[syncSettings] No instructor profile found, should have been created by instructorProcedure');
+      throw new Error('Instructor profile not found. Please try logging out and back in.');
+    }
+
     const updateData: Record<string, any> = {
       synced_at: new Date().toISOString(),
     };
@@ -212,16 +230,14 @@ export const syncSettingsProcedure = instructorProcedure
       updateData.notification_settings = input.notifications;
     }
 
-    const response: any = await (ctx.supabase as any)
+    const { error: instructorError } = await (ctx.supabase as any)
       .from("instructor_profiles")
       .update(updateData)
       .eq("user_id", userId);
-    
-    const { error: instructorError } = response;
 
     if (instructorError) {
       console.error("[syncSettings] Error syncing to Supabase:", instructorError);
-      throw new Error("Failed to sync settings");
+      throw new Error(`Failed to sync settings: ${instructorError.message || JSON.stringify(instructorError)}`);
     }
 
     if (Object.keys(profileUpdate).length > 0) {
@@ -231,7 +247,7 @@ export const syncSettingsProcedure = instructorProcedure
 
       if (profileError) {
         console.error("[syncSettings] Error syncing profile table:", profileError);
-        throw new Error("Failed to sync profile");
+        throw new Error(`Failed to sync profile: ${profileError.message || JSON.stringify(profileError)}`);
       }
     }
 
