@@ -78,7 +78,51 @@ export const instructorProcedure = protectedProcedure.use(async ({ ctx, next }) 
     });
   }
 
-  return next({ ctx });
+  const { data: instructorProfile } = await ctx.supabase
+    .from('instructor_profiles')
+    .select('*')
+    .eq('user_id', ctx.user.id)
+    .maybeSingle();
+
+  if (!instructorProfile) {
+    const { error: createError } = await (ctx.supabase
+      .from('instructor_profiles') as any)
+      .insert({
+        user_id: ctx.user.id,
+        first_name: ctx.profile.first_name,
+        last_name: ctx.profile.last_name,
+        phone: ctx.profile.phone,
+        birth_date: ctx.profile.birth_date,
+      });
+
+    if (createError) {
+      console.error('[instructorProcedure] Failed to create instructor profile:', createError);
+      throw new TRPCError({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Failed to create instructor profile',
+      });
+    }
+
+    const { data: newProfile } = await ctx.supabase
+      .from('instructor_profiles')
+      .select('*')
+      .eq('user_id', ctx.user.id)
+      .single();
+
+    return next({
+      ctx: {
+        ...ctx,
+        instructorProfile: newProfile,
+      },
+    });
+  }
+
+  return next({
+    ctx: {
+      ...ctx,
+      instructorProfile,
+    },
+  });
 });
 
 export const studentProcedure = protectedProcedure.use(async ({ ctx, next }) => {
