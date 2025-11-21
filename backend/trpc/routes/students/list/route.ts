@@ -4,7 +4,8 @@ import { TRPCError } from "@trpc/server";
 export const listStudentsProcedure = protectedProcedure.query(async ({ ctx }) => {
   console.log("[ListStudents] Fetching students for instructor");
   
-  const { supabase, userId } = ctx;
+  const { supabase, user } = ctx;
+  const userId = user.id;
 
   const { data: instructorProfile } = await supabase
     .from("instructor_profiles")
