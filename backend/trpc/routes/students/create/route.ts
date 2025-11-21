@@ -37,29 +37,86 @@ export const createStudentProcedure = protectedProcedure
 
     const fullName = `${input.firstName} ${input.lastName}`.trim();
 
-    const studentId = crypto.randomUUID();
-
-    const { error: profileError } = await (supabase
+    const { data: existingProfile, error: existingProfileError } = await (supabase
       .from("profiles") as any)
-      .insert({
-        id: studentId,
-        email: input.email,
-        full_name: fullName,
-        first_name: input.firstName,
-        last_name: input.lastName,
-        role: "student",
-        phone: input.phone || null,
-        birth_date: input.birthDate ? new Date(input.birthDate).toISOString().split('T')[0] : null,
-        is_active: true,
-      })
-      .select()
-      .single();
+      .select("id, role")
+      .eq("email", input.email)
+      .maybeSingle();
 
-    if (profileError) {
-      console.error("[CreateStudent] Error creating profile:", profileError);
+    if (existingProfileError) {
+      console.error("[CreateStudent] Error checking existing profile:", existingProfileError);
       throw new TRPCError({
         code: "INTERNAL_SERVER_ERROR",
-        message: `Fout bij aanmaken profiel: ${profileError.message}`,
+        message: "Kon niet controleren of dit e-mailadres al bestaat",
+      });
+    }
+
+    if (existingProfile && existingProfile.role !== "student") {
+      throw new TRPCError({
+        code: "CONFLICT",
+        message: "Dit e-mailadres is al gekoppeld aan een ander account",
+      });
+    }
+
+    let studentId = existingProfile?.id ?? crypto.randomUUID();
+    let createdProfile = false;
+
+    if (!existingProfile) {
+      const { error: profileError } = await (supabase
+        .from("profiles") as any)
+        .insert({
+          id: studentId,
+          email: input.email,
+          full_name: fullName,
+          first_name: input.firstName,
+          last_name: input.lastName,
+          role: "student",
+          phone: input.phone || null,
+          birth_date: input.birthDate ? new Date(input.birthDate).toISOString().split("T")[0] : null,
+          is_active: true,
+        })
+        .select()
+        .single();
+
+      if (profileError) {
+        console.error("[CreateStudent] Error creating profile:", profileError);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: `Fout bij aanmaken profiel: ${profileError.message}`,
+        });
+      }
+
+      createdProfile = true;
+    }
+
+    const { data: existingStudentProfile, error: existingStudentProfileError } = await (supabase
+      .from("student_profiles") as any)
+      .select("instructor_id")
+      .eq("user_id", studentId)
+      .maybeSingle();
+
+    if (existingStudentProfileError) {
+      console.error("[CreateStudent] Error checking student profile:", existingStudentProfileError);
+      if (createdProfile) {
+        await (supabase.from("profiles") as any).delete().eq("id", studentId);
+      }
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: "Kon bestaande leerlinggegevens niet controleren",
+      });
+    }
+
+    if (existingStudentProfile) {
+      if (existingStudentProfile.instructor_id === userId) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "Deze leerling staat al in je lijst",
+        });
+      }
+
+      throw new TRPCError({
+        code: "CONFLICT",
+        message: "Dit e-mailadres is al gekoppeld aan een andere instructeur",
       });
     }
 
@@ -83,9 +140,11 @@ export const createStudentProcedure = protectedProcedure
 
     if (studentProfileError) {
       console.error("[CreateStudent] Error creating student profile:", studentProfileError);
-      
-      await (supabase.from("profiles") as any).delete().eq("id", studentId);
-      
+
+      if (createdProfile) {
+        await (supabase.from("profiles") as any).delete().eq("id", studentId);
+      }
+
       throw new TRPCError({
         code: "INTERNAL_SERVER_ERROR",
         message: `Fout bij aanmaken leerling profiel: ${studentProfileError.message}`,

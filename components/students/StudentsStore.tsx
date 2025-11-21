@@ -45,6 +45,7 @@ export const [StudentsProvider, useStudents] = createContextHook(() => {
     retry: 1,
     refetchOnWindowFocus: false,
   });
+  const refetchStudents = useCallback(() => studentsQuery.refetch(), [studentsQuery]);
   
   useMemo(() => {
     if (studentsQuery.data) {
@@ -178,12 +179,12 @@ export const [StudentsProvider, useStudents] = createContextHook(() => {
         status: student.status || "active",
       });
       console.log("[StudentsStore] Student created:", result);
-      await studentsQuery.refetch();
+      await refetchStudents();
     } catch (error) {
       console.error("[StudentsStore] Failed to add student:", error);
       throw error;
     }
-  }, [createStudentMutation]);
+  }, [createStudentMutation, refetchStudents]);
 
   const updateStudent = useCallback(async (id: string, updates: Partial<StudentItem>) => {
     console.log("[StudentsStore] Updating student", id, updates);
@@ -203,7 +204,7 @@ export const [StudentsProvider, useStudents] = createContextHook(() => {
           status: updates.status,
         });
         console.log("[StudentsStore] Student updated");
-        await studentsQuery.refetch();
+        await refetchStudents();
       } catch (error) {
         console.error("[StudentsStore] Failed to update student:", error);
       }
@@ -216,7 +217,7 @@ export const [StudentsProvider, useStudents] = createContextHook(() => {
         ]);
       }
     }
-  }, [customStudents, seedData, updateStudentMutation]);
+  }, [customStudents, seedData, updateStudentMutation, refetchStudents]);
 
   const deleteStudent = useCallback(async (id: string) => {
     console.log("[StudentsStore] Deleting student", id);
@@ -231,11 +232,11 @@ export const [StudentsProvider, useStudents] = createContextHook(() => {
     try {
       await deleteStudentMutation.mutateAsync({ studentId: id });
       console.log("[StudentsStore] Student deleted", id);
-      await studentsQuery.refetch();
+      await refetchStudents();
     } catch (error) {
       console.error("[StudentsStore] Failed to delete student:", error);
     }
-  }, [deleteStudentMutation]);
+  }, [deleteStudentMutation, refetchStudents]);
 
   const value = useMemo(() => ({
     students: allStudents,
@@ -244,8 +245,8 @@ export const [StudentsProvider, useStudents] = createContextHook(() => {
     updateStudent,
     deleteStudent,
     isLoading: studentsQuery.isLoading,
-    refetch: studentsQuery.refetch,
-  }), [allStudents, studentActivity, addStudent, updateStudent, deleteStudent, studentsQuery.isLoading, studentsQuery.refetch]);
+    refetch: refetchStudents,
+  }), [allStudents, studentActivity, addStudent, updateStudent, deleteStudent, studentsQuery.isLoading, refetchStudents]);
 
   return value;
 });
