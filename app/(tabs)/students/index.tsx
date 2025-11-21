@@ -292,49 +292,23 @@ export default function StudentsScreen() {
           onClose={() => setAddOpen(false)}
           onCreated={async (data) => {
             console.log("Student created", data);
-            const studentId = String(Date.now());
-            
-            const personalInfo = {
-              firstName: data.firstName || "",
-              lastName: data.lastName || "",
-              dateOfBirth: data.birthDate || "",
-              email: data.email,
-              address: "",
-              phoneNumber: data.phoneNumber,
-              parentName: data.emergencyContactName || "",
-              parentPhoneNumber: data.emergencyContactPhone || "",
-              status: "active" as const,
-            };
             
             try {
-              await AsyncStorage.setItem(`student_personal_info_${studentId}`, JSON.stringify(personalInfo));
-              console.log("[AddStudent] Saved personal info for new student", studentId);
-            } catch (e) {
-              console.log("[AddStudent] Failed to save personal info", e);
+              await addStudent({
+                name: data.fullName,
+                firstName: data.firstName,
+                lastName: data.lastName,
+                email: data.email,
+                status: "active" as const,
+                dateAdded: new Date(),
+              });
+              
+              setAddOpen(false);
+              loadPersonalInfo();
+            } catch (error) {
+              console.error("[AddStudent] Failed to add student:", error);
+              Alert.alert("Fout", "Kon leerling niet toevoegen. Probeer het opnieuw.");
             }
-            
-            const newStudent = {
-              id: studentId,
-              name: data.fullName,
-              email: data.email,
-              status: "active" as const,
-              dateAdded: new Date(),
-              firstName: data.firstName,
-              lastName: data.lastName,
-            };
-            
-            addStudent(newStudent);
-            setAddOpen(false);
-            
-            setPersonalInfoCache(prev => ({
-              ...prev,
-              [studentId]: {
-                firstName: data.firstName || "",
-                lastName: data.lastName || "",
-              },
-            }));
-            
-            loadPersonalInfo();
           }}
         />
       </View>

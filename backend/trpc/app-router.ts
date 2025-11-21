@@ -18,6 +18,10 @@ import { searchInstructorsProcedure } from "./routes/instructors/search/route";
 import { getStudentProfileProcedure } from "./routes/students/profile/route";
 import { updateStudentProfileProcedure } from "./routes/students/update-profile/route";
 import { studentPackagesProcedure } from "./routes/students/packages/route";
+import { createStudentProcedure } from "./routes/students/create/route";
+import { listStudentsProcedure } from "./routes/students/list/route";
+import { updateStudentProcedure } from "./routes/students/update/route";
+import { deleteStudentProcedure } from "./routes/students/delete/route";
 import { syncSettingsProcedure } from "./routes/instructor/sync-settings/route";
 import { fetchSettingsProcedure } from "./routes/instructor/fetch-settings/route";
 
@@ -56,6 +60,10 @@ export const appRouter = createTRPCRouter({
     profile: getStudentProfileProcedure,
     updateProfile: updateStudentProfileProcedure,
     packages: studentPackagesProcedure,
+    create: createStudentProcedure,
+    list: listStudentsProcedure,
+    update: updateStudentProcedure,
+    delete: deleteStudentProcedure,
   }),
 });
 

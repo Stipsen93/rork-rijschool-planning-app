@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import createContextHook from "@nkzw/create-context-hook";
 import { useAgenda } from "../agenda/AgendaStore";
+import { trpc } from "@/lib/trpc";
 
 export interface StudentItem {
   id: string;
@@ -39,6 +40,39 @@ export const [StudentsProvider, useStudents] = createContextHook(() => {
   const [deletedStudentIds, setDeletedStudentIds] = useState<Set<string>>(new Set());
   const seedData = useMemo(() => seedStudents(), []);
   const { lessonsByDate } = useAgenda();
+  
+  const studentsQuery = trpc.students.list.useQuery(undefined, {
+    retry: 1,
+    refetchOnWindowFocus: false,
+  });
+  
+  useMemo(() => {
+    if (studentsQuery.data) {
+      console.log("[StudentsStore] Loaded students from Supabase:", studentsQuery.data.length);
+      const students = studentsQuery.data.map((s: any) => ({
+        id: s.id,
+        name: s.name,
+        firstName: s.firstName,
+        lastName: s.lastName,
+        email: s.email,
+        status: s.status || "active",
+        passed: s.passed,
+        theoryPassed: s.theoryPassed,
+        practicalExamBooked: s.practicalExamBooked,
+        dateAdded: s.dateAdded ? new Date(s.dateAdded) : new Date(),
+      }));
+      setCustomStudents(students);
+    }
+    if (studentsQuery.error) {
+      console.error("[StudentsStore] Error loading students:", studentsQuery.error.message);
+    }
+  }, [studentsQuery.data, studentsQuery.error]);
+  
+  const createStudentMutation = trpc.students.create.useMutation();
+  
+  const updateStudentMutation = trpc.students.update.useMutation();
+  
+  const deleteStudentMutation = trpc.students.delete.useMutation();
   
   const allStudents = useMemo(() => {
     const customIds = new Set(customStudents.map(s => s.id));
@@ -126,20 +160,53 @@ export const [StudentsProvider, useStudents] = createContextHook(() => {
     };
   }, [allStudents, lessonsByDate]);
 
-  const addStudent = useCallback((student: StudentItem | Omit<StudentItem, "id">) => {
-    const newStudent: StudentItem = "id" in student ? student : {
-      id: String(Date.now()),
-      ...student
-    };
-    setCustomStudents((prev) => [newStudent, ...prev]);
-  }, []);
+  const addStudent = useCallback(async (student: StudentItem | Omit<StudentItem, "id">) => {
+    console.log("[StudentsStore] Adding student", student);
+    
+    if ("id" in student) {
+      const newStudent: StudentItem = student;
+      setCustomStudents((prev) => [newStudent, ...prev]);
+      return;
+    }
+    
+    try {
+      const result = await createStudentMutation.mutateAsync({
+        firstName: student.firstName || student.name.split(" ")[0] || "",
+        lastName: student.lastName || student.name.split(" ").slice(1).join(" ") || "",
+        email: student.email,
+        phone: "",
+        status: student.status || "active",
+      });
+      console.log("[StudentsStore] Student created:", result);
+      await studentsQuery.refetch();
+    } catch (error) {
+      console.error("[StudentsStore] Failed to add student:", error);
+      throw error;
+    }
+  }, [createStudentMutation]);
 
-  const updateStudent = useCallback((id: string, updates: Partial<StudentItem>) => {
+  const updateStudent = useCallback(async (id: string, updates: Partial<StudentItem>) => {
+    console.log("[StudentsStore] Updating student", id, updates);
+    
     const existsInCustom = customStudents.some(s => s.id === id);
     const existsInSeed = seedData.some(s => s.id === id);
     
     if (existsInCustom) {
       setCustomStudents((prev) => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+      
+      try {
+        await updateStudentMutation.mutateAsync({
+          studentId: id,
+          firstName: updates.firstName,
+          lastName: updates.lastName,
+          email: updates.email,
+          status: updates.status,
+        });
+        console.log("[StudentsStore] Student updated");
+        await studentsQuery.refetch();
+      } catch (error) {
+        console.error("[StudentsStore] Failed to update student:", error);
+      }
     } else if (existsInSeed) {
       const seedStudent = seedData.find(s => s.id === id);
       if (seedStudent) {
@@ -149,16 +216,26 @@ export const [StudentsProvider, useStudents] = createContextHook(() => {
         ]);
       }
     }
-  }, [customStudents, seedData]);
+  }, [customStudents, seedData, updateStudentMutation]);
 
-  const deleteStudent = useCallback((id: string) => {
+  const deleteStudent = useCallback(async (id: string) => {
+    console.log("[StudentsStore] Deleting student", id);
+    
     setDeletedStudentIds((prev) => {
       const newSet = new Set(prev);
       newSet.add(id);
       return newSet;
     });
     setCustomStudents((prev) => prev.filter(s => s.id !== id));
-  }, []);
+    
+    try {
+      await deleteStudentMutation.mutateAsync({ studentId: id });
+      console.log("[StudentsStore] Student deleted", id);
+      await studentsQuery.refetch();
+    } catch (error) {
+      console.error("[StudentsStore] Failed to delete student:", error);
+    }
+  }, [deleteStudentMutation]);
 
   const value = useMemo(() => ({
     students: allStudents,
@@ -166,7 +243,9 @@ export const [StudentsProvider, useStudents] = createContextHook(() => {
     addStudent,
     updateStudent,
     deleteStudent,
-  }), [allStudents, studentActivity, addStudent, updateStudent, deleteStudent]);
+    isLoading: studentsQuery.isLoading,
+    refetch: studentsQuery.refetch,
+  }), [allStudents, studentActivity, addStudent, updateStudent, deleteStudent, studentsQuery.isLoading, studentsQuery.refetch]);
 
   return value;
 });
