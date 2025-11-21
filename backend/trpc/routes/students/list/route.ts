@@ -31,7 +31,7 @@ export const listStudentsProcedure = protectedProcedure.query(async ({ ctx }) =>
       overall_progress,
       learning_preferences,
       created_at,
-      profiles!inner (
+      student_profile:profiles!student_profiles_user_id_fkey (
         id,
         email,
         full_name,
@@ -54,7 +54,7 @@ export const listStudentsProcedure = protectedProcedure.query(async ({ ctx }) =>
   console.log("[ListStudents] Found students:", studentProfiles?.length || 0);
 
   const students = (studentProfiles || []).map((sp: any) => {
-    const profile = sp.profiles;
+    const profile = sp.student_profile;
     const preferences = sp.learning_preferences || {};
     
     return {
