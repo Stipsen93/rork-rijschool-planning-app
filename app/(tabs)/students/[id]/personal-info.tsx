@@ -426,7 +426,7 @@ export default function PersonalInfoScreen() {
     <View style={{ flex: 1, backgroundColor: "#f9fafb" }}>
       <KeyboardAvoidingView behavior={Platform.select({ ios: "padding", android: "height", default: undefined })} style={{ flex: 1 }}>
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <ScrollView contentContainerStyle={[styles.container, { paddingBottom: insets.bottom + 80 }]} keyboardShouldPersistTaps="handled">
+          <ScrollView contentContainerStyle={[styles.container, { paddingBottom: insets.bottom + 24 }]} keyboardShouldPersistTaps="handled">
         <View style={styles.card}>
           <Text style={styles.label}>Voornaam</Text>
           <TextInput
@@ -548,29 +548,28 @@ export default function PersonalInfoScreen() {
 
 
           </View>
+          <View style={[styles.actionContainer, { paddingBottom: insets.bottom + 16 }]}>
+            {!isEditing ? (
+              <TouchableOpacity
+                onPress={() => setIsEditing(true)}
+                style={[styles.btn, styles.btnPrimary]}
+                testID="edit-btn"
+              >
+                <Text style={styles.btnPrimaryText}>Bewerken</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                onPress={saveInfo}
+                style={[styles.btn, styles.btnPrimary]}
+                testID="save-btn"
+              >
+                <Text style={styles.btnPrimaryText}>Opslaan</Text>
+              </TouchableOpacity>
+            )}
+          </View>
           </ScrollView>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
-
-      <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
-        {!isEditing ? (
-          <TouchableOpacity
-            onPress={() => setIsEditing(true)}
-            style={[styles.btn, styles.btnPrimary]}
-            testID="edit-btn"
-          >
-            <Text style={styles.btnPrimaryText}>Bewerken</Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity
-            onPress={saveInfo}
-            style={[styles.btn, styles.btnPrimary]}
-            testID="save-btn"
-          >
-            <Text style={styles.btnPrimaryText}>Opslaan</Text>
-          </TouchableOpacity>
-        )}
-      </View>
     </View>
   );
 }
@@ -629,16 +628,19 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: "#f9fafb",
   },
-  footer: {
-    position: "absolute",
-    bottom: 40,
-    left: 0,
-    right: 0,
+  actionContainer: {
+    marginTop: 16,
     backgroundColor: "#fff",
-    borderTopWidth: 1,
-    borderTopColor: "#e5e7eb",
+    borderRadius: 12,
     paddingHorizontal: 16,
     paddingTop: 16,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
   },
   btn: {
     paddingVertical: 14,
