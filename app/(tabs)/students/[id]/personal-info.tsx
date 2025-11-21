@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Modal, Pressable, FlatList, Keyboard, KeyboardAvoidingView, Platform, TouchableWithoutFeedback } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { CalendarDays, ChevronLeft, ChevronRight, X } from "lucide-react-native";
@@ -41,7 +41,7 @@ interface CalendarPickerProps {
 function CalendarPicker({ initialDate, onSelectDate, testID, maximumDate }: CalendarPickerProps) {
   const [cursor, setCursor] = useState<Date>(startOfMonth(initialDate));
   const [showYearPicker, setShowYearPicker] = useState<boolean>(false);
-  const today = new Date();
+  const today = useMemo(() => new Date(), []);
   
   const days: { date: Date; inMonth: boolean }[] = useMemo(() => {
     const start = startOfMonth(cursor);
@@ -286,11 +286,10 @@ const calendarStyles = StyleSheet.create({
 });
 
 export default function PersonalInfoScreen() {
-  const router = useRouter();
   const params = useLocalSearchParams();
   const studentId = params.id as string;
   const insets = useSafeAreaInsets();
-  const { updateStudent } = useStudents();
+  const { updateStudent, students } = useStudents();
 
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [info, setInfo] = useState<PersonalInfo>({
@@ -306,6 +305,8 @@ export default function PersonalInfoScreen() {
   });
 
   const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
+  const student = useMemo(() => students.find((s) => s.id === studentId), [students, studentId]);
+  const hydratedStudentIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -322,6 +323,50 @@ export default function PersonalInfoScreen() {
       }
     })();
   }, [studentId]);
+
+  useEffect(() => {
+    if (!student || hydratedStudentIdRef.current === student.id) {
+      return;
+    }
+
+    const deriveNameParts = () => {
+      if (student.firstName || student.lastName) {
+        return {
+          first: student.firstName ?? "",
+          last: student.lastName ?? "",
+        };
+      }
+      const parts = student.name?.split(" ") ?? [];
+      return {
+        first: parts[0] ?? "",
+        last: parts.slice(1).join(" ") ?? "",
+      };
+    };
+
+    const { first, last } = deriveNameParts();
+    const normalizedBirthDate = (() => {
+      if (!student.birthDate) return "";
+      try {
+        return new Date(student.birthDate).toISOString();
+      } catch {
+        return student.birthDate;
+      }
+    })();
+
+    setInfo((prev) => ({
+      firstName: prev.firstName || first,
+      lastName: prev.lastName || last,
+      dateOfBirth: prev.dateOfBirth || normalizedBirthDate,
+      email: prev.email || student.email || "",
+      address: prev.address,
+      phoneNumber: prev.phoneNumber || student.phone || "",
+      parentName: prev.parentName || student.emergencyContactName || "",
+      parentPhoneNumber: prev.parentPhoneNumber || student.emergencyContactPhone || "",
+      status: prev.status || student.status || "active",
+    }));
+
+    hydratedStudentIdRef.current = student.id;
+  }, [student]);
 
   const saveInfo = useCallback(async () => {
     try {

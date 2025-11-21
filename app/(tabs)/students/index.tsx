@@ -64,8 +64,8 @@ export default function StudentsScreen() {
   const [filterModalOpen, setFilterModalOpen] = useState<boolean>(false);
   const [addOpen, setAddOpen] = useState<boolean>(false);
   const insets = useSafeAreaInsets();
-  const { students: allStudents, addStudent, updateStudent, studentActivity } = useStudents();
-  const { activeStudents, irregularStudents, nonActiveStudents } = studentActivity;
+  const { students: allStudents, addStudent, studentActivity } = useStudents();
+  const { activeStudents, irregularStudents } = studentActivity;
   const [personalInfoCache, setPersonalInfoCache] = useState<Record<string, { firstName: string; lastName: string }>>({});
 
   const getStudentStatus = useCallback((studentName: string): "active" | "irregular" | "inactive" => {
@@ -299,6 +299,11 @@ export default function StudentsScreen() {
                 firstName: data.firstName,
                 lastName: data.lastName,
                 email: data.email,
+                phone: data.phoneNumber,
+                birthDate: data.birthDate ?? null,
+                emergencyContactName: data.emergencyContactName ?? null,
+                emergencyContactPhone: data.emergencyContactPhone ?? null,
+                notes: data.notes ?? null,
                 status: "active" as const,
                 dateAdded: new Date(),
               });

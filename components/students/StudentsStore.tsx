@@ -9,6 +9,11 @@ export interface StudentItem {
   firstName?: string;
   lastName?: string;
   email: string;
+  phone?: string;
+  birthDate?: string | null;
+  emergencyContactName?: string | null;
+  emergencyContactPhone?: string | null;
+  notes?: string | null;
   status: "active" | "irregular" | "inactive";
   passed?: boolean;
   theoryPassed?: boolean;
@@ -56,6 +61,11 @@ export const [StudentsProvider, useStudents] = createContextHook(() => {
         firstName: s.firstName,
         lastName: s.lastName,
         email: s.email,
+        phone: s.phone ?? "",
+        birthDate: s.birthDate ?? null,
+        emergencyContactName: s.emergencyContactName ?? null,
+        emergencyContactPhone: s.emergencyContactPhone ?? null,
+        notes: s.notes ?? null,
         status: s.status || "active",
         passed: s.passed,
         theoryPassed: s.theoryPassed,
@@ -171,11 +181,17 @@ export const [StudentsProvider, useStudents] = createContextHook(() => {
     }
     
     try {
+      const fallbackFirst = student.firstName || student.name.split(" ")[0] || "";
+      const fallbackLast = student.lastName || student.name.split(" ").slice(1).join(" ") || "";
       const result = await createStudentMutation.mutateAsync({
-        firstName: student.firstName || student.name.split(" ")[0] || "",
-        lastName: student.lastName || student.name.split(" ").slice(1).join(" ") || "",
+        firstName: fallbackFirst,
+        lastName: fallbackLast,
         email: student.email,
-        phone: "",
+        phone: student.phone ?? "",
+        birthDate: student.birthDate ?? null,
+        emergencyContactName: student.emergencyContactName?.trim() || undefined,
+        emergencyContactPhone: student.emergencyContactPhone?.trim() || undefined,
+        notes: student.notes?.trim() || undefined,
         status: student.status || "active",
       });
       console.log("[StudentsStore] Student created:", result);
