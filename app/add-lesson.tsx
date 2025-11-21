@@ -235,8 +235,14 @@ export default function AddLessonScreen() {
           }
         }
 
-        const studentPackagesStr = await AsyncStorage.getItem(`student_packages_${studentName}`);
+        const studentStorageKey = selectedStudentId
+          ? `student_packages_${selectedStudentId}`
+          : studentName
+          ? `student_packages_${studentName}`
+          : null;
+        const studentPackagesStr = studentStorageKey ? await AsyncStorage.getItem(studentStorageKey) : null;
         const studentPackages = studentPackagesStr ? JSON.parse(studentPackagesStr) : [];
+        console.log("[AddLesson] Loaded student packages", { key: studentStorageKey, count: studentPackages.length });
         
         const [pkgStr, prodStr] = await Promise.all([
           AsyncStorage.getItem("instructor_packages"),
