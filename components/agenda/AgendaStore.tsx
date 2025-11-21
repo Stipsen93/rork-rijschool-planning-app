@@ -1,5 +1,13 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import createContextHook from "@nkzw/create-context-hook";
+import { trpc } from "@/lib/trpc";
+
+const STATUS_LABELS: Record<string, string> = {
+  scheduled: "Gepland",
+  completed: "Afgerond",
+  cancelled: "Geannuleerd",
+  no_show: "No-show",
+};
 
 export type AgendaLesson = {
   id: string;
@@ -41,8 +49,73 @@ function seedLessons(): Record<string, AgendaLesson[]> {
   return {};
 }
 
+function toDateOnly(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function toHHMM(date: Date): string {
+  const pad = (value: number) => value.toString().padStart(2, "0");
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function mapSupabaseLesson(row: any): AgendaLesson | null {
+  try {
+    if (!row || !row.start_time || !row.id) {
+      return null;
+    }
+
+    const start = new Date(row.start_time);
+    if (Number.isNaN(start.getTime())) {
+      return null;
+    }
+
+    const end = row.end_time ? new Date(row.end_time) : new Date(start);
+    const studentFirst = row.student?.first_name ?? "";
+    const studentLast = row.student?.last_name ?? "";
+    const studentName = `${studentFirst} ${studentLast}`.trim() || row.title || undefined;
+    const normalizedStatus = typeof row.status === "string" ? STATUS_LABELS[row.status] ?? row.status : undefined;
+
+    return {
+      id: row.id,
+      studentName,
+      studentId: row.student_id ?? undefined,
+      lessonType: row.lesson_type ?? undefined,
+      startTime: toHHMM(start),
+      endTime: toHHMM(end),
+      date: toDateOnly(start),
+      status: normalizedStatus,
+      location: row.location ?? undefined,
+      notes: row.notes ?? undefined,
+      recurringId: row.recurring_id ?? undefined,
+    };
+  } catch (error) {
+    console.error("AgendaStore: Failed to map Supabase lesson", error);
+    return null;
+  }
+}
+
 export const [AgendaProvider, useAgenda] = createContextHook(() => {
   const [lessonsByDate, setLessonsByDate] = useState<Record<string, AgendaLesson[]>>(() => seedLessons());
+  const lessonsQuery = trpc.lessons.list.useQuery(undefined, {
+    refetchOnWindowFocus: false,
+    staleTime: 60 * 1000,
+  });
+
+  useEffect(() => {
+    if (!lessonsQuery.data) {
+      return;
+    }
+    const next: Record<string, AgendaLesson[]> = {};
+    lessonsQuery.data.forEach((row: any) => {
+      const mapped = mapSupabaseLesson(row);
+      if (!mapped) {
+        return;
+      }
+      const key = keyFor(mapped.date);
+      next[key] = [...(next[key] ?? []), mapped].sort(byStartTimeAsc);
+    });
+    setLessonsByDate(next);
+  }, [lessonsQuery.data]);
 
   const getLessonsForDate = useCallback((date: Date): AgendaLesson[] => {
     const key = keyFor(date);
@@ -129,6 +202,14 @@ export const [AgendaProvider, useAgenda] = createContextHook(() => {
     );
   }, [lessonsByDate]);
 
+  const refreshLessons = useCallback(async () => {
+    try {
+      await lessonsQuery.refetch();
+    } catch (error) {
+      console.error("AgendaStore: Failed to refetch lessons", error);
+    }
+  }, [lessonsQuery]);
+
   const value = useMemo(() => ({
     lessonsByDate,
     getLessonsForDate,
@@ -137,7 +218,9 @@ export const [AgendaProvider, useAgenda] = createContextHook(() => {
     removeLessonsByRecurringId,
     keyFor,
     checkForDuplicateStudent,
-  }), [lessonsByDate, getLessonsForDate, addLesson, removeLessonById, removeLessonsByRecurringId, checkForDuplicateStudent]);
+    refreshLessons,
+    lessonsLoading: lessonsQuery.isLoading,
+  }), [lessonsByDate, getLessonsForDate, addLesson, removeLessonById, removeLessonsByRecurringId, checkForDuplicateStudent, refreshLessons, lessonsQuery.isLoading]);
 
   return value;
 });

@@ -14,16 +14,38 @@ import { useAgenda } from "@/components/agenda/AgendaStore";
 import { useSettings } from "@/components/settings/SettingsStore";
 import { useWorkingHours } from "@/components/settings/WorkingHoursStore";
 import { useStudents } from "@/components/students/StudentsStore";
+import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/components/auth/AuthStore";
+import { Database } from "@/types/supabase";
 
 export type Option = { label: string; value: string };
+
+type SupabaseLesson = Database["public"]["Tables"]["lessons"]["Row"];
+
+const UUID_REGEX = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
+
+const isValidUuid = (value: string | null): value is string => Boolean(value && UUID_REGEX.test(value));
+
+const buildDateTimeFromParts = (date: Date, time: string): Date => {
+  const [hours, minutes] = time.split(":").map((part) => parseInt(part, 10));
+  const resolved = new Date(date);
+  resolved.setHours(Number.isFinite(hours) ? hours : 0, Number.isFinite(minutes) ? minutes : 0, 0, 0);
+  return resolved;
+};
+
+const normalizeDate = (date: Date): Date => new Date(date.getFullYear(), date.getMonth(), date.getDate());
 
 export default function AddLessonScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { addLesson, removeLessonById, lessonsByDate, checkForDuplicateStudent } = useAgenda();
+  const { addLesson, removeLessonById, lessonsByDate, checkForDuplicateStudent, refreshLessons } = useAgenda();
   const { workingHours } = useWorkingHours();
   const { products, getDurationForType } = useSettings();
   const { students: allStudents } = useStudents();
+  const { user } = useAuth();
+  const createLessonMutation = trpc.lessons.create.useMutation();
+  const updateLessonMutation = trpc.lessons.update.useMutation();
+  const deleteLessonMutation = trpc.lessons.delete.useMutation();
 
   const baseAppointmentTypes: Option[] = useMemo(() => [
     { label: "Rijles", value: "Rijles" },
@@ -168,28 +190,27 @@ export default function AddLessonScreen() {
     try {
       setIsLoading(true);
       console.log("Saving lesson", { category, type, selectedStudentId, selectedVehicleId, date, time, durationHours, durationMinutes, location, notes, recurrenceType, recurrenceLimit });
-      await new Promise((res) => setTimeout(res, 600));
 
       const [y, m, d] = date.split("-").map((v) => parseInt(v, 10));
       const baseDate = new Date(Number.isFinite(y) ? y : new Date().getFullYear(), (Number.isFinite(m) ? m : 1) - 1, Number.isFinite(d) ? d : new Date().getDate());
-      
-      let startTime = time;
-      let endTime = time;
-      
+
+      let startTimeValue = time;
+      let endTimeValue = time;
+
       if (isPauseOrLeave && isFullDay && category === "Verlof") {
         const dayNames: ("Maandag" | "Dinsdag" | "Woensdag" | "Donderdag" | "Vrijdag" | "Zaterdag" | "Zondag")[] = [
           "Zondag", "Maandag", "Dinsdag", "Woensdag", "Donderdag", "Vrijdag", "Zaterdag"
         ];
         const dayName = dayNames[baseDate.getDay()];
         const dayConfig = workingHours[dayName];
-        
+
         if (dayConfig && dayConfig.enabled && dayConfig.ranges.length > 0) {
-          startTime = dayConfig.ranges[0].start;
+          startTimeValue = dayConfig.ranges[0].start;
           const lastRange = dayConfig.ranges[dayConfig.ranges.length - 1];
-          endTime = lastRange.end;
+          endTimeValue = lastRange.end;
         } else {
-          startTime = "09:00";
-          endTime = "18:00";
+          startTimeValue = "09:00";
+          endTimeValue = "18:00";
         }
       } else {
         const [sh, sm] = time.split(":").map((v) => parseInt(v, 10));
@@ -200,7 +221,7 @@ export default function AddLessonScreen() {
         const endH = Math.floor(endTotal / 60) % 24;
         const endM = endTotal % 60;
         const pad = (n: number) => String(n).padStart(2, "0");
-        endTime = `${pad(endH)}:${pad(endM)}`;
+        endTimeValue = `${pad(endH)}:${pad(endM)}`;
       }
 
       const minutesBetween = (startHHMM: string, endHHMM: string): number => {
@@ -211,39 +232,119 @@ export default function AddLessonScreen() {
         return Math.max(0, e - s);
       };
 
-      const studentName = mockStudents.find((s) => s.id === selectedStudentId)?.name ?? "Leerling";
-      
+      const derivedDuration = minutesBetween(startTimeValue, endTimeValue);
+      const fallbackDuration = durationHours * 60 + durationMinutes;
+      const lessonDurationMinutes = derivedDuration > 0 ? derivedDuration : fallbackDuration;
+
+      const resolvedStudentName = isPauseOrLeave
+        ? category
+        : mockStudents.find((s) => s.id === selectedStudentId)?.name ?? "Leerling";
+
       if (!isPauseOrLeave && !editingId) {
-        const isDuplicate = checkForDuplicateStudent(baseDate, startTime, studentName);
+        const isDuplicate = checkForDuplicateStudent(baseDate, startTimeValue, resolvedStudentName);
         if (isDuplicate) {
-          Alert.alert("Fout", `Er is al een afspraak voor ${studentName} om ${startTime} op deze datum. Kies een ander tijdstip.`);
+          Alert.alert("Fout", `Er is al een afspraak voor ${resolvedStudentName} om ${startTimeValue} op deze datum. Kies een ander tijdstip.`);
           setIsLoading(false);
           return;
         }
       }
-      
+
+      if (!isPauseOrLeave) {
+        if (!selectedStudentId || !isValidUuid(selectedStudentId)) {
+          Alert.alert("Leerling vereist", "Kies een leerling die aan je account is gekoppeld voordat je een les plant.");
+          setIsLoading(false);
+          return;
+        }
+
+        if (!user?.id) {
+          Alert.alert("Fout", "Kon je accountinformatie niet ophalen. Probeer opnieuw in te loggen.");
+          setIsLoading(false);
+          return;
+        }
+      }
+
       const shouldRecur = !isPauseOrLeave && recurrenceType !== "none" && type === "Rijles";
       const recurringId = shouldRecur ? Math.random().toString(36).slice(2, 10) : undefined;
+      const normalizedLocation = (location || "").trim();
+      const normalizedNotes = (notes || "").trim();
+
+      const persistLocalLesson = (lessonDate: Date, overrideId?: string) => {
+        addLesson({
+          id: overrideId,
+          date: normalizeDate(lessonDate),
+          startTime: startTimeValue,
+          endTime: endTimeValue,
+          studentName: resolvedStudentName,
+          studentId: isPauseOrLeave ? undefined : selectedStudentId ?? undefined,
+          lessonType: isPauseOrLeave ? category : type,
+          location: isPauseOrLeave ? "" : normalizedLocation,
+          notes: normalizedNotes,
+          status: "Gepland",
+          recurringId: shouldRecur ? recurringId : undefined,
+        });
+      };
+
+      const createRemoteLesson = async (lessonDate: Date) => {
+        const startDateTime = buildDateTimeFromParts(lessonDate, startTimeValue);
+        const endDateTime = buildDateTimeFromParts(lessonDate, endTimeValue);
+        const created = (await createLessonMutation.mutateAsync({
+          instructorId: user!.id,
+          studentId: selectedStudentId!,
+          title: type,
+          lessonType: type,
+          startTime: startDateTime.toISOString(),
+          endTime: endDateTime.toISOString(),
+          duration: lessonDurationMinutes,
+          location: normalizedLocation.length > 0 ? normalizedLocation : undefined,
+          pickupLocation: undefined,
+          vehicleId: selectedVehicleId ?? undefined,
+          notes: normalizedNotes.length > 0 ? normalizedNotes : undefined,
+        })) as SupabaseLesson;
+        const sourceDate = created.start_time ? new Date(created.start_time) : lessonDate;
+        persistLocalLesson(sourceDate, created.id);
+      };
+
+      const updateRemoteLesson = async (lessonDate: Date) => {
+        if (!editingId) return;
+        const startDateTime = buildDateTimeFromParts(lessonDate, startTimeValue);
+        const endDateTime = buildDateTimeFromParts(lessonDate, endTimeValue);
+        await updateLessonMutation.mutateAsync({
+          id: editingId,
+          title: type,
+          lessonType: type,
+          startTime: startDateTime.toISOString(),
+          endTime: endDateTime.toISOString(),
+          duration: lessonDurationMinutes,
+          location: normalizedLocation.length > 0 ? normalizedLocation : "",
+          notes: normalizedNotes.length > 0 ? normalizedNotes : undefined,
+        });
+        persistLocalLesson(lessonDate, editingId);
+      };
+
+      const deleteRemoteLessonIfNeeded = async () => {
+        if (!editingId) return;
+        try {
+          await deleteLessonMutation.mutateAsync({ id: editingId });
+        } catch (error) {
+          console.error("[AddLesson] Failed to delete remote lesson before recurrence", error);
+        }
+      };
 
       if (shouldRecur) {
         if (editingId) {
-          try {
-            removeLessonById(editingId);
-            console.log("[AddLesson] Removed existing lesson before creating recurrence", { editingId });
-          } catch (e) {
-            console.log("[AddLesson] Failed to remove existing lesson before recurrence", e);
-          }
+          removeLessonById(editingId);
+          await deleteRemoteLessonIfNeeded();
         }
 
         const studentStorageKey = selectedStudentId
           ? `student_packages_${selectedStudentId}`
-          : studentName
-          ? `student_packages_${studentName}`
+          : resolvedStudentName
+          ? `student_packages_${resolvedStudentName}`
           : null;
         const studentPackagesStr = studentStorageKey ? await AsyncStorage.getItem(studentStorageKey) : null;
         const studentPackages = studentPackagesStr ? JSON.parse(studentPackagesStr) : [];
         console.log("[AddLesson] Loaded student packages", { key: studentStorageKey, count: studentPackages.length });
-        
+
         const [pkgStr, prodStr] = await Promise.all([
           AsyncStorage.getItem("instructor_packages"),
           AsyncStorage.getItem("instructor_products"),
@@ -253,11 +354,11 @@ export default function AddLessonScreen() {
         const mappedPkgs = pkgs.map((p) => ({ id: p.id, name: p.name, hours: p.hours, price: p.price, vatStatus: p.vatStatus, isProduct: false }));
         const mappedProds = prods.map((p) => ({ id: p.id, name: p.name, hours: 0, price: p.price, vatStatus: p.vatStatus, isProduct: true }));
         const baseItems = [...mappedPkgs, ...mappedProds];
-        const products = mappedProds;
-        const productNames = new Set(products.map(p => p.name));
+        const remoteProducts = mappedProds;
+        const productNames = new Set(remoteProducts.map((p) => p.name));
 
         const allLessons = Object.values(lessonsByDate).flat();
-        const studentLessons = allLessons.filter((l) => (l.studentName ?? "") === studentName);
+        const studentLessons = allLessons.filter((l) => (l.studentName ?? "") === resolvedStudentName);
 
         let plannedMin = 0;
         let drivenMin = 0;
@@ -273,8 +374,8 @@ export default function AddLessonScreen() {
 
           if (endDate.getTime() > now.getTime()) {
             if (!isProduct) plannedMin += mins;
-          } else {
-            if (!isProduct) drivenMin += mins;
+          } else if (!isProduct) {
+            drivenMin += mins;
           }
         });
 
@@ -308,11 +409,11 @@ export default function AddLessonScreen() {
         if (recurrenceLimit.type === "count") {
           maxOccurrences = recurrenceLimit.value;
         } else if (recurrenceLimit.type === "remaining") {
-          const lessonDurationInHours = durationHours + durationMinutes / 60;
+          const lessonDurationInHours = Math.max(lessonDurationMinutes / 60, 0.01);
           maxOccurrences = Math.floor(hoursOver / lessonDurationInHours);
         } else if (recurrenceLimit.type === "paid") {
           const remainingPaidHours = Math.max(0, hoursPaid - drivenHours - plannedHours);
-          const lessonDurationInHours = durationHours + durationMinutes / 60;
+          const lessonDurationInHours = Math.max(lessonDurationMinutes / 60, 0.01);
           maxOccurrences = Math.floor(remainingPaidHours / lessonDurationInHours);
         }
 
@@ -322,31 +423,19 @@ export default function AddLessonScreen() {
           maxOccurrences = fallback;
         }
 
-        for (let i = 0; i < maxOccurrences; i++) {
+        for (let i = 0; i < maxOccurrences; i += 1) {
           const currentDate = new Date(baseDate);
-          
+
           if (recurrenceType === "daily") {
             currentDate.setDate(currentDate.getDate() + i);
           } else if (recurrenceType === "weekly") {
-            currentDate.setDate(currentDate.getDate() + (i * 7));
+            currentDate.setDate(currentDate.getDate() + i * 7);
           } else if (recurrenceType === "monthly") {
             currentDate.setMonth(currentDate.getMonth() + i);
           }
 
           console.log(`[AddLesson] Creating recurring lesson ${i + 1}/${maxOccurrences} for ${currentDate.toISOString().slice(0, 10)}`);
-          
-          addLesson({
-            date: currentDate,
-            startTime,
-            endTime,
-            studentName,
-            studentId: selectedStudentId ?? undefined,
-            lessonType: type,
-            location: location ?? "",
-            notes: notes ?? "",
-            status: "Gepland",
-            recurringId,
-          });
+          await createRemoteLesson(currentDate);
         }
       } else {
         if (editingId) {
@@ -354,42 +443,52 @@ export default function AddLessonScreen() {
         }
 
         if (isPauseOrLeave) {
-          addLesson({
-            id: editingId ?? undefined,
-            date: baseDate,
-            startTime,
-            endTime,
-            studentName: category,
-            lessonType: category,
-            location: "",
-            notes: notes ?? "",
-            status: "Gepland",
-          });
+          persistLocalLesson(baseDate, editingId ?? undefined);
+        } else if (editingId) {
+          await updateRemoteLesson(baseDate);
         } else {
-          addLesson({
-            id: editingId ?? undefined,
-            date: baseDate,
-            startTime,
-            endTime,
-            studentName,
-            studentId: selectedStudentId ?? undefined,
-            lessonType: type,
-            location: location ?? "",
-            notes: notes ?? "",
-            status: "Gepland",
-          });
+          await createRemoteLesson(baseDate);
         }
       }
 
+      await refreshLessons();
       Alert.alert("Opgeslagen", isPauseOrLeave ? `${category} opgeslagen.` : editingId ? "De les is bijgewerkt." : "De les is opgeslagen.");
       router.back();
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error("[AddLesson] Failed to save lesson", error);
       Alert.alert("Fout", "Er is een fout opgetreden bij het opslaan.");
     } finally {
       setIsLoading(false);
     }
-  }, [addLesson, removeLessonById, editingId, category, type, selectedStudentId, selectedVehicleId, date, time, durationHours, durationMinutes, location, notes, isPauseOrLeave, isFullDay, workingHours, router, mockStudents, recurrenceType, recurrenceLimit, lessonsByDate, checkForDuplicateStudent]);
+  }, [
+    addLesson,
+    removeLessonById,
+    editingId,
+    category,
+    type,
+    selectedStudentId,
+    selectedVehicleId,
+    date,
+    time,
+    durationHours,
+    durationMinutes,
+    location,
+    notes,
+    isPauseOrLeave,
+    isFullDay,
+    workingHours,
+    router,
+    mockStudents,
+    recurrenceType,
+    recurrenceLimit,
+    lessonsByDate,
+    checkForDuplicateStudent,
+    createLessonMutation,
+    updateLessonMutation,
+    deleteLessonMutation,
+    refreshLessons,
+    user,
+  ]);
 
   return (
     <ErrorBoundary>
