@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import createContextHook from "@nkzw/create-context-hook";
 import { useAgenda } from "../agenda/AgendaStore";
 import { trpc } from "@/lib/trpc";
@@ -47,7 +47,7 @@ export const [StudentsProvider, useStudents] = createContextHook(() => {
   });
   const refetchStudents = useCallback(() => studentsQuery.refetch(), [studentsQuery]);
   
-  useMemo(() => {
+  useEffect(() => {
     if (studentsQuery.data) {
       console.log("[StudentsStore] Loaded students from Supabase:", studentsQuery.data.length);
       const students = studentsQuery.data.map((s: any) => ({
