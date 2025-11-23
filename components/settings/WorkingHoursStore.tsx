@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import createContextHook from "@nkzw/create-context-hook";
 import { Platform } from "react-native";
 import * as FileSystem from "expo-file-system/legacy";
+import { trpc } from "@/lib/trpc";
 import { useAuth } from "../auth/AuthStore";
 
 export type DayKey =
@@ -30,6 +31,7 @@ export type VacationPeriod = {
 };
 
 const STORAGE_KEY = "instructor_working_hours" as const;
+const VACATION_STORAGE_KEY = "instructor_vacation_periods" as const;
 
 const defaultDay = (enabled: boolean): DayConfig => ({
   enabled,
@@ -122,8 +124,16 @@ export const [WorkingHoursProvider, useWorkingHours] = createContextHook(() => {
   const [workingHours, setWorkingHours] = useState<WorkingHours>(defaultWorkingHours);
   const [vacationPeriods, setVacationPeriods] = useState<VacationPeriod[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, profile } = useAuth();
   const activeUserId = user?.id ?? null;
+  const isInstructor = profile?.role === "instructor";
+
+  const fetchSettingsQuery = trpc.instructor.fetchSettings.useQuery(undefined, {
+    enabled: Boolean(isAuthenticated && activeUserId && isInstructor),
+    retry: 1,
+  });
+
+  const syncSettingsMutation = trpc.instructor.syncSettings.useMutation();
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -138,78 +148,184 @@ export const [WorkingHoursProvider, useWorkingHours] = createContextHook(() => {
       return;
     }
 
-    let cancelled = false;
-    setLoading(true);
+    if (isInstructor && fetchSettingsQuery.isLoading && !fetchSettingsQuery.data) {
+      setLoading(true);
+      return;
+    }
 
-    (async () => {
-      console.log("WorkingHoursStore: Loading working hours...");
-      try {
-        const v = await storageGetString(STORAGE_KEY);
-        if (!cancelled && v) {
-          try {
-            const migrated = migrateAny(JSON.parse(v));
-            if (migrated) {
-              setWorkingHours(migrated);
-              console.log("WorkingHoursStore: Loaded from storage (migrated)", migrated);
-            }
-          } catch (e) {
-            console.log("WorkingHoursStore: Failed to parse working hours", e);
+    let cancelled = false;
+
+    const normalizeVacationPeriods = (input: unknown): VacationPeriod[] => {
+      if (!Array.isArray(input)) {
+        return [];
+      }
+
+      return input
+        .map((raw, index) => {
+          if (!raw || typeof raw !== "object") {
+            return null;
           }
-        } else if (!cancelled && !v) {
+
+          const source = raw as Partial<VacationPeriod> & Record<string, any>;
+          const startDate =
+            typeof source.startDate === "string"
+              ? source.startDate
+              : typeof source.start_date === "string"
+                ? source.start_date
+                : null;
+          const endDate =
+            typeof source.endDate === "string"
+              ? source.endDate
+              : typeof source.end_date === "string"
+                ? source.end_date
+                : null;
+
+          if (!startDate || !endDate) {
+            return null;
+          }
+
+          const id = typeof source.id === "string" ? source.id : `${Date.now()}-${index}`;
+
+          return {
+            id,
+            startDate,
+            endDate,
+            repeatAnnually: Boolean(source.repeatAnnually ?? source.repeat_annually ?? false),
+          } satisfies VacationPeriod;
+        })
+        .filter((item): item is VacationPeriod => Boolean(item));
+    };
+
+    const loadFromLocal = async () => {
+      const [hoursStr, vacationsStr] = await Promise.all([
+        storageGetString(STORAGE_KEY),
+        storageGetString(VACATION_STORAGE_KEY),
+      ]);
+
+      if (cancelled) {
+        return;
+      }
+
+      if (hoursStr) {
+        try {
+          const migrated = migrateAny(JSON.parse(hoursStr));
+          setWorkingHours(migrated ?? defaultWorkingHours);
+        } catch (error) {
+          console.log("WorkingHoursStore: Failed to parse stored working hours", error);
           setWorkingHours(defaultWorkingHours);
         }
+      } else {
+        setWorkingHours(defaultWorkingHours);
+      }
 
-        const vacationsStr = await storageGetString("instructor_vacation_periods");
-        if (!cancelled && vacationsStr) {
-          try {
-            const parsed = JSON.parse(vacationsStr) as VacationPeriod[];
-            setVacationPeriods(Array.isArray(parsed) ? parsed : []);
-            console.log("WorkingHoursStore: Loaded vacation periods", parsed);
-          } catch (e) {
-            console.log("WorkingHoursStore: Failed to parse vacation periods", e);
-          }
-        } else if (!cancelled && !vacationsStr) {
+      if (vacationsStr) {
+        try {
+          const parsed = JSON.parse(vacationsStr);
+          setVacationPeriods(normalizeVacationPeriods(parsed));
+        } catch (error) {
+          console.log("WorkingHoursStore: Failed to parse stored vacation periods", error);
           setVacationPeriods([]);
+        }
+      } else {
+        setVacationPeriods([]);
+      }
+    };
+
+    const applyRemoteData = async () => {
+      const remoteHours = migrateAny(fetchSettingsQuery.data?.workingHours) ?? defaultWorkingHours;
+      const remoteVacations = normalizeVacationPeriods(fetchSettingsQuery.data?.vacationPeriods ?? []);
+
+      if (!cancelled) {
+        setWorkingHours(remoteHours);
+        setVacationPeriods(remoteVacations);
+      }
+
+      await storageSetString(STORAGE_KEY, JSON.stringify(remoteHours));
+      await storageSetString(VACATION_STORAGE_KEY, JSON.stringify(remoteVacations));
+    };
+
+    const run = async () => {
+      setLoading(true);
+      try {
+        if (isInstructor && fetchSettingsQuery.data) {
+          await applyRemoteData();
+        } else {
+          await loadFromLocal();
         }
       } finally {
         if (!cancelled) {
           setLoading(false);
         }
       }
-    })();
+    };
+
+    void run();
 
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated, activeUserId]);
+  }, [isAuthenticated, activeUserId, isInstructor, fetchSettingsQuery.data, fetchSettingsQuery.isLoading]);
 
-  const updateWorkingHours = React.useCallback(async (hours: WorkingHours) => {
-    console.log("WorkingHoursStore: Updating working hours", hours);
-    setWorkingHours(hours);
-    await storageSetString(STORAGE_KEY, JSON.stringify(hours));
-  }, []);
+  const syncRemote = React.useCallback(
+    async (payload: { workingHours?: WorkingHours; vacationPeriods?: VacationPeriod[] }) => {
+      if (!isAuthenticated || !isInstructor) {
+        return;
+      }
 
-  const updateVacationPeriods = React.useCallback(async (periods: VacationPeriod[]) => {
-    console.log("WorkingHoursStore: Updating vacation periods", periods);
-    setVacationPeriods(periods);
-    await storageSetString("instructor_vacation_periods", JSON.stringify(periods));
-  }, []);
+      try {
+        await syncSettingsMutation.mutateAsync(payload);
+      } catch (error) {
+        console.log("WorkingHoursStore: Supabase sync failed", error);
+        throw (error instanceof Error ? error : new Error("Synchronisatie mislukt"));
+      }
+    },
+    [isAuthenticated, isInstructor, syncSettingsMutation]
+  );
 
-  const addVacationPeriod = React.useCallback(async (period: Omit<VacationPeriod, "id">) => {
-    const newPeriod: VacationPeriod = { ...period, id: Date.now().toString() };
-    const updated = [...vacationPeriods, newPeriod];
-    await updateVacationPeriods(updated);
-  }, [vacationPeriods, updateVacationPeriods]);
+  const updateWorkingHours = React.useCallback(
+    async (hours: WorkingHours) => {
+      console.log("WorkingHoursStore: Updating working hours", hours);
+      setWorkingHours(hours);
+      await storageSetString(STORAGE_KEY, JSON.stringify(hours));
+      await syncRemote({ workingHours: hours, vacationPeriods });
+    },
+    [vacationPeriods, syncRemote]
+  );
 
-  const updateVacationPeriod = React.useCallback(async (id: string, period: Omit<VacationPeriod, "id">) => {
-    const updated = vacationPeriods.map(p => p.id === id ? { ...period, id } : p);
-    await updateVacationPeriods(updated);
-  }, [vacationPeriods, updateVacationPeriods]);
+  const updateVacationPeriods = React.useCallback(
+    async (periods: VacationPeriod[]) => {
+      console.log("WorkingHoursStore: Updating vacation periods", periods);
+      setVacationPeriods(periods);
+      await storageSetString(VACATION_STORAGE_KEY, JSON.stringify(periods));
+      await syncRemote({ vacationPeriods: periods, workingHours });
+    },
+    [workingHours, syncRemote]
+  );
 
-  const removeVacationPeriod = React.useCallback(async (id: string) => {
-    const updated = vacationPeriods.filter((p) => p.id !== id);
-    await updateVacationPeriods(updated);
-  }, [vacationPeriods, updateVacationPeriods]);
+  const addVacationPeriod = React.useCallback(
+    async (period: Omit<VacationPeriod, "id">) => {
+      const newPeriod: VacationPeriod = { ...period, id: Date.now().toString() };
+      const updated = [...vacationPeriods, newPeriod];
+      await updateVacationPeriods(updated);
+    },
+    [vacationPeriods, updateVacationPeriods]
+  );
+
+  const updateVacationPeriod = React.useCallback(
+    async (id: string, period: Omit<VacationPeriod, "id">) => {
+      const updated = vacationPeriods.map((p) => (p.id === id ? { ...period, id } : p));
+      await updateVacationPeriods(updated);
+    },
+    [vacationPeriods, updateVacationPeriods]
+  );
+
+  const removeVacationPeriod = React.useCallback(
+    async (id: string) => {
+      const updated = vacationPeriods.filter((p) => p.id !== id);
+      await updateVacationPeriods(updated);
+    },
+    [vacationPeriods, updateVacationPeriods]
+  );
 
   const enabledDays = useMemo(
     () => Object.entries(workingHours).filter(([, v]) => v.enabled) as [DayKey, DayConfig][],
@@ -228,7 +344,17 @@ export const [WorkingHoursProvider, useWorkingHours] = createContextHook(() => {
       loading,
       enabledDays,
     }),
-    [workingHours, updateWorkingHours, vacationPeriods, updateVacationPeriods, addVacationPeriod, updateVacationPeriod, removeVacationPeriod, loading, enabledDays]
+    [
+      workingHours,
+      updateWorkingHours,
+      vacationPeriods,
+      updateVacationPeriods,
+      addVacationPeriod,
+      updateVacationPeriod,
+      removeVacationPeriod,
+      loading,
+      enabledDays,
+    ]
   );
 
   return value;
