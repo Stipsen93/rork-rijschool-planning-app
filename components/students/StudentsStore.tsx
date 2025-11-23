@@ -52,6 +52,10 @@ export const [StudentsProvider, useStudents] = createContextHook(() => {
   });
   const refetchStudents = useCallback(() => studentsQuery.refetch(), [studentsQuery]);
   
+  const createStudentMutation = trpc.students.create.useMutation();
+  const updateStudentMutation = trpc.students.update.useMutation();
+  const deleteStudentMutation = trpc.students.delete.useMutation();
+  
   useEffect(() => {
     if (studentsQuery.data) {
       console.log("[StudentsStore] Loaded students from Supabase:", studentsQuery.data.length);
@@ -78,12 +82,6 @@ export const [StudentsProvider, useStudents] = createContextHook(() => {
       console.error("[StudentsStore] Error loading students:", studentsQuery.error.message);
     }
   }, [studentsQuery.data, studentsQuery.error]);
-  
-  const createStudentMutation = trpc.students.create.useMutation();
-  
-  const updateStudentMutation = trpc.students.update.useMutation();
-  
-  const deleteStudentMutation = trpc.students.delete.useMutation();
   
   const allStudents = useMemo(() => {
     const customIds = new Set(customStudents.map(s => s.id));
