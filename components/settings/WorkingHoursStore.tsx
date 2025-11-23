@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import createContextHook from "@nkzw/create-context-hook";
 import { Platform } from "react-native";
 import * as FileSystem from "expo-file-system/legacy";
-import { trpc } from "@/lib/trpc";
+import { trpc, trpcClient } from "@/lib/trpc";
 import { useAuth } from "../auth/AuthStore";
 
 export type DayKey =
@@ -120,6 +120,47 @@ function migrateAny(input: unknown): WorkingHours | null {
   }
 }
 
+function normalizeVacationPeriods(input: unknown): VacationPeriod[] {
+  if (!Array.isArray(input)) {
+    return [];
+  }
+
+  return input
+    .map((raw, index) => {
+      if (!raw || typeof raw !== "object") {
+        return null;
+      }
+
+      const source = raw as Partial<VacationPeriod> & Record<string, any>;
+      const startDate =
+        typeof source.startDate === "string"
+          ? source.startDate
+          : typeof source.start_date === "string"
+            ? source.start_date
+            : null;
+      const endDate =
+        typeof source.endDate === "string"
+          ? source.endDate
+          : typeof source.end_date === "string"
+            ? source.end_date
+            : null;
+
+      if (!startDate || !endDate) {
+        return null;
+      }
+
+      const id = typeof source.id === "string" ? source.id : `${Date.now()}-${index}`;
+
+      return {
+        id,
+        startDate,
+        endDate,
+        repeatAnnually: Boolean(source.repeatAnnually ?? source.repeat_annually ?? false),
+      } satisfies VacationPeriod;
+    })
+    .filter((item): item is VacationPeriod => Boolean(item));
+}
+
 export const [WorkingHoursProvider, useWorkingHours] = createContextHook(() => {
   const [workingHours, setWorkingHours] = useState<WorkingHours>(defaultWorkingHours);
   const [vacationPeriods, setVacationPeriods] = useState<VacationPeriod[]>([]);
@@ -127,11 +168,6 @@ export const [WorkingHoursProvider, useWorkingHours] = createContextHook(() => {
   const { isAuthenticated, user, profile } = useAuth();
   const activeUserId = user?.id ?? null;
   const isInstructor = profile?.role === "instructor";
-
-  const fetchSettingsQuery = trpc.instructor.fetchSettings.useQuery(undefined, {
-    enabled: Boolean(isAuthenticated && activeUserId && isInstructor),
-    retry: 1,
-  });
 
   const syncSettingsMutation = trpc.instructor.syncSettings.useMutation();
 
@@ -148,53 +184,7 @@ export const [WorkingHoursProvider, useWorkingHours] = createContextHook(() => {
       return;
     }
 
-    if (isInstructor && fetchSettingsQuery.isLoading && !fetchSettingsQuery.data) {
-      setLoading(true);
-      return;
-    }
-
     let cancelled = false;
-
-    const normalizeVacationPeriods = (input: unknown): VacationPeriod[] => {
-      if (!Array.isArray(input)) {
-        return [];
-      }
-
-      return input
-        .map((raw, index) => {
-          if (!raw || typeof raw !== "object") {
-            return null;
-          }
-
-          const source = raw as Partial<VacationPeriod> & Record<string, any>;
-          const startDate =
-            typeof source.startDate === "string"
-              ? source.startDate
-              : typeof source.start_date === "string"
-                ? source.start_date
-                : null;
-          const endDate =
-            typeof source.endDate === "string"
-              ? source.endDate
-              : typeof source.end_date === "string"
-                ? source.end_date
-                : null;
-
-          if (!startDate || !endDate) {
-            return null;
-          }
-
-          const id = typeof source.id === "string" ? source.id : `${Date.now()}-${index}`;
-
-          return {
-            id,
-            startDate,
-            endDate,
-            repeatAnnually: Boolean(source.repeatAnnually ?? source.repeat_annually ?? false),
-          } satisfies VacationPeriod;
-        })
-        .filter((item): item is VacationPeriod => Boolean(item));
-    };
 
     const loadFromLocal = async () => {
       const [hoursStr, vacationsStr] = await Promise.all([
@@ -231,9 +221,9 @@ export const [WorkingHoursProvider, useWorkingHours] = createContextHook(() => {
       }
     };
 
-    const applyRemoteData = async () => {
-      const remoteHours = migrateAny(fetchSettingsQuery.data?.workingHours) ?? defaultWorkingHours;
-      const remoteVacations = normalizeVacationPeriods(fetchSettingsQuery.data?.vacationPeriods ?? []);
+    const applyRemoteData = async (data: Awaited<ReturnType<typeof trpcClient.instructor.fetchSettings.query>>) => {
+      const remoteHours = migrateAny(data?.workingHours) ?? defaultWorkingHours;
+      const remoteVacations = normalizeVacationPeriods(data?.vacationPeriods ?? []);
 
       if (!cancelled) {
         setWorkingHours(remoteHours);
@@ -244,11 +234,21 @@ export const [WorkingHoursProvider, useWorkingHours] = createContextHook(() => {
       await storageSetString(VACATION_STORAGE_KEY, JSON.stringify(remoteVacations));
     };
 
+    const loadRemote = async () => {
+      try {
+        const data = await trpcClient.instructor.fetchSettings.query();
+        await applyRemoteData(data);
+      } catch (error) {
+        console.log("WorkingHoursStore: Failed to load remote settings", error);
+        await loadFromLocal();
+      }
+    };
+
     const run = async () => {
       setLoading(true);
       try {
-        if (isInstructor && fetchSettingsQuery.data) {
-          await applyRemoteData();
+        if (isInstructor) {
+          await loadRemote();
         } else {
           await loadFromLocal();
         }
@@ -264,7 +264,7 @@ export const [WorkingHoursProvider, useWorkingHours] = createContextHook(() => {
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated, activeUserId, isInstructor, fetchSettingsQuery.data, fetchSettingsQuery.isLoading]);
+  }, [isAuthenticated, activeUserId, isInstructor]);
 
   const syncRemote = React.useCallback(
     async (payload: { workingHours?: WorkingHours; vacationPeriods?: VacationPeriod[] }) => {
