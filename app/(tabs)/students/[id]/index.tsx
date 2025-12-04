@@ -794,7 +794,7 @@ function StudentOverviewTable({ studentName, baseItems, products, studentPackage
         })()}
 
         <Row
-          label="Uren over"
+          label="Uren besteld"
           value={`${round1(hoursOver)} u`}
           valueColor={
             noneAdded
