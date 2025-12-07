@@ -1,6 +1,9 @@
 import { z } from "zod";
 import { studentProcedure } from "../../../create-context";
 import { TRPCError } from "@trpc/server";
+import type { Database } from "@/types/supabase";
+
+type LinkRequestInsert = Database["public"]["Tables"]["instructor_link_requests"]["Insert"];
 
 export const sendLinkRequestProcedure = studentProcedure
   .input(
@@ -10,8 +13,8 @@ export const sendLinkRequestProcedure = studentProcedure
     })
   )
   .mutation(async ({ ctx, input }) => {
-    const { data: existingRequest } = await ctx.supabase
-      .from("instructor_link_requests")
+    const { data: existingRequest } = await (ctx.supabase
+      .from("instructor_link_requests") as any)
       .select("*")
       .eq("student_id", ctx.user.id)
       .eq("instructor_id", input.instructorId)
@@ -25,14 +28,14 @@ export const sendLinkRequestProcedure = studentProcedure
       });
     }
 
-    const { data, error } = await ctx.supabase
-      .from("instructor_link_requests")
+    const { data, error } = await (ctx.supabase
+      .from("instructor_link_requests") as any)
       .insert({
         student_id: ctx.user.id,
         instructor_id: input.instructorId,
         message: input.message,
         status: "pending",
-      })
+      } satisfies LinkRequestInsert)
       .select()
       .single();
 

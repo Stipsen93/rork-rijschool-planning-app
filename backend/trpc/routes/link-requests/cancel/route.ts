@@ -1,6 +1,9 @@
 import { z } from "zod";
 import { studentProcedure } from "../../../create-context";
 import { TRPCError } from "@trpc/server";
+import type { Database } from "@/types/supabase";
+
+type LinkRequestUpdate = Database["public"]["Tables"]["instructor_link_requests"]["Update"];
 
 export const cancelLinkRequestProcedure = studentProcedure
   .input(
@@ -9,8 +12,8 @@ export const cancelLinkRequestProcedure = studentProcedure
     })
   )
   .mutation(async ({ ctx, input }) => {
-    const { data: request, error: fetchError } = await ctx.supabase
-      .from("instructor_link_requests")
+    const { data: request, error: fetchError } = await (ctx.supabase
+      .from("instructor_link_requests") as any)
       .select("*")
       .eq("id", input.requestId)
       .eq("student_id", ctx.user.id)
@@ -24,11 +27,11 @@ export const cancelLinkRequestProcedure = studentProcedure
       });
     }
 
-    const { data, error } = await ctx.supabase
-      .from("instructor_link_requests")
+    const { data, error } = await (ctx.supabase
+      .from("instructor_link_requests") as any)
       .update({
         status: "cancelled",
-      })
+      } satisfies LinkRequestUpdate)
       .eq("id", input.requestId)
       .select()
       .single();

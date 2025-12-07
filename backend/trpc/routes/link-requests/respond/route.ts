@@ -1,6 +1,9 @@
 import { z } from "zod";
 import { instructorProcedure } from "../../../create-context";
 import { TRPCError } from "@trpc/server";
+import type { Database } from "@/types/supabase";
+
+type LinkRequestUpdate = Database["public"]["Tables"]["instructor_link_requests"]["Update"];
 
 export const respondLinkRequestProcedure = instructorProcedure
   .input(
@@ -10,8 +13,8 @@ export const respondLinkRequestProcedure = instructorProcedure
     })
   )
   .mutation(async ({ ctx, input }) => {
-    const { data: request, error: fetchError } = await ctx.supabase
-      .from("instructor_link_requests")
+    const { data: request, error: fetchError } = await (ctx.supabase
+      .from("instructor_link_requests") as any)
       .select("*")
       .eq("id", input.requestId)
       .eq("instructor_id", ctx.user.id)
@@ -27,12 +30,12 @@ export const respondLinkRequestProcedure = instructorProcedure
 
     const newStatus = input.accept ? "accepted" : "rejected";
 
-    const { data, error } = await ctx.supabase
-      .from("instructor_link_requests")
+    const { data, error } = await (ctx.supabase
+      .from("instructor_link_requests") as any)
       .update({
         status: newStatus,
         responded_at: new Date().toISOString(),
-      })
+      } satisfies LinkRequestUpdate)
       .eq("id", input.requestId)
       .select()
       .single();

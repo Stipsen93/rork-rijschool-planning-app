@@ -1,6 +1,15 @@
 import { TRPCError } from "@trpc/server";
 import { publicProcedure } from "../../../create-context";
 import { supabase } from "@/lib/supabase";
+import type { Database } from "@/types/supabase";
+
+type StudentPackageRow = Database["public"]["Tables"]["student_packages"]["Row"];
+type StudentProductRow = Database["public"]["Tables"]["student_products"]["Row"];
+type PackageRow = Database["public"]["Tables"]["packages"]["Row"];
+type ProductRow = Database["public"]["Tables"]["products"]["Row"];
+
+type PackageWithRelation = StudentPackageRow & { package?: PackageRow | null };
+type ProductWithRelation = StudentProductRow & { product?: ProductRow | null };
 
 export const studentPackagesProcedure = publicProcedure.query(async ({ ctx }) => {
   if (!ctx.user?.id) {
@@ -21,6 +30,8 @@ export const studentPackagesProcedure = publicProcedure.query(async ({ ctx }) =>
     .eq("student_id", ctx.user.id)
     .order("created_at", { ascending: false });
 
+  const normalizedPackages = (packagesData ?? []) as PackageWithRelation[];
+
   if (packagesError) {
     console.error("Error fetching student packages:", packagesError);
     throw new TRPCError({
@@ -38,6 +49,8 @@ export const studentPackagesProcedure = publicProcedure.query(async ({ ctx }) =>
     .eq("student_id", ctx.user.id)
     .order("created_at", { ascending: false });
 
+  const normalizedProducts = (productsData ?? []) as ProductWithRelation[];
+
   if (productsError) {
     console.error("Error fetching student products:", productsError);
     throw new TRPCError({
@@ -46,9 +59,9 @@ export const studentPackagesProcedure = publicProcedure.query(async ({ ctx }) =>
     });
   }
 
-  const totalHoursRemaining = packagesData?.reduce((sum, pkg) => sum + (pkg.hours_remaining || 0), 0) || 0;
-  const totalHoursUsed = packagesData?.reduce((sum, pkg) => sum + (pkg.hours_used || 0), 0) || 0;
-  const totalPriceRemaining = packagesData?.reduce((sum, pkg) => sum + (pkg.price_remaining || 0), 0) || 0;
+  const totalHoursRemaining = normalizedPackages.reduce((sum, pkg) => sum + (pkg.hours_remaining ?? 0), 0);
+  const totalHoursUsed = normalizedPackages.reduce((sum, pkg) => sum + (pkg.hours_used ?? 0), 0);
+  const totalPriceRemaining = normalizedPackages.reduce((sum, pkg) => sum + (pkg.price_remaining ?? 0), 0);
 
   console.log("Student packages fetched successfully:", {
     packagesCount: packagesData?.length || 0,
@@ -57,8 +70,8 @@ export const studentPackagesProcedure = publicProcedure.query(async ({ ctx }) =>
   });
 
   return {
-    packages: packagesData || [],
-    products: productsData || [],
+    packages: normalizedPackages,
+    products: normalizedProducts,
     summary: {
       totalHoursRemaining,
       totalHoursUsed,

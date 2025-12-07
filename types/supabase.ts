@@ -291,6 +291,38 @@ export interface Database {
           updated_at?: string
         }
       }
+      instructor_link_requests: {
+        Row: {
+          id: string
+          student_id: string
+          instructor_id: string
+          status: 'pending' | 'accepted' | 'rejected' | 'cancelled'
+          message: string | null
+          created_at: string
+          updated_at: string | null
+          responded_at: string | null
+        }
+        Insert: {
+          id?: string
+          student_id: string
+          instructor_id: string
+          status?: 'pending' | 'accepted' | 'rejected' | 'cancelled'
+          message?: string | null
+          created_at?: string
+          updated_at?: string | null
+          responded_at?: string | null
+        }
+        Update: {
+          id?: string
+          student_id?: string
+          instructor_id?: string
+          status?: 'pending' | 'accepted' | 'rejected' | 'cancelled'
+          message?: string | null
+          created_at?: string
+          updated_at?: string | null
+          responded_at?: string | null
+        }
+      }
       lessons: {
         Row: {
           id: string
@@ -464,8 +496,10 @@ export interface Database {
           package_id: string
           total_hours: number
           hours_used?: number
+          hours_remaining?: number
           price_total: number
           price_paid?: number
+          price_remaining?: number
           status?: 'active' | 'completed' | 'expired' | 'cancelled'
           start_date?: string
           expiry_date?: string | null
@@ -478,8 +512,10 @@ export interface Database {
           package_id?: string
           total_hours?: number
           hours_used?: number
+          hours_remaining?: number
           price_total?: number
           price_paid?: number
+          price_remaining?: number
           status?: 'active' | 'completed' | 'expired' | 'cancelled'
           start_date?: string
           expiry_date?: string | null

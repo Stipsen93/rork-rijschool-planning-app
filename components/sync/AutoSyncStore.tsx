@@ -35,7 +35,7 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
   });
 
   const appState = useRef<AppStateStatus>(AppState.currentState);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastSyncRef = useRef<number>(0);
   const skippedRoleLogRef = useRef<boolean>(false);
   const [lastSyncTime, setLastSyncTime] = useState<number>(0);
