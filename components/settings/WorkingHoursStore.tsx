@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import createContextHook from "@nkzw/create-context-hook";
 import { Platform } from "react-native";
 import * as FileSystem from "expo-file-system/legacy";
-import { trpc, trpcClient } from "@/lib/trpc";
+import { trpcClient } from "@/lib/trpc";
 import { useAuth } from "../auth/AuthStore";
 
 export type DayKey =
@@ -169,8 +169,6 @@ export const [WorkingHoursProvider, useWorkingHours] = createContextHook(() => {
   const activeUserId = user?.id ?? null;
   const isInstructor = profile?.role === "instructor";
 
-  const syncSettingsMutation = trpc.instructor.syncSettings.useMutation();
-
   useEffect(() => {
     if (!isAuthenticated) {
       setWorkingHours(defaultWorkingHours);
@@ -273,13 +271,13 @@ export const [WorkingHoursProvider, useWorkingHours] = createContextHook(() => {
       }
 
       try {
-        await syncSettingsMutation.mutateAsync(payload);
+        await trpcClient.instructor.syncSettings.mutate(payload);
       } catch (error) {
         console.log("WorkingHoursStore: Supabase sync failed", error);
         throw (error instanceof Error ? error : new Error("Synchronisatie mislukt"));
       }
     },
-    [isAuthenticated, isInstructor, syncSettingsMutation]
+    [isAuthenticated, isInstructor]
   );
 
   const updateWorkingHours = React.useCallback(

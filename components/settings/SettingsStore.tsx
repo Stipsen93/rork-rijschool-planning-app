@@ -4,7 +4,7 @@ import { Platform } from "react-native";
 import * as FileSystem from "expo-file-system/legacy";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth } from "../auth/AuthStore";
-import { trpc } from "@/lib/trpc";
+import { trpcClient } from "@/lib/trpc";
 
 type LessonConfig = {
   baseLessonDuration: number;
@@ -69,13 +69,6 @@ export const [SettingsProvider, useSettings] = createContextHook(() => {
   const activeUserId = user?.id ?? null;
   const isInstructor = authProfile?.role === "instructor";
 
-  const fetchSettingsQuery = trpc.instructor.fetchSettings.useQuery(undefined, {
-    enabled: isAuthenticated && isInstructor,
-    retry: 1,
-  });
-
-  const syncSettingsMutation = trpc.instructor.syncSettings.useMutation();
-
   useEffect(() => {
     if (!isAuthenticated) {
       setLessonConfig(defaultLessonConfig);
@@ -91,157 +84,239 @@ export const [SettingsProvider, useSettings] = createContextHook(() => {
       return;
     }
 
-    if (!isInstructor) {
-      setLoading(false);
-      return;
-    }
-
     let cancelled = false;
-    setLoading(true);
 
-    (async () => {
+    const loadFromLocal = async () => {
+      console.log("[SettingsStore] Loading settings from local storage...");
+      const [configStr, productsStr, packagesStr, ratesStr] = await Promise.all([
+        storageGetString(LESSON_CONFIG_KEY),
+        AsyncStorage.getItem(PRODUCTS_KEY),
+        AsyncStorage.getItem(PACKAGES_KEY),
+        AsyncStorage.getItem(HOURLY_RATES_KEY),
+      ]);
+
+      if (cancelled) {
+        return;
+      }
+
+      if (configStr) {
+        try {
+          const parsed = JSON.parse(configStr) as Partial<LessonConfig> & Partial<{ practicalLessonDuration: number }>;
+          const migrated: LessonConfig = {
+            baseLessonDuration:
+              typeof parsed.baseLessonDuration === "number"
+                ? parsed.baseLessonDuration
+                : typeof parsed.practicalLessonDuration === "number"
+                  ? parsed.practicalLessonDuration
+                  : 60,
+            productDurations: parsed.productDurations ?? {},
+            breakBetweenLessons:
+              typeof parsed.breakBetweenLessons === "number"
+                ? parsed.breakBetweenLessons
+                : defaultLessonConfig.breakBetweenLessons,
+            automaticBreaks:
+              typeof parsed.automaticBreaks === "boolean"
+                ? parsed.automaticBreaks
+                : defaultLessonConfig.automaticBreaks,
+            requireConfirmation:
+              typeof parsed.requireConfirmation === "boolean"
+                ? parsed.requireConfirmation
+                : defaultLessonConfig.requireConfirmation,
+            cancellationNoticeHours:
+              (parsed.cancellationNoticeHours as LessonConfig["cancellationNoticeHours"]) ??
+              defaultLessonConfig.cancellationNoticeHours,
+          };
+          setLessonConfig(migrated);
+          console.log("[SettingsStore] Loaded lesson config from local storage");
+        } catch (e) {
+          console.log("[SettingsStore] Failed to parse lesson config", e);
+          setLessonConfig(defaultLessonConfig);
+        }
+      } else {
+        setLessonConfig(defaultLessonConfig);
+      }
+
+      if (cancelled) {
+        return;
+      }
+
+      if (productsStr) {
+        try {
+          const raw = JSON.parse(productsStr) as Partial<Product>[];
+          const list: Product[] = raw.map((p) => ({
+            id: String(p.id ?? ""),
+            name: String(p.name ?? ""),
+            price: Number(p.price ?? 0),
+            vatStatus: (p.vatStatus as Product["vatStatus"]) ?? "incl",
+            installments: typeof p.installments === "number" && p.installments >= 1 ? p.installments : 1,
+          }));
+          setProducts(list);
+          setLessonConfig((prev) => {
+            const nextDurations = { ...prev.productDurations };
+            list.forEach((p) => {
+              if (typeof nextDurations[p.name] !== "number") {
+                nextDurations[p.name] = prev.baseLessonDuration ?? 60;
+              }
+            });
+            return { ...prev, productDurations: nextDurations };
+          });
+          console.log("[SettingsStore] Loaded products from local storage", list.length);
+        } catch (error) {
+          console.log("[SettingsStore] Failed to parse stored products", error);
+          setProducts([]);
+        }
+      } else {
+        setProducts([]);
+      }
+
+      if (cancelled) {
+        return;
+      }
+
+      if (packagesStr) {
+        try {
+          const rawPk = JSON.parse(packagesStr) as Partial<PackageItem>[];
+          const pkgs: PackageItem[] = rawPk.map((p) => ({
+            id: String(p.id ?? ""),
+            name: String(p.name ?? ""),
+            hours: Number(p.hours ?? 0),
+            price: Number(p.price ?? 0),
+            vatStatus: (p.vatStatus as PackageItem["vatStatus"]) ?? "incl",
+            selectedProducts: Array.isArray(p.selectedProducts) ? p.selectedProducts.map(String) : [],
+            installments: typeof p.installments === "number" && p.installments >= 1 ? p.installments : 1,
+          }));
+          setPackages(pkgs);
+        } catch (error) {
+          console.log("[SettingsStore] Failed to parse stored packages", error);
+          setPackages([]);
+        }
+      } else {
+        setPackages([]);
+      }
+
+      if (ratesStr) {
+        try {
+          setHourlyRates(JSON.parse(ratesStr) as HourlyRates);
+        } catch (error) {
+          console.log("[SettingsStore] Failed to parse stored hourly rates", error);
+          setHourlyRates({ price: 0, vatStatus: "incl" });
+        }
+      } else {
+        setHourlyRates({ price: 0, vatStatus: "incl" });
+      }
+    };
+
+    const applyRemoteData = async (
+      data: Awaited<ReturnType<typeof trpcClient.instructor.fetchSettings.query>>,
+    ) => {
+      const hasRemoteData = Boolean(
+        data?.lessonConfig || (data?.products?.length ?? 0) > 0 || (data?.packages?.length ?? 0) > 0 || data?.hourlyRates,
+      );
+
+      if (!hasRemoteData) {
+        await loadFromLocal();
+        return;
+      }
+
+      if (cancelled) {
+        return;
+      }
+
+      if (data?.lessonConfig) {
+        setLessonConfig(data.lessonConfig);
+        await storageSetString(LESSON_CONFIG_KEY, JSON.stringify(data.lessonConfig));
+        console.log("[SettingsStore] Loaded lesson config from Supabase");
+      } else {
+        setLessonConfig(defaultLessonConfig);
+      }
+
+      if (cancelled) {
+        return;
+      }
+
+      if (Array.isArray(data?.products)) {
+        const list: Product[] = data.products.map((p: any) => ({
+          id: String(p.id ?? ""),
+          name: String(p.name ?? ""),
+          price: Number(p.price ?? 0),
+          vatStatus: (p.vatStatus as Product["vatStatus"]) ?? "incl",
+          installments: typeof p.installments === "number" && p.installments >= 1 ? p.installments : 1,
+        }));
+        setProducts(list);
+        setLessonConfig((prev) => {
+          const nextDurations = { ...prev.productDurations };
+          list.forEach((p) => {
+            if (typeof nextDurations[p.name] !== "number") {
+              nextDurations[p.name] = prev.baseLessonDuration ?? 60;
+            }
+          });
+          return { ...prev, productDurations: nextDurations };
+        });
+        await AsyncStorage.setItem(PRODUCTS_KEY, JSON.stringify(list));
+        console.log("[SettingsStore] Loaded", list.length, "products from Supabase");
+      } else {
+        setProducts([]);
+      }
+
+      if (cancelled) {
+        return;
+      }
+
+      if (Array.isArray(data?.packages)) {
+        const pkgs: PackageItem[] = data.packages.map((p: any) => ({
+          id: String(p.id ?? ""),
+          name: String(p.name ?? ""),
+          hours: Number(p.hours ?? 0),
+          price: Number(p.price ?? 0),
+          vatStatus: (p.vatStatus as PackageItem["vatStatus"]) ?? "incl",
+          selectedProducts: Array.isArray(p.selectedProducts) ? p.selectedProducts.map(String) : [],
+          installments: typeof p.installments === "number" && p.installments >= 1 ? p.installments : 1,
+        }));
+        setPackages(pkgs);
+        await AsyncStorage.setItem(PACKAGES_KEY, JSON.stringify(pkgs));
+        console.log("[SettingsStore] Loaded", pkgs.length, "packages from Supabase");
+      } else {
+        setPackages([]);
+      }
+
+      if (data?.hourlyRates) {
+        setHourlyRates(data.hourlyRates);
+        await AsyncStorage.setItem(HOURLY_RATES_KEY, JSON.stringify(data.hourlyRates));
+        console.log("[SettingsStore] Loaded hourly rates from Supabase");
+      } else {
+        setHourlyRates({ price: 0, vatStatus: "incl" });
+      }
+    };
+
+    const loadRemote = async () => {
       console.log("[SettingsStore] Loading settings from Supabase...");
       try {
-        if (fetchSettingsQuery.data) {
-          const data = fetchSettingsQuery.data;
-
-          if (data.lessonConfig) {
-            setLessonConfig(data.lessonConfig);
-            console.log("[SettingsStore] Loaded lesson config from Supabase");
-          }
-
-          if (data.products && Array.isArray(data.products)) {
-            const list: Product[] = data.products.map((p: any) => ({
-              id: String(p.id ?? ""),
-              name: String(p.name ?? ""),
-              price: Number(p.price ?? 0),
-              vatStatus: (p.vatStatus as Product["vatStatus"]) ?? "incl",
-              installments: typeof p.installments === "number" && p.installments >= 1 ? p.installments : 1,
-            }));
-            setProducts(list);
-            console.log("[SettingsStore] Loaded", list.length, "products from Supabase");
-
-            setLessonConfig((prev) => {
-              const nextDurations = { ...prev.productDurations };
-              list.forEach((p) => { if (typeof nextDurations[p.name] !== "number") nextDurations[p.name] = 60; });
-              return { ...prev, productDurations: nextDurations };
-            });
-          }
-
-          if (data.packages && Array.isArray(data.packages)) {
-            const pkgs: PackageItem[] = data.packages.map((p: any) => ({
-              id: String(p.id ?? ""),
-              name: String(p.name ?? ""),
-              hours: Number(p.hours ?? 0),
-              price: Number(p.price ?? 0),
-              vatStatus: (p.vatStatus as PackageItem["vatStatus"]) ?? "incl",
-              selectedProducts: Array.isArray(p.selectedProducts) ? p.selectedProducts.map(String) : [],
-              installments: typeof p.installments === "number" && p.installments >= 1 ? p.installments : 1,
-            }));
-            setPackages(pkgs);
-            console.log("[SettingsStore] Loaded", pkgs.length, "packages from Supabase");
-          }
-
-          if (data.hourlyRates) {
-            setHourlyRates(data.hourlyRates);
-            console.log("[SettingsStore] Loaded hourly rates from Supabase");
-          }
-        } else {
-          console.log("[SettingsStore] No data from Supabase, loading from local storage...");
-          const [configStr, productsStr, packagesStr, ratesStr] = await Promise.all([
-            storageGetString(LESSON_CONFIG_KEY),
-            AsyncStorage.getItem(PRODUCTS_KEY),
-            AsyncStorage.getItem(PACKAGES_KEY),
-            AsyncStorage.getItem(HOURLY_RATES_KEY),
-          ]);
-
-          if (cancelled) {
-            return;
-          }
-
-          if (configStr) {
-            try {
-              const parsed = JSON.parse(configStr) as Partial<LessonConfig> & Partial<{ practicalLessonDuration: number }>;
-              const migrated: LessonConfig = {
-                baseLessonDuration: typeof parsed.baseLessonDuration === "number" ? parsed.baseLessonDuration : (typeof parsed.practicalLessonDuration === "number" ? parsed.practicalLessonDuration : 60),
-                productDurations: parsed.productDurations ?? {},
-                breakBetweenLessons: typeof parsed.breakBetweenLessons === "number" ? parsed.breakBetweenLessons : defaultLessonConfig.breakBetweenLessons,
-                automaticBreaks: typeof parsed.automaticBreaks === "boolean" ? parsed.automaticBreaks : defaultLessonConfig.automaticBreaks,
-                requireConfirmation: typeof parsed.requireConfirmation === "boolean" ? parsed.requireConfirmation : defaultLessonConfig.requireConfirmation,
-                cancellationNoticeHours: (parsed.cancellationNoticeHours as LessonConfig["cancellationNoticeHours"]) ?? defaultLessonConfig.cancellationNoticeHours,
-              };
-              setLessonConfig(migrated);
-              console.log("[SettingsStore] Loaded lesson config from local storage");
-            } catch (e) {
-              console.log("[SettingsStore] Failed to parse lesson config", e);
-            }
-          } else {
-            setLessonConfig(defaultLessonConfig);
-          }
-
-          if (cancelled) {
-            return;
-          }
-
-          if (productsStr) {
-            const raw = JSON.parse(productsStr) as Partial<Product>[];
-            const list: Product[] = raw.map((p) => ({
-              id: String(p.id ?? ""),
-              name: String(p.name ?? ""),
-              price: Number(p.price ?? 0),
-              vatStatus: (p.vatStatus as Product["vatStatus"]) ?? "incl",
-              installments: typeof p.installments === "number" && p.installments >= 1 ? p.installments : 1,
-            }));
-            setProducts(list);
-            setLessonConfig((prev) => {
-              const nextDurations = { ...prev.productDurations };
-              list.forEach((p) => { if (typeof nextDurations[p.name] !== "number") nextDurations[p.name] = 60; });
-              return { ...prev, productDurations: nextDurations };
-            });
-            console.log("[SettingsStore] Loaded products from local storage", list.length);
-          } else {
-            setProducts([]);
-          }
-
-          if (cancelled) {
-            return;
-          }
-
-          if (packagesStr) {
-            const rawPk = JSON.parse(packagesStr) as Partial<PackageItem>[];
-            const pkgs: PackageItem[] = rawPk.map((p) => ({
-              id: String(p.id ?? ""),
-              name: String(p.name ?? ""),
-              hours: Number(p.hours ?? 0),
-              price: Number(p.price ?? 0),
-              vatStatus: (p.vatStatus as PackageItem["vatStatus"]) ?? "incl",
-              selectedProducts: Array.isArray(p.selectedProducts) ? p.selectedProducts.map(String) : [],
-              installments: typeof p.installments === "number" && p.installments >= 1 ? p.installments : 1,
-            }));
-            setPackages(pkgs);
-          } else {
-            setPackages([]);
-          }
-
-          if (ratesStr) {
-            setHourlyRates(JSON.parse(ratesStr) as HourlyRates);
-          } else {
-            setHourlyRates({ price: 0, vatStatus: "incl" });
-          }
-        }
+        const data = await trpcClient.instructor.fetchSettings.query();
+        await applyRemoteData(data);
       } catch (e) {
-        console.error("[SettingsStore] Failed to load settings", e);
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
+        console.error("[SettingsStore] Failed to load settings from Supabase", e);
+        await loadFromLocal();
       }
-    })();
+    };
+
+    const run = async () => {
+      setLoading(true);
+      if (isInstructor) {
+        await loadRemote();
+      } else {
+        await loadFromLocal();
+      }
+      if (!cancelled) {
+        setLoading(false);
+      }
+    };
+
+    void run();
 
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated, activeUserId, isInstructor, fetchSettingsQuery.data]);
+  }, [isAuthenticated, activeUserId, isInstructor]);
 
   type SyncPayload = {
     lessonConfig?: LessonConfig;
@@ -257,13 +332,13 @@ export const [SettingsProvider, useSettings] = createContextHook(() => {
       }
 
       try {
-        await syncSettingsMutation.mutateAsync(payload);
+        await trpcClient.instructor.syncSettings.mutate(payload);
       } catch (error) {
         console.log("[SettingsStore] Failed to sync settings", error);
         throw (error instanceof Error ? error : new Error("Synchronisatie mislukt"));
       }
     },
-    [isAuthenticated, isInstructor, syncSettingsMutation],
+    [isAuthenticated, isInstructor],
   );
 
   const updateLessonConfig = useCallback(
