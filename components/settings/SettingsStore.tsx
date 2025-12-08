@@ -74,6 +74,8 @@ export const [SettingsProvider, useSettings] = createContextHook(() => {
     retry: 1,
   });
 
+  const syncSettingsMutation = trpc.instructor.syncSettings.useMutation();
+
   useEffect(() => {
     if (!isAuthenticated) {
       setLessonConfig(defaultLessonConfig);
@@ -241,36 +243,79 @@ export const [SettingsProvider, useSettings] = createContextHook(() => {
     };
   }, [isAuthenticated, activeUserId, isInstructor, fetchSettingsQuery.data]);
 
-  const updateLessonConfig = useCallback(async (config: LessonConfig) => {
-    console.log("[SettingsStore] Updating lesson config", config);
-    setLessonConfig(config);
-    await storageSetString(LESSON_CONFIG_KEY, JSON.stringify(config));
-  }, []);
+  type SyncPayload = {
+    lessonConfig?: LessonConfig;
+    products?: Product[];
+    packages?: PackageItem[];
+    hourlyRates?: HourlyRates;
+  };
 
-  const updateProducts = useCallback(async (prods: Product[]) => {
-    console.log("[SettingsStore] Updating products", prods.length);
-    setProducts(prods);
-    await AsyncStorage.setItem(PRODUCTS_KEY, JSON.stringify(prods));
-    setLessonConfig((prev) => {
-      const nextDurations = { ...prev.productDurations };
-      prods.forEach((p) => { if (typeof nextDurations[p.name] !== "number") nextDurations[p.name] = 60; });
-      const updated = { ...prev, productDurations: nextDurations };
-      void storageSetString(LESSON_CONFIG_KEY, JSON.stringify(updated));
-      return updated;
-    });
-  }, []);
+  const syncRemote = useCallback(
+    async (payload: SyncPayload) => {
+      if (!isAuthenticated || !isInstructor) {
+        return;
+      }
 
-  const updatePackages = useCallback(async (pkgs: PackageItem[]) => {
-    console.log("[SettingsStore] Updating packages", pkgs.length);
-    setPackages(pkgs);
-    await AsyncStorage.setItem(PACKAGES_KEY, JSON.stringify(pkgs));
-  }, []);
+      try {
+        await syncSettingsMutation.mutateAsync(payload);
+      } catch (error) {
+        console.log("[SettingsStore] Failed to sync settings", error);
+        throw (error instanceof Error ? error : new Error("Synchronisatie mislukt"));
+      }
+    },
+    [isAuthenticated, isInstructor, syncSettingsMutation],
+  );
 
-  const updateHourlyRates = useCallback(async (rates: HourlyRates) => {
-    console.log("[SettingsStore] Updating hourly rates", rates);
-    setHourlyRates(rates);
-    await AsyncStorage.setItem(HOURLY_RATES_KEY, JSON.stringify(rates));
-  }, []);
+  const updateLessonConfig = useCallback(
+    async (config: LessonConfig) => {
+      console.log("[SettingsStore] Updating lesson config", config);
+      setLessonConfig(config);
+      await storageSetString(LESSON_CONFIG_KEY, JSON.stringify(config));
+      await syncRemote({ lessonConfig: config });
+    },
+    [syncRemote],
+  );
+
+  const updateProducts = useCallback(
+    async (prods: Product[]) => {
+      console.log("[SettingsStore] Updating products", prods.length);
+      const nextDurations = { ...lessonConfig.productDurations };
+      prods.forEach((p) => {
+        if (typeof nextDurations[p.name] !== "number") {
+          nextDurations[p.name] = lessonConfig.baseLessonDuration ?? 60;
+        }
+      });
+      const updatedLessonConfig: LessonConfig = { ...lessonConfig, productDurations: nextDurations };
+
+      setProducts(prods);
+      setLessonConfig(updatedLessonConfig);
+
+      await AsyncStorage.setItem(PRODUCTS_KEY, JSON.stringify(prods));
+      await storageSetString(LESSON_CONFIG_KEY, JSON.stringify(updatedLessonConfig));
+      await syncRemote({ products: prods, lessonConfig: updatedLessonConfig });
+    },
+    [lessonConfig, syncRemote],
+  );
+
+  const updatePackages = useCallback(
+    async (pkgs: PackageItem[]) => {
+      console.log("[SettingsStore] Updating packages", pkgs.length);
+      setPackages(pkgs);
+      await AsyncStorage.setItem(PACKAGES_KEY, JSON.stringify(pkgs));
+      await syncRemote({ packages: pkgs });
+    },
+    [syncRemote],
+  );
+
+  const updateHourlyRates = useCallback(
+    async (rates: HourlyRates) => {
+      console.log("[SettingsStore] Updating hourly rates", rates);
+      setHourlyRates(rates);
+      await AsyncStorage.setItem(HOURLY_RATES_KEY, JSON.stringify(rates));
+      await syncRemote({ hourlyRates: rates });
+    },
+    [syncRemote],
+  );
 
   const getDurationForType = useCallback((type: string): number => {
     if (type === "Rijles") return lessonConfig.baseLessonDuration;
