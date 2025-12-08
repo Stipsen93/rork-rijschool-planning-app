@@ -77,7 +77,7 @@ export default function LoginScreen() {
           <View style={styles.iconContainer}>
             <Car color="#2563EB" size={56} strokeWidth={2} />
           </View>
-          <Text style={styles.appName}>DrivePlan</Text>
+          <Text style={styles.appName}>Driveplannen</Text>
           <Text style={styles.subtitle}>Instructeur Login</Text>
         </View>
 
