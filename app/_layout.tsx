@@ -3,6 +3,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
+import { Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { trpc, trpcClient } from "@/lib/trpc";
 import { queryClient } from "@/lib/queryClient";
@@ -37,6 +38,22 @@ function RootLayoutNav() {
 export default function RootLayout() {
   useEffect(() => {
     SplashScreen.hideAsync();
+    
+    if (Platform.OS === 'web') {
+      const style = document.createElement('style');
+      style.textContent = `
+        input, textarea {
+          outline: none !important;
+          -webkit-user-select: text !important;
+          user-select: text !important;
+          cursor: text !important;
+        }
+        input:focus, textarea:focus {
+          outline: none !important;
+        }
+      `;
+      document.head.appendChild(style);
+    }
   }, []);
 
   return (
