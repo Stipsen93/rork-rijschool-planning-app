@@ -294,9 +294,11 @@ export default function ProfileScreen() {
   const [showFinalDeletePrompt, setShowFinalDeletePrompt] = useState<boolean>(false);
 
   useEffect(() => {
-    console.log("[ProfileScreen] Mount - loading initial data");
-    setLocalProfile(profile);
-  }, [profile]);
+    if (!isEditing) {
+      console.log("[ProfileScreen] Mount - loading initial data");
+      setLocalProfile(profile);
+    }
+  }, [profile, isEditing]);
 
   const onChange = useCallback(<K extends keyof typeof localProfile>(key: K, value: typeof localProfile[K]) => {
     setLocalProfile((prev) => ({ ...prev, [key]: value }));
@@ -549,7 +551,7 @@ export default function ProfileScreen() {
 
             <Text style={styles.fieldLabel}>Instructeur nummer</Text>
             <View style={[styles.input, styles.inputDisabled]}>
-              <Text style={styles.inputText}>{localProfile.instructorNumber}</Text>
+              <Text style={styles.inputText}>{localProfile.instructorNumber || "Wordt gegenereerd..."}</Text>
             </View>
           </Section>
 
