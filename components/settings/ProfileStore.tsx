@@ -174,30 +174,30 @@ export const [ProfileProvider, useProfile] = createContextHook(() => {
 
           const updatedProfile: InstructorProfile = {
             ...mergedProfile,
-            firstName: remoteProfile?.first_name ?? mergedProfile.firstName,
-            lastName: remoteProfile?.last_name ?? mergedProfile.lastName,
-            email: remoteProfile?.email ?? mergedProfile.email,
-            phoneNumber: remoteProfile?.phone ?? mergedProfile.phoneNumber,
-            birthDate: remoteProfile?.birth_date ?? mergedProfile.birthDate,
-            certificationNumber: extended?.wrm_pass_number ?? metadataWrm ?? mergedProfile.certificationNumber,
-            drivingSchoolName: resolvedDrivingSchoolName ?? mergedProfile.drivingSchoolName,
-            instructorNumber: extended?.instructor_number ?? mergedProfile.instructorNumber,
+            firstName: remoteProfile?.first_name ?? "",
+            lastName: remoteProfile?.last_name ?? "",
+            email: remoteProfile?.email ?? "",
+            phoneNumber: remoteProfile?.phone ?? "",
+            birthDate: remoteProfile?.birth_date ?? null,
+            certificationNumber: extended?.wrm_pass_number ?? metadataWrm ?? "",
+            drivingSchoolName: resolvedDrivingSchoolName ?? "",
+            instructorNumber: extended?.instructor_number ?? "",
             experienceYears:
               extended?.years_experience !== undefined && extended?.years_experience !== null
                 ? extended.years_experience.toString()
-                : mergedProfile.experienceYears,
-            taxId: extended?.tax_id ?? mergedProfile.taxId,
-            address: extended?.business_address ?? mergedProfile.address,
-            iban: extended?.iban ?? mergedProfile.iban,
+                : "",
+            taxId: extended?.tax_id ?? "",
+            address: extended?.business_address ?? "",
+            iban: extended?.iban ?? "",
             drivingSchools:
               resolvedAffiliations.length > 0
                 ? resolvedAffiliations
                 : metadataDrivingSchoolName
                 ? [metadataDrivingSchoolName]
-                : mergedProfile.drivingSchools,
+                : [],
             specializations: Array.isArray(extended?.specializations)
               ? extended.specializations
-              : mergedProfile.specializations,
+              : [],
           };
 
           mergedProfile = updatedProfile;
