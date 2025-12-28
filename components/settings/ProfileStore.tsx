@@ -109,7 +109,6 @@ export const [ProfileProvider, useProfile] = createContextHook(() => {
         }
 
         if (meQuery.data) {
-          const remoteProfile = meQuery.data.profile;
           const extended = (meQuery.data.extendedProfile ?? null) as RemoteExtendedInstructorProfile | null;
           const userMetadata = (meQuery.data.user?.user_metadata ?? null) as Record<string, unknown> | null;
 
@@ -172,31 +171,33 @@ export const [ProfileProvider, useProfile] = createContextHook(() => {
             resolvedDrivingSchoolName = rawAffiliations[0];
           }
 
+          const instructorProfile = extended as any;
+
           const updatedProfile: InstructorProfile = {
             ...mergedProfile,
-            firstName: remoteProfile?.first_name ?? "",
-            lastName: remoteProfile?.last_name ?? "",
-            email: remoteProfile?.email ?? "",
-            phoneNumber: remoteProfile?.phone ?? "",
-            birthDate: remoteProfile?.birth_date ?? null,
-            certificationNumber: extended?.wrm_pass_number ?? metadataWrm ?? "",
+            firstName: instructorProfile?.first_name ?? "",
+            lastName: instructorProfile?.last_name ?? "",
+            email: instructorProfile?.email ?? meQuery.data.profile?.email ?? "",
+            phoneNumber: instructorProfile?.phone ?? "",
+            birthDate: instructorProfile?.birth_date ?? null,
+            certificationNumber: instructorProfile?.wrm_pass_number ?? metadataWrm ?? "",
             drivingSchoolName: resolvedDrivingSchoolName ?? "",
-            instructorNumber: extended?.instructor_number ?? "",
+            instructorNumber: instructorProfile?.instructor_number ?? "",
             experienceYears:
-              extended?.years_experience !== undefined && extended?.years_experience !== null
-                ? extended.years_experience.toString()
+              instructorProfile?.years_experience !== undefined && instructorProfile?.years_experience !== null
+                ? instructorProfile.years_experience.toString()
                 : "",
-            taxId: extended?.tax_id ?? "",
-            address: extended?.business_address ?? "",
-            iban: extended?.iban ?? "",
+            taxId: instructorProfile?.tax_id ?? "",
+            address: instructorProfile?.business_address ?? "",
+            iban: instructorProfile?.iban ?? "",
             drivingSchools:
               resolvedAffiliations.length > 0
                 ? resolvedAffiliations
                 : metadataDrivingSchoolName
                 ? [metadataDrivingSchoolName]
                 : [],
-            specializations: Array.isArray(extended?.specializations)
-              ? extended.specializations
+            specializations: Array.isArray(instructorProfile?.specializations)
+              ? instructorProfile.specializations
               : [],
           };
 
