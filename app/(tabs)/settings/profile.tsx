@@ -481,7 +481,7 @@ export default function ProfileScreen() {
   return (
     <ErrorBoundary>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        {Platform.OS === "web" ? (
           <ScrollView
             contentContainerStyle={[styles.container, { paddingTop: 16 + insets.top }]}
             testID="profile-screen"
@@ -753,7 +753,281 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
           </ScrollView>
-        </TouchableWithoutFeedback>
+        ) : (
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <ScrollView
+              contentContainerStyle={[styles.container, { paddingTop: 16 + insets.top }]}
+              testID="profile-screen"
+              keyboardShouldPersistTaps="handled"
+            >
+            <View style={styles.avatarWrap}>
+            {localProfile.profileImageUrl ? (
+              <Image source={{ uri: localProfile.profileImageUrl }} style={styles.avatar} resizeMode="cover" />
+            ) : (
+              <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                <User color="#0ea5e9" size={48} />
+              </View>
+            )}
+            {isEditing && (
+              <TouchableOpacity onPress={pickImage} style={styles.cameraBtn} accessibilityRole="button" testID="pick-image">
+                <Camera color="#fff" size={16} />
+              </TouchableOpacity>
+            )}
+            <Text style={styles.avatarTitle}>Profielfoto</Text>
+            <Text style={styles.avatarHint}>Tik om je foto te wijzigen</Text>
+          </View>
+
+          <Section title="Persoonlijke Gegevens">
+            <Field label="Voornaam" value={localProfile.firstName} onChangeText={(t) => onChange("firstName", t)} editable={isEditing} testID="field-firstName" />
+            <Field label="Achternaam" value={localProfile.lastName} onChangeText={(t) => onChange("lastName", t)} editable={isEditing} testID="field-lastName" />
+            <Field label="Email" value={localProfile.email} keyboardType="email-address" onChangeText={(t) => onChange("email", t)} editable={isEditing} testID="field-email" />
+            <Field label="Telefoon" value={localProfile.phoneNumber} keyboardType="phone-pad" onChangeText={(t) => onChange("phoneNumber", t)} editable={isEditing} testID="field-phone" />
+            
+            <Text style={styles.fieldLabel}>Geboortedatum</Text>
+            <TouchableOpacity
+              onPress={() => {
+                if (!isEditing) return;
+                setShowDatePicker(true);
+              }}
+              style={[styles.input, !isEditing && styles.inputDisabled]}
+              disabled={!isEditing}
+              testID="field-birth"
+            >
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <CalendarDays size={16} color={isEditing ? "#2563eb" : "#9ca3af"} />
+                <Text style={styles.inputText}>{formatDateDisplay(localProfile.birthDate)}</Text>
+              </View>
+            </TouchableOpacity>
+
+            {showDatePicker && (
+              <Modal visible animationType="fade" transparent>
+                <View style={styles.modalBackdrop} testID="date-picker-modal">
+                  <View style={styles.modalCard}>
+                    <View style={styles.modalHeader}>
+                      <Text style={styles.modalTitle}>Kies datum</Text>
+                      <TouchableOpacity accessibilityRole="button" onPress={() => setShowDatePicker(false)}>
+                        <X size={20} color="#111827" />
+                      </TouchableOpacity>
+                    </View>
+                    <View style={styles.pickerWrap}>
+                      <CalendarPicker
+                        initialDate={localProfile.birthDate ? new Date(localProfile.birthDate) : new Date()}
+                        onSelectDate={onDatePicked}
+                        testID="date-picker"
+                        maximumDate={new Date()}
+                      />
+                    </View>
+                  </View>
+                </View>
+              </Modal>
+            )}
+
+            <Text style={styles.fieldLabel}>Instructeur nummer</Text>
+            <View style={[styles.input, styles.inputDisabled]}>
+              <Text style={styles.inputText}>{localProfile.instructorNumber || "Wordt gegenereerd..."}</Text>
+            </View>
+          </Section>
+
+          <Section title="Professionele Informatie">
+            <Field label="WRM Pasnummer" value={localProfile.certificationNumber} onChangeText={(t) => onChange("certificationNumber", t)} editable={isEditing} testID="field-cert" />
+            <Field label="Naam Rijschool" value={localProfile.drivingSchoolName} onChangeText={(t) => onChange("drivingSchoolName", t)} editable={isEditing} testID="field-school-name" />
+            
+            {isEditing && (
+              <>
+                <Text style={styles.fieldLabel}>Rijschool affiliatie</Text>
+                <View style={styles.inputWithIcon}>
+                  <TextInput
+                    style={styles.inputFlex}
+                    value={newSchool}
+                    onChangeText={setNewSchool}
+                    onSubmitEditing={addDrivingSchool}
+                    testID="field-school"
+                  />
+                  <TouchableOpacity onPress={addDrivingSchool} style={styles.iconBtn} testID="add-school">
+                    <Plus size={20} color="#0ea5e9" />
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+            
+            {localProfile.drivingSchools.length > 0 && (
+              <>
+                {!isEditing && <Text style={styles.fieldLabel}>Rijschool affiliatie</Text>}
+                {localProfile.drivingSchools.map((school) => (
+                  <View key={school} style={styles.listItem}>
+                    <Text style={styles.listItemText}>{school}</Text>
+                    {isEditing && (
+                      <TouchableOpacity onPress={() => removeDrivingSchool(school)} testID={`remove-school-${school}`}>
+                        <Trash2 size={18} color="#ef4444" />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                ))}
+              </>
+            )}
+
+            <Field label="Jaren ervaring" value={localProfile.experienceYears} keyboardType="number-pad" onChangeText={(t) => onChange("experienceYears", t)} editable={isEditing} testID="field-exp" />
+
+            {isEditing && (
+              <>
+                <Text style={styles.subTitle}>Specialisaties</Text>
+                <View style={styles.inputWithIcon}>
+                  <TextInput
+                    style={styles.inputFlex}
+                    value={newSpecialization}
+                    onChangeText={setNewSpecialization}
+                    onSubmitEditing={addSpecialization}
+                    testID="field-specialization"
+                  />
+                  <TouchableOpacity onPress={addSpecialization} style={styles.iconBtn} testID="add-specialization">
+                    <Check size={20} color="#22c55e" />
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+
+            {localProfile.specializations.length > 0 && (
+              <>
+                {!isEditing && <Text style={styles.subTitle}>Specialisaties</Text>}
+                {localProfile.specializations.map((spec) => (
+                  <View key={spec} style={styles.listItem}>
+                    <Text style={styles.listItemText}>{spec}</Text>
+                    {isEditing && (
+                      <TouchableOpacity onPress={() => removeSpecialization(spec)} testID={`remove-spec-${spec}`}>
+                        <Trash2 size={18} color="#ef4444" />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                ))}
+              </>
+            )}
+          </Section>
+
+          <Section title="Zakelijke Informatie">
+            <Field label="BTW nummer" value={localProfile.taxId} onChangeText={(t) => onChange("taxId", t)} editable={isEditing} testID="field-tax" />
+            <Field label="Zakelijk adres" value={localProfile.address} onChangeText={(t) => onChange("address", t)} multiline editable={isEditing} testID="field-address" />
+            <Field label="IBAN rekeningnummer" value={localProfile.iban} onChangeText={(t) => onChange("iban", t)} editable={isEditing} testID="field-iban" />
+          </Section>
+
+          {showDeletePrompt && (
+            <Modal visible animationType="fade" transparent onRequestClose={closeDeletePrompt}>
+              <View style={styles.modalBackdrop} testID="delete-confirmation-modal">
+                <View style={styles.modalCard}>
+                  <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>Weet je het zeker?</Text>
+                    <TouchableOpacity accessibilityRole="button" onPress={closeDeletePrompt}>
+                      <X size={20} color="#111827" />
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={styles.modalCopy}>
+                    Je staat op het punt om je account en alle opgeslagen gegevens te verwijderen. Je kunt dit niet terugdraaien. Wil je doorgaan?
+                  </Text>
+                  <View style={styles.modalActions}>
+                    <TouchableOpacity onPress={closeDeletePrompt} style={styles.modalSecondaryButton} testID="delete-cancel-first">
+                      <Text style={styles.modalSecondaryText}>Annuleren</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={proceedToFinalDeletion} style={styles.modalPrimaryButton} testID="delete-continue">
+                      <Text style={styles.modalPrimaryText}>Ja, ga verder</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            </Modal>
+          )}
+
+          {showFinalDeletePrompt && (
+            <Modal visible animationType="fade" transparent onRequestClose={closeDeletePrompt}>
+              <View style={styles.modalBackdrop} testID="delete-final-modal">
+                <View style={[styles.modalCard, styles.modalCardDestructive]}>
+                  <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>Verwijder definitief?</Text>
+                    <TouchableOpacity accessibilityRole="button" onPress={closeDeletePrompt}>
+                      <X size={20} color="#111827" />
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={styles.modalCopy}>
+                    Wanneer je bevestigt, wordt je account onmiddellijk verwijderd en worden alle gegevens uit Supabase gewist. Je wordt hierna automatisch uitgelogd.
+                  </Text>
+                  <View style={styles.modalActions}>
+                    <TouchableOpacity onPress={closeDeletePrompt} style={styles.modalSecondaryButton} testID="delete-cancel-final">
+                      <Text style={styles.modalSecondaryText}>Nee, terug</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={handleDeleteAccountRequest}
+                      style={[styles.modalPrimaryButton, styles.modalPrimaryButtonDestructive]}
+                      testID="delete-confirm-final"
+                      disabled={isDeletingAccount}
+                    >
+                      <Text style={styles.modalPrimaryText}>{isDeletingAccount ? "Bezig..." : "Verwijder alles"}</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            </Modal>
+          )}
+
+          <View style={styles.footer}>
+            {!isEditing ? (
+              <View style={styles.actionRow}>
+                <TouchableOpacity
+                  onPress={() => {
+                    console.log("[ProfileScreen] Entering edit mode");
+                    setIsEditing(true);
+                  }}
+                  style={styles.saveCta}
+                  testID="edit-btn"
+                >
+                  <Text style={styles.saveCtaText}>Bewerken</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={styles.actionRow}>
+                <TouchableOpacity
+                  onPress={() => {
+                    setIsEditing(false);
+                    setLocalProfile(profile);
+                  }}
+                  style={[styles.saveCta, styles.cancelCta]}
+                  testID="cancel-btn"
+                >
+                  <Text style={[styles.saveCtaText, styles.cancelCtaText]}>Annuleren</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleSave}
+                  style={[styles.saveCta, syncing && styles.saveCtaDisabled]}
+                  testID="save-btn"
+                  disabled={syncing}
+                >
+                  <Text style={styles.saveCtaText}>{syncing ? "Opslaan..." : "Opslaan"}</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+
+          <View style={styles.dangerCard} testID="delete-account-panel">
+            <View style={styles.dangerHeader}>
+              <View style={styles.dangerIconWrap}>
+                <Trash2 size={24} color="#ef4444" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.dangerTitle}>Verwijder account</Text>
+                <Text style={styles.dangerCopy}>
+                  Dit verwijdert al je persoonlijke gegevens, lesinstellingen en gekoppelde data. Deze actie kan niet ongedaan gemaakt worden.
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              onPress={openDeletePrompt}
+              style={[styles.dangerButton, isDeletingAccount && styles.dangerButtonDisabled]}
+              disabled={isDeletingAccount}
+              testID="delete-account-button"
+            >
+              <Text style={styles.dangerButtonText}>{isDeletingAccount ? "Verwijderen..." : "Verwijder mijn account"}</Text>
+            </TouchableOpacity>
+          </View>
+            </ScrollView>
+          </TouchableWithoutFeedback>
+        )}
       </KeyboardAvoidingView>
     </ErrorBoundary>
   );
