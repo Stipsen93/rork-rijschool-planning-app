@@ -65,6 +65,7 @@ export const syncSettingsProcedure = instructorProcedure
         email,
         phoneNumber,
         birthDate,
+        instructorNumber,
         certificationNumber,
         drivingSchoolName,
         drivingSchools,
@@ -109,6 +110,12 @@ export const syncSettingsProcedure = instructorProcedure
       }
 
 
+
+      if (instructorNumber !== undefined) {
+        const sanitizedInstructorNumber = instructorNumber.trim();
+        updateData.instructor_number =
+          sanitizedInstructorNumber.length > 0 ? sanitizedInstructorNumber : null;
+      }
 
       if (certificationNumber !== undefined) {
         const sanitizedCertification = certificationNumber.trim();

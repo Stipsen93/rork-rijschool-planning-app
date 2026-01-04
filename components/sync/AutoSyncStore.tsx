@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useMemo, useRef, useState } from "react";
 import createContextHook from "@nkzw/create-context-hook";
-import { AppState, AppStateStatus } from "react-native";
+import { AppState, AppStateStatus, Platform } from "react-native";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "../auth/AuthStore";
 import { useProfile } from "../settings/ProfileStore";
@@ -40,6 +40,58 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
   const skippedRoleLogRef = useRef<boolean>(false);
   const [lastSyncTime, setLastSyncTime] = useState<number>(0);
 
+  const runWithRetry = useCallback(
+    async <T,>(
+      label: string,
+      fn: () => Promise<T>,
+      options?: { retries?: number; baseDelayMs?: number },
+    ): Promise<T> => {
+      const retries = options?.retries ?? 2;
+      const baseDelayMs = options?.baseDelayMs ?? 900;
+
+      let attempt = 0;
+      let lastError: unknown = null;
+
+      while (attempt <= retries) {
+        try {
+          if (attempt > 0) {
+            console.log(
+              `[AutoSync] Retry ${attempt}/${retries} for ${label} (platform=${Platform.OS})`,
+            );
+          }
+          return await fn();
+        } catch (e) {
+          lastError = e;
+          const msg = e instanceof Error ? e.message : String(e);
+          const isNetwork =
+            msg.includes("Failed to fetch") ||
+            msg.includes("Network request failed") ||
+            msg.includes("ECONN") ||
+            msg.includes("ETIMEDOUT");
+
+          if (!isNetwork || attempt >= retries) {
+            throw e;
+          }
+
+          const delayMs = Math.round(baseDelayMs * Math.pow(2, attempt));
+          await new Promise((r) => setTimeout(r, delayMs));
+          attempt += 1;
+        }
+      }
+
+      throw (lastError instanceof Error ? lastError : new Error("Sync failed"));
+    },
+    [],
+  );
+
+  const getOnlineHint = useCallback((): string => {
+    if (Platform.OS === "web") {
+      const online = (globalThis as any)?.navigator?.onLine;
+      if (typeof online === "boolean") return online ? "online" : "offline";
+    }
+    return "unknown";
+  }, []);
+
   const syncToSupabase = useCallback(async () => {
     if (!isAuthenticated || !authProfile) {
       return;
@@ -63,9 +115,14 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
     }
 
     try {
-      console.log("[AutoSync] Syncing settings to Supabase...");
+      console.log(
+        `[AutoSync] Syncing settings to Supabase... (platform=${Platform.OS}, net=${getOnlineHint()})`,
+      );
 
-      await syncMutation.mutateAsync({
+      await runWithRetry(
+        "syncSettings",
+        () =>
+          syncMutation.mutateAsync({
         profile: {
           firstName: profile.firstName,
           lastName: profile.lastName,
@@ -111,22 +168,27 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
           statusConfig,
         },
         notifications: notificationSettings,
-      });
+      }),
+        { retries: 2, baseDelayMs: 900 },
+      );
 
       lastSyncRef.current = Date.now();
       setLastSyncTime(lastSyncRef.current);
       console.log("[AutoSync] Successfully synced to Supabase");
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      
-      if (message.includes('logged in') || message.includes('UNAUTHORIZED')) {
-        console.log('[AutoSync] Sync cancelled - authentication required');
+
+      if (message.includes("logged in") || message.includes("UNAUTHORIZED")) {
+        console.log("[AutoSync] Sync cancelled - authentication required");
         return;
       }
-      
-      console.error("[AutoSync] Failed to sync:", message);
-      
-      if (message.includes("Failed to fetch")) {
+
+      console.error(
+        `[AutoSync] Failed to sync (platform=${Platform.OS}, net=${getOnlineHint()}):`,
+        message,
+      );
+
+      if (message.includes("Failed to fetch") || message.includes("Network request failed")) {
         console.error("[AutoSync] Network request failed while syncing settings");
       }
     }
@@ -146,6 +208,8 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
     notificationSettings,
     studentConfig,
     syncMutation,
+    runWithRetry,
+    getOnlineHint,
   ]);
 
   const fetchFromSupabase = useCallback(async () => {
@@ -166,8 +230,14 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
     skippedRoleLogRef.current = false;
 
     try {
-      console.log("[AutoSync] Fetching settings from Supabase...");
-      const result = await fetchSettingsQuery.refetch();
+      console.log(
+        `[AutoSync] Fetching settings from Supabase... (platform=${Platform.OS}, net=${getOnlineHint()})`,
+      );
+      const result = await runWithRetry(
+        "fetchSettings",
+        () => fetchSettingsQuery.refetch(),
+        { retries: 2, baseDelayMs: 800 },
+      );
 
       if (result.data) {
         console.log("[AutoSync] Successfully fetched from Supabase");
@@ -178,13 +248,16 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.error("[AutoSync] Failed to fetch:", message);
+      console.error(
+        `[AutoSync] Failed to fetch (platform=${Platform.OS}, net=${getOnlineHint()}):`,
+        message,
+      );
       console.error("[AutoSync] Fetch error details:", error);
-      if (message.includes("Failed to fetch")) {
+      if (message.includes("Failed to fetch") || message.includes("Network request failed")) {
         console.error("[AutoSync] Network request failed while fetching settings");
       }
     }
-  }, [isAuthenticated, authProfile, isInstructor, fetchSettingsQuery]);
+  }, [isAuthenticated, authProfile, isInstructor, fetchSettingsQuery, runWithRetry, getOnlineHint]);
 
   const startSync = useCallback(() => {
     if (!isAuthenticated || !authProfile || !isInstructor || intervalRef.current) {
