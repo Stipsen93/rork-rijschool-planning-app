@@ -22,8 +22,9 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
 
   const syncMutation = trpc.instructor.syncSettings.useMutation({
     onError: (error) => {
-      if (error.message.includes('logged in')) {
-        console.log('[AutoSync] Sync skipped - user not authenticated');
+      const msg = error.message;
+      if (msg.includes('logged in') || msg.includes('Failed to fetch')) {
+        console.log('[AutoSync] Sync skipped - backend not reachable');
       }
     },
   });
@@ -82,14 +83,6 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
     [],
   );
 
-  const getOnlineHint = useCallback((): string => {
-    if (Platform.OS === "web") {
-      const online = (globalThis as any)?.navigator?.onLine;
-      if (typeof online === "boolean") return online ? "online" : "offline";
-    }
-    return "unknown";
-  }, []);
-
   const syncToSupabase = useCallback(async () => {
     if (!isAuthenticated || !authProfile) {
       return;
@@ -114,7 +107,7 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
 
     try {
       console.log(
-        `[AutoSync] Syncing settings to Supabase... (platform=${Platform.OS}, net=${getOnlineHint()})`,
+        `[AutoSync] Syncing settings... (platform=${Platform.OS})`,
       );
 
       await runWithRetry(
@@ -157,7 +150,7 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
 
       lastSyncRef.current = Date.now();
       setLastSyncTime(lastSyncRef.current);
-      console.log("[AutoSync] Successfully synced to Supabase");
+      console.log("[AutoSync] Successfully synced to backend");
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
 
@@ -166,13 +159,10 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
         return;
       }
 
-      console.error(
-        `[AutoSync] Failed to sync (platform=${Platform.OS}, net=${getOnlineHint()}):`,
-        message,
-      );
-
       if (message.includes("Failed to fetch") || message.includes("Network request failed")) {
-        console.error("[AutoSync] Network request failed while syncing settings");
+        console.log("[AutoSync] Backend not reachable, data saved locally");
+      } else {
+        console.log(`[AutoSync] Sync failed:`, message);
       }
     }
   }, [
@@ -191,7 +181,6 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
     studentConfig,
     syncMutation,
     runWithRetry,
-    getOnlineHint,
   ]);
 
   const fetchFromSupabase = useCallback(async () => {
@@ -213,7 +202,7 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
 
     try {
       console.log(
-        `[AutoSync] Fetching settings from Supabase... (platform=${Platform.OS}, net=${getOnlineHint()})`,
+        `[AutoSync] Fetching settings from backend... (platform=${Platform.OS})`,
       );
       const result = await runWithRetry(
         "fetchSettings",
@@ -222,24 +211,17 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
       );
 
       if (result.data) {
-        console.log("[AutoSync] Successfully fetched from Supabase");
-      }
-
-      if (result.error) {
-        console.error("[AutoSync] Fetch error payload:", result.error);
+        console.log("[AutoSync] Successfully fetched from backend");
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.error(
-        `[AutoSync] Failed to fetch (platform=${Platform.OS}, net=${getOnlineHint()}):`,
-        message,
-      );
-      console.error("[AutoSync] Fetch error details:", error);
       if (message.includes("Failed to fetch") || message.includes("Network request failed")) {
-        console.error("[AutoSync] Network request failed while fetching settings");
+        console.log("[AutoSync] Backend not reachable for fetch");
+      } else {
+        console.log(`[AutoSync] Fetch failed:`, message);
       }
     }
-  }, [isAuthenticated, authProfile, isInstructor, fetchSettingsQuery, runWithRetry, getOnlineHint]);
+  }, [isAuthenticated, authProfile, isInstructor, fetchSettingsQuery, runWithRetry]);
 
   const startSync = useCallback(() => {
     if (!isAuthenticated || !authProfile || !isInstructor || intervalRef.current) {

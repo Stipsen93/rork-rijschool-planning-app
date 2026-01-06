@@ -292,9 +292,11 @@ export const [SettingsProvider, useSettings] = createContextHook(() => {
       console.log("[SettingsStore] Loading settings from Supabase...");
       try {
         const data = await trpcClient.instructor.fetchSettings.query();
+        console.log("[SettingsStore] Successfully loaded from Supabase");
         await applyRemoteData(data);
       } catch (e) {
-        console.error("[SettingsStore] Failed to load settings from Supabase", e);
+        const errorMsg = e instanceof Error ? e.message : String(e);
+        console.log("[SettingsStore] Cannot reach backend, using local storage. Error:", errorMsg);
         await loadFromLocal();
       }
     };
@@ -333,9 +335,10 @@ export const [SettingsProvider, useSettings] = createContextHook(() => {
 
       try {
         await trpcClient.instructor.syncSettings.mutate(payload);
+        console.log("[SettingsStore] Settings synced to backend");
       } catch (error) {
-        console.log("[SettingsStore] Failed to sync settings", error);
-        throw (error instanceof Error ? error : new Error("Synchronisatie mislukt"));
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        console.log("[SettingsStore] Backend not reachable, settings saved locally only. Error:", errorMsg);
       }
     },
     [isAuthenticated, isInstructor],
