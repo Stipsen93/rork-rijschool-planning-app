@@ -43,7 +43,6 @@ export const [StudentsProvider, useStudents] = createContextHook(() => {
   
   useEffect(() => {
     if (studentsQuery.data) {
-      console.log("[StudentsStore] Loaded students from Supabase:", studentsQuery.data.length);
       const students = studentsQuery.data.map((s: any) => ({
         id: s.id,
         name: s.name,
@@ -62,9 +61,6 @@ export const [StudentsProvider, useStudents] = createContextHook(() => {
         dateAdded: s.dateAdded ? new Date(s.dateAdded) : new Date(),
       }));
       setCustomStudents(students);
-    }
-    if (studentsQuery.error) {
-      console.error("[StudentsStore] Error loading students:", studentsQuery.error.message);
     }
   }, [studentsQuery.data, studentsQuery.error]);
   

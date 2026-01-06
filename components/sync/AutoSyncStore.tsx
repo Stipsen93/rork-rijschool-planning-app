@@ -21,12 +21,7 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
   const isInstructor = authProfile?.role === "instructor";
 
   const syncMutation = trpc.instructor.syncSettings.useMutation({
-    onError: (error) => {
-      const msg = error.message;
-      if (msg.includes('logged in') || msg.includes('Failed to fetch')) {
-        console.log('[AutoSync] Sync skipped - backend not reachable');
-      }
-    },
+    onError: () => {},
   });
   const fetchSettingsQuery = trpc.instructor.fetchSettings.useQuery(undefined, {
     enabled: false,
@@ -106,9 +101,7 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
     }
 
     try {
-      console.log(
-        `[AutoSync] Syncing settings... (platform=${Platform.OS})`,
-      );
+
 
       await runWithRetry(
         "syncSettings",
@@ -150,20 +143,8 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
 
       lastSyncRef.current = Date.now();
       setLastSyncTime(lastSyncRef.current);
-      console.log("[AutoSync] Successfully synced to backend");
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-
-      if (message.includes("logged in") || message.includes("UNAUTHORIZED")) {
-        console.log("[AutoSync] Sync cancelled - authentication required");
-        return;
-      }
-
-      if (message.includes("Failed to fetch") || message.includes("Network request failed")) {
-        console.log("[AutoSync] Backend not reachable, data saved locally");
-      } else {
-        console.log(`[AutoSync] Sync failed:`, message);
-      }
+    } catch {
+      
     }
   }, [
     isAuthenticated,
@@ -201,25 +182,13 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
     skippedRoleLogRef.current = false;
 
     try {
-      console.log(
-        `[AutoSync] Fetching settings from backend... (platform=${Platform.OS})`,
-      );
-      const result = await runWithRetry(
+      await runWithRetry(
         "fetchSettings",
         () => fetchSettingsQuery.refetch(),
         { retries: 2, baseDelayMs: 800 },
       );
-
-      if (result.data) {
-        console.log("[AutoSync] Successfully fetched from backend");
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      if (message.includes("Failed to fetch") || message.includes("Network request failed")) {
-        console.log("[AutoSync] Backend not reachable for fetch");
-      } else {
-        console.log(`[AutoSync] Fetch failed:`, message);
-      }
+    } catch {
+      
     }
   }, [isAuthenticated, authProfile, isInstructor, fetchSettingsQuery, runWithRetry]);
 
