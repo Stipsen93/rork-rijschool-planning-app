@@ -10,7 +10,14 @@ app.use(
   "*",
   cors({
     origin: "*",
-    allowHeaders: ["Content-Type", "Authorization"],
+    allowHeaders: [
+      "Content-Type",
+      "Authorization",
+      "trpc-accept",
+      "x-trpc-source",
+      "x-trpc-batch",
+      "x-trpc-batch-mode",
+    ],
     allowMethods: ["GET", "POST", "OPTIONS"],
   })
 );
