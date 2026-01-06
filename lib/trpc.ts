@@ -30,10 +30,13 @@ function normalizeBaseUrl(raw: string): string {
   return trimmed;
 }
 
+const apiUrl = `${normalizeBaseUrl(getBaseUrl())}/api/trpc`;
+console.log("[trpc] Initializing client with URL:", apiUrl);
+
 export const trpcClient = trpc.createClient({
   links: [
     httpLink({
-      url: `${normalizeBaseUrl(getBaseUrl())}/api/trpc`,
+      url: apiUrl,
       transformer: superjson,
       async headers() {
         try {
@@ -42,6 +45,7 @@ export const trpcClient = trpc.createClient({
             const session = JSON.parse(authSession) as { access_token?: string };
             const token = session?.access_token;
             if (token) {
+              console.log("[trpc] Using authenticated request");
               return {
                 Authorization: `Bearer ${token}`,
                 "Content-Type": "application/json",
@@ -55,6 +59,13 @@ export const trpcClient = trpc.createClient({
         return {
           "Content-Type": "application/json",
         };
+      },
+      fetch(url, options) {
+        console.log("[trpc] Fetching:", url);
+        return fetch(url, options).catch(err => {
+          console.error("[trpc] Fetch error:", err.message, "URL:", url);
+          throw err;
+        });
       },
     }),
   ],
