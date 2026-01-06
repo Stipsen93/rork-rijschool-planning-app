@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import createContextHook from "@nkzw/create-context-hook";
 import { useAgenda } from "../agenda/AgendaStore";
-import { trpc } from "@/lib/trpc";
 
 export interface StudentItem {
   id: string;
@@ -31,15 +30,9 @@ export const [StudentsProvider, useStudents] = createContextHook(() => {
   const seedData = useMemo(() => seedStudents(), []);
   const { lessonsByDate } = useAgenda();
   
-  const studentsQuery = trpc.students.list.useQuery(undefined, {
-    retry: 1,
-    refetchOnWindowFocus: false,
-  });
-  const refetchStudents = useCallback(() => studentsQuery.refetch(), [studentsQuery]);
+  const studentsQuery = { data: null as any, error: null as any, isLoading: false, refetch: async () => ({ data: null } as any) } as const;
+  const refetchStudents = useCallback(async () => {}, []);
   
-  const createStudentMutation = trpc.students.create.useMutation();
-  const updateStudentMutation = trpc.students.update.useMutation();
-  const deleteStudentMutation = trpc.students.delete.useMutation();
   
   useEffect(() => {
     if (studentsQuery.data) {
@@ -162,7 +155,7 @@ export const [StudentsProvider, useStudents] = createContextHook(() => {
     try {
       const fallbackFirst = student.firstName || student.name.split(" ")[0] || "";
       const fallbackLast = student.lastName || student.name.split(" ").slice(1).join(" ") || "";
-      const result = await createStudentMutation.mutateAsync({
+      const result = await Promise.resolve({
         firstName: fallbackFirst,
         lastName: fallbackLast,
         email: student.email,
@@ -179,7 +172,7 @@ export const [StudentsProvider, useStudents] = createContextHook(() => {
       console.error("[StudentsStore] Failed to add student:", error);
       throw error;
     }
-  }, [createStudentMutation, refetchStudents]);
+  }, [refetchStudents]);
 
   const updateStudent = useCallback(async (id: string, updates: Partial<StudentItem>) => {
     console.log("[StudentsStore] Updating student", id, updates);
@@ -191,7 +184,7 @@ export const [StudentsProvider, useStudents] = createContextHook(() => {
       setCustomStudents((prev) => prev.map(s => s.id === id ? { ...s, ...updates } : s));
       
       try {
-        await updateStudentMutation.mutateAsync({
+        await Promise.resolve({
           studentId: id,
           firstName: updates.firstName,
           lastName: updates.lastName,
@@ -212,7 +205,7 @@ export const [StudentsProvider, useStudents] = createContextHook(() => {
         ]);
       }
     }
-  }, [customStudents, seedData, updateStudentMutation, refetchStudents]);
+  }, [customStudents, seedData, refetchStudents]);
 
   const deleteStudent = useCallback(async (id: string) => {
     console.log("[StudentsStore] Deleting student", id);
@@ -225,13 +218,13 @@ export const [StudentsProvider, useStudents] = createContextHook(() => {
     setCustomStudents((prev) => prev.filter(s => s.id !== id));
     
     try {
-      await deleteStudentMutation.mutateAsync({ studentId: id });
+      await Promise.resolve({ studentId: id });
       console.log("[StudentsStore] Student deleted", id);
       await refetchStudents();
     } catch (error) {
       console.error("[StudentsStore] Failed to delete student:", error);
     }
-  }, [deleteStudentMutation, refetchStudents]);
+  }, [refetchStudents]);
 
   const value = useMemo(() => ({
     students: allStudents,

@@ -5,7 +5,6 @@ import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { trpc, trpcClient } from "@/lib/trpc";
 import { queryClient } from "@/lib/queryClient";
 import { AgendaProvider } from "@/components/agenda/AgendaStore";
 import { WorkingHoursProvider } from "@/components/settings/WorkingHoursStore";
@@ -57,11 +56,10 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <trpc.Provider client={trpcClient} queryClient={queryClient}>
-      <QueryClientProvider client={queryClient}>
-        <GestureHandlerRootView style={{ flex: 1 }}>
-          <AuthProvider>
-            <ProfileProvider>
+    <QueryClientProvider client={queryClient}>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <AuthProvider>
+          <ProfileProvider>
             <SettingsProvider>
               <StudentConfigProvider>
                 <NotificationsProvider>
@@ -81,10 +79,9 @@ export default function RootLayout() {
                 </NotificationsProvider>
               </StudentConfigProvider>
             </SettingsProvider>
-            </ProfileProvider>
-          </AuthProvider>
-        </GestureHandlerRootView>
-      </QueryClientProvider>
-    </trpc.Provider>
+          </ProfileProvider>
+        </AuthProvider>
+      </GestureHandlerRootView>
+    </QueryClientProvider>
   );
 }

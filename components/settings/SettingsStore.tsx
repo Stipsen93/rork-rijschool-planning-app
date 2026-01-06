@@ -4,7 +4,6 @@ import { Platform } from "react-native";
 import * as FileSystem from "expo-file-system/legacy";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth } from "../auth/AuthStore";
-import { trpcClient } from "@/lib/trpc";
 
 type LessonConfig = {
   baseLessonDuration: number;
@@ -206,106 +205,11 @@ export const [SettingsProvider, useSettings] = createContextHook(() => {
       }
     };
 
-    const applyRemoteData = async (
-      data: Awaited<ReturnType<typeof trpcClient.instructor.fetchSettings.query>>,
-    ) => {
-      const hasRemoteData = Boolean(
-        data?.lessonConfig || (data?.products?.length ?? 0) > 0 || (data?.packages?.length ?? 0) > 0 || data?.hourlyRates,
-      );
 
-      if (!hasRemoteData) {
-        await loadFromLocal();
-        return;
-      }
-
-      if (cancelled) {
-        return;
-      }
-
-      if (data?.lessonConfig) {
-        setLessonConfig(data.lessonConfig);
-        await storageSetString(LESSON_CONFIG_KEY, JSON.stringify(data.lessonConfig));
-        console.log("[SettingsStore] Loaded lesson config from Supabase");
-      } else {
-        setLessonConfig(defaultLessonConfig);
-      }
-
-      if (cancelled) {
-        return;
-      }
-
-      if (Array.isArray(data?.products)) {
-        const list: Product[] = data.products.map((p: any) => ({
-          id: String(p.id ?? ""),
-          name: String(p.name ?? ""),
-          price: Number(p.price ?? 0),
-          vatStatus: (p.vatStatus as Product["vatStatus"]) ?? "incl",
-          installments: typeof p.installments === "number" && p.installments >= 1 ? p.installments : 1,
-        }));
-        setProducts(list);
-        setLessonConfig((prev) => {
-          const nextDurations = { ...prev.productDurations };
-          list.forEach((p) => {
-            if (typeof nextDurations[p.name] !== "number") {
-              nextDurations[p.name] = prev.baseLessonDuration ?? 60;
-            }
-          });
-          return { ...prev, productDurations: nextDurations };
-        });
-        await AsyncStorage.setItem(PRODUCTS_KEY, JSON.stringify(list));
-        console.log("[SettingsStore] Loaded", list.length, "products from Supabase");
-      } else {
-        setProducts([]);
-      }
-
-      if (cancelled) {
-        return;
-      }
-
-      if (Array.isArray(data?.packages)) {
-        const pkgs: PackageItem[] = data.packages.map((p: any) => ({
-          id: String(p.id ?? ""),
-          name: String(p.name ?? ""),
-          hours: Number(p.hours ?? 0),
-          price: Number(p.price ?? 0),
-          vatStatus: (p.vatStatus as PackageItem["vatStatus"]) ?? "incl",
-          selectedProducts: Array.isArray(p.selectedProducts) ? p.selectedProducts.map(String) : [],
-          installments: typeof p.installments === "number" && p.installments >= 1 ? p.installments : 1,
-        }));
-        setPackages(pkgs);
-        await AsyncStorage.setItem(PACKAGES_KEY, JSON.stringify(pkgs));
-        console.log("[SettingsStore] Loaded", pkgs.length, "packages from Supabase");
-      } else {
-        setPackages([]);
-      }
-
-      if (data?.hourlyRates) {
-        setHourlyRates(data.hourlyRates);
-        await AsyncStorage.setItem(HOURLY_RATES_KEY, JSON.stringify(data.hourlyRates));
-        console.log("[SettingsStore] Loaded hourly rates from Supabase");
-      } else {
-        setHourlyRates({ price: 0, vatStatus: "incl" });
-      }
-    };
-
-    const loadRemote = async () => {
-      console.log("[SettingsStore] Loading settings from Supabase...");
-      try {
-        const data = await trpcClient.instructor.fetchSettings.query();
-        console.log("[SettingsStore] Successfully loaded from Supabase");
-        await applyRemoteData(data);
-      } catch {
-        await loadFromLocal();
-      }
-    };
 
     const run = async () => {
       setLoading(true);
-      if (isInstructor) {
-        await loadRemote();
-      } else {
-        await loadFromLocal();
-      }
+      await loadFromLocal();
       if (!cancelled) {
         setLoading(false);
       }
@@ -325,21 +229,10 @@ export const [SettingsProvider, useSettings] = createContextHook(() => {
     hourlyRates?: HourlyRates;
   };
 
-  const syncRemote = useCallback(
-    async (payload: SyncPayload) => {
-      if (!isAuthenticated || !isInstructor) {
-        return;
-      }
-
-      try {
-        await trpcClient.instructor.syncSettings.mutate(payload);
-        console.log("[SettingsStore] Settings synced to backend");
-      } catch {
-        
-      }
-    },
-    [isAuthenticated, isInstructor],
-  );
+  const syncRemote = useCallback(async (_payload: SyncPayload) => {
+    void _payload;
+    return;
+  }, []);
 
   const updateLessonConfig = useCallback(
     async (config: LessonConfig) => {

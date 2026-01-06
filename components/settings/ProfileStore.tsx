@@ -1,7 +1,8 @@
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import createContextHook from "@nkzw/create-context-hook";
-import { trpc } from "@/lib/trpc";
+import { supabase } from "@/lib/supabase";
 import { useAuth } from "../auth/AuthStore";
+import type { Database } from "@/types/supabase";
 
 export type InstructorProfile = {
   firstName: string;
@@ -21,6 +22,7 @@ export type InstructorProfile = {
   profileImageUrl: string | null;
 };
 
+type InstructorProfileRow = Database["public"]["Tables"]["instructor_profiles"]["Row"];
 
 const defaultProfile: InstructorProfile = {
   firstName: "",
@@ -40,85 +42,135 @@ const defaultProfile: InstructorProfile = {
   profileImageUrl: null,
 };
 
+function rowToProfile(row: InstructorProfileRow | null, fallbackEmail: string): InstructorProfile {
+  return {
+    firstName: row?.first_name ?? "",
+    lastName: row?.last_name ?? "",
+    email: fallbackEmail,
+    phoneNumber: row?.phone ?? "",
+    certificationNumber: row?.wrm_pass_number ?? "",
+    drivingSchoolName: row?.driving_school_name ?? "",
+    drivingSchools: Array.isArray(row?.driving_school_affiliation)
+      ? (row?.driving_school_affiliation ?? []).filter(Boolean)
+      : [],
+    birthDate: row?.birth_date ?? null,
+    instructorNumber: row?.instructor_number ?? "",
+    experienceYears: row?.years_experience != null ? String(row.years_experience) : "",
+    taxId: row?.tax_id ?? "",
+    address: row?.business_address ?? "",
+    iban: row?.iban ?? "",
+    specializations: Array.isArray(row?.specializations) ? (row?.specializations ?? []).filter(Boolean) : [],
+    profileImageUrl: null,
+  };
+}
 
 export const [ProfileProvider, useProfile] = createContextHook(() => {
+  const { isAuthenticated, user, profile: authProfile } = useAuth();
+  const isInstructor = authProfile?.role === "instructor";
+  const userId = user?.id ?? null;
+  const fallbackEmail = authProfile?.email ?? "";
+
   const [profile, setProfile] = useState<InstructorProfile>(defaultProfile);
   const [loading, setLoading] = useState<boolean>(true);
-  const { isAuthenticated, profile: authProfile } = useAuth();
-  const isInstructor = authProfile?.role === "instructor";
+  const [syncing, setSyncing] = useState<boolean>(false);
 
-  const remoteQuery = trpc.instructor.getProfile.useQuery(undefined, {
-    enabled: isAuthenticated && isInstructor,
-    retry: false,
-    refetchOnWindowFocus: false,
-  });
+  const loadProfile = useCallback(async () => {
+    if (!isAuthenticated || !isInstructor || !userId) {
+      setProfile({ ...defaultProfile, email: fallbackEmail });
+      setLoading(false);
+      return;
+    }
 
-  const updateMutation = trpc.instructor.updateProfile.useMutation();
+    console.log("[ProfileStore] Loading instructor profile from Supabase (instructor_profiles)", { userId });
+    setLoading(true);
+
+    const { data, error } = await supabase
+      .from("instructor_profiles")
+      .select("*")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (error) {
+      console.error("[ProfileStore] Failed to load instructor_profiles", error.message);
+      setProfile({ ...defaultProfile, email: fallbackEmail });
+      setLoading(false);
+      return;
+    }
+
+    if (!data) {
+      console.log("[ProfileStore] No instructor_profiles row yet; using defaults", { userId });
+      setProfile({ ...defaultProfile, email: fallbackEmail });
+      setLoading(false);
+      return;
+    }
+
+    setProfile(rowToProfile(data as InstructorProfileRow, fallbackEmail));
+    setLoading(false);
+  }, [fallbackEmail, isAuthenticated, isInstructor, userId]);
 
   useEffect(() => {
-    if (!isAuthenticated || !isInstructor) {
-      setProfile(defaultProfile);
-      setLoading(false);
-      return;
-    }
-
-    if (remoteQuery.data?.profile) {
-      console.log("[ProfileStore] Loaded profile from Supabase via tRPC");
-      setProfile(remoteQuery.data.profile as InstructorProfile);
-      setLoading(false);
-      return;
-    }
-
-    setLoading(remoteQuery.isLoading);
-  }, [isAuthenticated, isInstructor, remoteQuery.data, remoteQuery.isLoading]);
+    void loadProfile();
+  }, [loadProfile]);
 
   const updateProfile = useCallback(
     async (newProfile: InstructorProfile) => {
-      console.log("[ProfileStore] Updating profile", newProfile);
-
-      await updateMutation.mutateAsync({
-        profile: {
-          firstName: newProfile.firstName,
-          lastName: newProfile.lastName,
-          phoneNumber: newProfile.phoneNumber,
-          birthDate: newProfile.birthDate,
-          instructorNumber: newProfile.instructorNumber,
-          certificationNumber: newProfile.certificationNumber,
-          drivingSchoolName: newProfile.drivingSchoolName,
-          drivingSchools: newProfile.drivingSchools,
-          experienceYears: newProfile.experienceYears,
-          taxId: newProfile.taxId,
-          address: newProfile.address,
-          iban: newProfile.iban,
-          specializations: newProfile.specializations,
-          profileImageUrl: newProfile.profileImageUrl,
-        },
-      });
-
-      setProfile(newProfile);
-      try {
-        await remoteQuery.refetch();
-      } catch (e) {
-        console.log("[ProfileStore] Refetch after update failed", e);
+      if (!isAuthenticated || !isInstructor || !userId) {
+        throw new Error("Niet ingelogd");
       }
+
+      console.log("[ProfileStore] Saving instructor profile to Supabase (instructor_profiles)", { userId });
+      setSyncing(true);
+
+      const yearsExperience = newProfile.experienceYears.trim();
+      const yearsValue = yearsExperience.length ? Number(yearsExperience) : null;
+
+      const payload: Database["public"]["Tables"]["instructor_profiles"]["Insert"] = {
+        user_id: userId,
+        first_name: newProfile.firstName.trim() || null,
+        last_name: newProfile.lastName.trim() || null,
+        phone: newProfile.phoneNumber.trim() || null,
+        birth_date: newProfile.birthDate,
+        instructor_number: newProfile.instructorNumber.trim() || null,
+        wrm_pass_number: newProfile.certificationNumber.trim() || null,
+        driving_school_name: newProfile.drivingSchoolName.trim() || null,
+        driving_school_affiliation: newProfile.drivingSchools,
+        years_experience: Number.isFinite(yearsValue) ? yearsValue : null,
+        tax_id: newProfile.taxId.trim() || null,
+        business_address: newProfile.address.trim() || null,
+        iban: newProfile.iban.trim() || null,
+        specializations: newProfile.specializations,
+      };
+
+      const { error } = await (supabase
+        .from("instructor_profiles") as any)
+        .upsert([payload], { onConflict: "user_id" });
+
+      if (error) {
+        console.error("[ProfileStore] Failed to save instructor_profiles", error.message);
+        setSyncing(false);
+        throw new Error(error.message || "Opslaan mislukt");
+      }
+
+      setProfile({ ...newProfile, email: fallbackEmail });
+      setSyncing(false);
+
+      await loadProfile();
     },
-    [updateMutation, remoteQuery],
+    [fallbackEmail, isAuthenticated, isInstructor, loadProfile, userId],
   );
 
   const fullName = useMemo(() => {
     return `${profile.firstName} ${profile.lastName}`.trim() || "Instructeur";
   }, [profile.firstName, profile.lastName]);
 
-  const value = useMemo(
+  return useMemo(
     () => ({
       profile,
-      loading: loading || remoteQuery.isLoading,
+      loading,
       fullName,
       updateProfile,
-      syncing: updateMutation.isPending,
+      syncing,
     }),
-    [profile, loading, remoteQuery.isLoading, fullName, updateProfile, updateMutation.isPending]
+    [profile, loading, fullName, updateProfile, syncing],
   );
-
-  return value;
 });

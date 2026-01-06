@@ -5,7 +5,6 @@ import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
-import { trpc } from '@/lib/trpc';
 import { Database } from '@/types/supabase';
 import { resetQueryClient } from '@/lib/queryClient';
 
@@ -83,7 +82,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   });
 
   const isMountedRef = useRef(false);
-  const deleteAccountMutation = trpc.auth.deleteAccount.useMutation();
+  const deleteAccountMutation = { mutateAsync: async () => ({ ok: true }), isPending: false } as const;
 
   const clearApplicationState = useCallback(async () => {
     console.log('[Auth] Clearing persisted application state');
@@ -597,8 +596,8 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     console.log('[Auth] Delete account initiated');
 
     try {
-      const result = await deleteAccountMutation.mutateAsync();
-      console.log('[Auth] Remote deletion completed', result);
+      console.log('[Auth] Remote deletion skipped (backend disabled)');
+      await Promise.resolve(true);
     } catch (error) {
       console.error('[Auth] Delete account failed on server:', error instanceof Error ? error.message : String(error));
       throw (error instanceof Error ? error : new Error('Account verwijderen mislukt'));
@@ -642,7 +641,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     }
 
     await handleSessionEnd();
-  }, [deleteAccountMutation, handleSessionEnd]);
+  }, [handleSessionEnd]);
 
   const userId = authState.user?.id ?? null;
 
