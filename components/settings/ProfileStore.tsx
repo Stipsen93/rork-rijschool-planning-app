@@ -1,7 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import createContextHook from "@nkzw/create-context-hook";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { supabase } from "@/lib/supabase";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "../auth/AuthStore";
 
@@ -23,7 +21,6 @@ export type InstructorProfile = {
   profileImageUrl: string | null;
 };
 
-const PROFILE_KEY = "instructor_profile" as const;
 
 const defaultProfile: InstructorProfile = {
   firstName: "",
@@ -43,230 +40,69 @@ const defaultProfile: InstructorProfile = {
   profileImageUrl: null,
 };
 
-type RemoteExtendedInstructorProfile = Partial<{
-  instructor_number: string | null;
-  wrm_pass_number: string | null;
-  driving_school_name: string | null;
-  driving_school_affiliation: string[] | null;
-  driving_school_id: string | null;
-  years_experience: number | null;
-  tax_id: string | null;
-  business_address: string | null;
-  iban: string | null;
-  specializations: string[] | null;
-}>;
 
 export const [ProfileProvider, useProfile] = createContextHook(() => {
   const [profile, setProfile] = useState<InstructorProfile>(defaultProfile);
   const [loading, setLoading] = useState<boolean>(true);
-  const { isAuthenticated, user } = useAuth();
-  const activeUserId = user?.id ?? null;
+  const { isAuthenticated, profile: authProfile } = useAuth();
+  const isInstructor = authProfile?.role === "instructor";
 
-  const meQuery = trpc.auth.me.useQuery(undefined, {
-    enabled: isAuthenticated,
+  const remoteQuery = trpc.instructor.getProfile.useQuery(undefined, {
+    enabled: isAuthenticated && isInstructor,
     retry: false,
     refetchOnWindowFocus: false,
   });
 
-  const syncProfileMutation = trpc.instructor.syncSettings.useMutation();
+  const updateMutation = trpc.instructor.updateProfile.useMutation();
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (!isAuthenticated || !isInstructor) {
       setProfile(defaultProfile);
       setLoading(false);
-    }
-  }, [isAuthenticated]);
-
-  useEffect(() => {
-    if (!isAuthenticated || !activeUserId) {
       return;
     }
 
-    let cancelled = false;
-    setLoading(true);
+    if (remoteQuery.data?.profile) {
+      console.log("[ProfileStore] Loaded profile from Supabase via tRPC");
+      setProfile(remoteQuery.data.profile as InstructorProfile);
+      setLoading(false);
+      return;
+    }
 
-    (async () => {
-      console.log("[ProfileStore] Loading instructor profile...");
-      try {
-        const stored = await AsyncStorage.getItem(PROFILE_KEY);
-        let mergedProfile = defaultProfile;
-
-        if (stored) {
-          try {
-            const parsed = JSON.parse(stored) as
-              | InstructorProfile
-              | { ownerId?: string | null; profile?: InstructorProfile };
-            if (parsed && typeof parsed === "object" && "profile" in parsed) {
-              if ((parsed as { ownerId?: string | null }).ownerId === activeUserId && parsed.profile) {
-                mergedProfile = parsed.profile;
-              }
-            } else if (parsed && typeof parsed === "object") {
-              mergedProfile = parsed as InstructorProfile;
-            }
-          } catch (parseError) {
-            console.error("[ProfileStore] Failed to parse stored profile", parseError);
-          }
-        }
-
-        if (meQuery.data) {
-          const extended = (meQuery.data.extendedProfile ?? null) as RemoteExtendedInstructorProfile | null;
-          const userMetadata = (meQuery.data.user?.user_metadata ?? null) as Record<string, unknown> | null;
-
-          let metadataWrm: string | undefined;
-          if (userMetadata && typeof userMetadata["wrm_pass_number"] === "string") {
-            metadataWrm = userMetadata["wrm_pass_number"] as string;
-          }
-
-          let metadataDrivingSchoolName: string | undefined;
-          if (userMetadata && typeof userMetadata["driving_school_name"] === "string") {
-            metadataDrivingSchoolName = userMetadata["driving_school_name"] as string;
-          }
-
-          let resolvedDrivingSchoolName = extended?.driving_school_name ?? metadataDrivingSchoolName ?? mergedProfile.drivingSchoolName;
-          const drivingSchoolId = extended?.driving_school_id && typeof extended.driving_school_id === "string" ? extended.driving_school_id : null;
-          const rawAffiliations = Array.isArray(extended?.driving_school_affiliation)
-            ? (extended?.driving_school_affiliation.filter((item) => typeof item === "string") as string[])
-            : [];
-          let resolvedAffiliations = rawAffiliations;
-
-          if (
-            (!resolvedDrivingSchoolName || resolvedDrivingSchoolName.length === 0 || (resolvedDrivingSchoolName === mergedProfile.drivingSchoolName && rawAffiliations.length > 0)) ||
-            rawAffiliations.some((value) => /^[0-9a-fA-F-]{32,36}$/.test(value)) ||
-            Boolean(drivingSchoolId)
-          ) {
-            const identifiersToLookup = [
-              ...rawAffiliations.filter((value) => /^[0-9a-fA-F-]{32,36}$/.test(value)),
-              ...(drivingSchoolId ? [drivingSchoolId] : []),
-            ];
-            if (identifiersToLookup.length > 0) {
-              try {
-                console.log("[ProfileStore] Resolving driving school names from Supabase", identifiersToLookup);
-                const { data: schoolRows, error: schoolError } = await (supabase.from("driving_schools") as any)
-                  .select("id,name")
-                  .in("id", identifiersToLookup);
-                if (!schoolError && Array.isArray(schoolRows)) {
-                  const map = new Map<string, string>();
-                  schoolRows.forEach((row: { id?: string; name?: string }) => {
-                    if (row && typeof row.id === "string" && typeof row.name === "string") {
-                      map.set(row.id, row.name);
-                    }
-                  });
-                  resolvedAffiliations = rawAffiliations.map((value) => map.get(value) ?? value);
-                  if (drivingSchoolId && map.has(drivingSchoolId)) {
-                    resolvedDrivingSchoolName = map.get(drivingSchoolId) ?? resolvedDrivingSchoolName;
-                  }
-                  if (!resolvedDrivingSchoolName && resolvedAffiliations.length > 0) {
-                    resolvedDrivingSchoolName = resolvedAffiliations[0];
-                  }
-                } else if (schoolError) {
-                  console.error("[ProfileStore] Failed to resolve driving school names", schoolError);
-                }
-              } catch (resolveError) {
-                console.error("[ProfileStore] Error while resolving driving school names", resolveError);
-              }
-            }
-          }
-
-          if (!resolvedDrivingSchoolName && rawAffiliations.length > 0) {
-            resolvedDrivingSchoolName = rawAffiliations[0];
-          }
-
-          const instructorProfile = extended as any;
-
-          const updatedProfile: InstructorProfile = {
-            ...mergedProfile,
-            firstName: instructorProfile?.first_name ?? "",
-            lastName: instructorProfile?.last_name ?? "",
-            email: instructorProfile?.email ?? meQuery.data.profile?.email ?? "",
-            phoneNumber: instructorProfile?.phone ?? "",
-            birthDate: instructorProfile?.birth_date ?? null,
-            certificationNumber: instructorProfile?.wrm_pass_number ?? metadataWrm ?? "",
-            drivingSchoolName: resolvedDrivingSchoolName ?? "",
-            instructorNumber: instructorProfile?.instructor_number ?? "",
-            experienceYears:
-              instructorProfile?.years_experience !== undefined && instructorProfile?.years_experience !== null
-                ? instructorProfile.years_experience.toString()
-                : "",
-            taxId: instructorProfile?.tax_id ?? "",
-            address: instructorProfile?.business_address ?? "",
-            iban: instructorProfile?.iban ?? "",
-            drivingSchools:
-              resolvedAffiliations.length > 0
-                ? resolvedAffiliations
-                : metadataDrivingSchoolName
-                ? [metadataDrivingSchoolName]
-                : [],
-            specializations: Array.isArray(instructorProfile?.specializations)
-              ? instructorProfile.specializations
-              : [],
-          };
-
-          mergedProfile = updatedProfile;
-        }
-
-        if (!cancelled) {
-          setProfile(mergedProfile);
-          if (activeUserId) {
-            await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify({ ownerId: activeUserId, profile: mergedProfile }));
-          }
-          console.log("[ProfileStore] Loaded profile", mergedProfile);
-        }
-      } catch (e) {
-        if (!cancelled) {
-          console.error("[ProfileStore] Failed to load profile", e);
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isAuthenticated, activeUserId, meQuery.data]);
+    setLoading(remoteQuery.isLoading);
+  }, [isAuthenticated, isInstructor, remoteQuery.data, remoteQuery.isLoading]);
 
   const updateProfile = useCallback(
     async (newProfile: InstructorProfile) => {
       console.log("[ProfileStore] Updating profile", newProfile);
+
+      await updateMutation.mutateAsync({
+        profile: {
+          firstName: newProfile.firstName,
+          lastName: newProfile.lastName,
+          phoneNumber: newProfile.phoneNumber,
+          birthDate: newProfile.birthDate,
+          instructorNumber: newProfile.instructorNumber,
+          certificationNumber: newProfile.certificationNumber,
+          drivingSchoolName: newProfile.drivingSchoolName,
+          drivingSchools: newProfile.drivingSchools,
+          experienceYears: newProfile.experienceYears,
+          taxId: newProfile.taxId,
+          address: newProfile.address,
+          iban: newProfile.iban,
+          specializations: newProfile.specializations,
+          profileImageUrl: newProfile.profileImageUrl,
+        },
+      });
+
+      setProfile(newProfile);
       try {
-        await syncProfileMutation.mutateAsync({
-          profile: {
-            firstName: newProfile.firstName,
-            lastName: newProfile.lastName,
-            email: newProfile.email,
-            phoneNumber: newProfile.phoneNumber,
-            birthDate: newProfile.birthDate,
-            instructorNumber: newProfile.instructorNumber,
-            certificationNumber: newProfile.certificationNumber,
-            drivingSchoolName: newProfile.drivingSchoolName,
-            drivingSchools: newProfile.drivingSchools,
-            experienceYears: newProfile.experienceYears,
-            taxId: newProfile.taxId,
-            address: newProfile.address,
-            iban: newProfile.iban,
-            specializations: newProfile.specializations,
-          },
-        });
-
-        setProfile(newProfile);
-        if (activeUserId) {
-          await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify({ ownerId: activeUserId, profile: newProfile }));
-        }
-        console.log("[ProfileStore] Profile persisted locally and remotely");
-
-        try {
-          await meQuery.refetch();
-        } catch (refetchError) {
-          console.log("[ProfileStore] Refetch after sync failed", refetchError);
-        }
-      } catch (error) {
-        console.error("[ProfileStore] Failed to sync profile", error);
-        throw (error instanceof Error ? error : new Error("Failed to sync profile"));
+        await remoteQuery.refetch();
+      } catch (e) {
+        console.log("[ProfileStore] Refetch after update failed", e);
       }
     },
-    [syncProfileMutation, meQuery, activeUserId],
+    [updateMutation, remoteQuery],
   );
 
   const fullName = useMemo(() => {
@@ -276,12 +112,12 @@ export const [ProfileProvider, useProfile] = createContextHook(() => {
   const value = useMemo(
     () => ({
       profile,
-      loading: loading || meQuery.isLoading,
+      loading: loading || remoteQuery.isLoading,
       fullName,
       updateProfile,
-      syncing: syncProfileMutation.isPending,
+      syncing: updateMutation.isPending,
     }),
-    [profile, loading, meQuery.isLoading, fullName, updateProfile, syncProfileMutation.isPending]
+    [profile, loading, remoteQuery.isLoading, fullName, updateProfile, updateMutation.isPending]
   );
 
   return value;

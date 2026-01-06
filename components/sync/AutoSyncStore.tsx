@@ -3,7 +3,6 @@ import createContextHook from "@nkzw/create-context-hook";
 import { AppState, AppStateStatus, Platform } from "react-native";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "../auth/AuthStore";
-import { useProfile } from "../settings/ProfileStore";
 import { useWorkingHours } from "../settings/WorkingHoursStore";
 import { useSettings } from "../settings/SettingsStore";
 import { useLessonCard } from "../settings/LessonCardStore";
@@ -14,7 +13,6 @@ const SYNC_INTERVAL = 60000;
 
 export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
   const { isAuthenticated, profile: authProfile } = useAuth();
-  const { profile } = useProfile();
   const { workingHours, vacationPeriods } = useWorkingHours();
   const { lessonConfig, products, packages, hourlyRates } = useSettings();
   const { categories: lessonCardCategories, statusConfig } = useLessonCard();
@@ -123,52 +121,37 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
         "syncSettings",
         () =>
           syncMutation.mutateAsync({
-        profile: {
-          firstName: profile.firstName,
-          lastName: profile.lastName,
-          phoneNumber: profile.phoneNumber,
-          birthDate: profile.birthDate,
-          instructorNumber: profile.instructorNumber,
-          certificationNumber: profile.certificationNumber,
-          drivingSchoolName: profile.drivingSchoolName,
-          drivingSchools: profile.drivingSchools,
-          experienceYears: profile.experienceYears,
-          taxId: profile.taxId,
-          address: profile.address,
-          iban: profile.iban,
-          specializations: profile.specializations,
-        },
-        workingHours,
-        vacationPeriods,
-        lessonConfig,
-        products,
-        packages,
-        hourlyRates,
-        studentConfig: {
-          maxPerWeek: studentConfig.maxPerWeek,
-          maxPerDay: studentConfig.maxPerDay,
-          consecutive: studentConfig.consecutive,
-          advanceDays: studentConfig.advanceDays,
-          allowWeekend: studentConfig.allowWeekend,
-          requireParentApproval: studentConfig.requireParentApproval,
-          allowStudentCancellation: studentConfig.allowStudentCancellation,
-          cancellationHours: studentConfig.cancellationHours,
-          penaltyLate: studentConfig.penaltyLate,
-          penaltyAmount: studentConfig.penaltyAmount,
-          requirePaymentBefore: studentConfig.requirePaymentBefore,
-          allowPaymentPlans: studentConfig.allowPaymentPlans,
-          maxUnpaid: studentConfig.maxUnpaid,
-          sendReminders: studentConfig.sendReminders,
-          reminderHours: studentConfig.reminderHours,
-          sendReports: studentConfig.sendReports,
-          allowDirectContact: studentConfig.allowDirectContact,
-        },
-        lessonCard: {
-          categories: lessonCardCategories,
-          statusConfig,
-        },
-        notifications: notificationSettings,
-      }),
+            workingHours,
+            vacationPeriods,
+            lessonConfig,
+            products,
+            packages,
+            hourlyRates,
+            studentConfig: {
+              maxPerWeek: studentConfig.maxPerWeek,
+              maxPerDay: studentConfig.maxPerDay,
+              consecutive: studentConfig.consecutive,
+              advanceDays: studentConfig.advanceDays,
+              allowWeekend: studentConfig.allowWeekend,
+              requireParentApproval: studentConfig.requireParentApproval,
+              allowStudentCancellation: studentConfig.allowStudentCancellation,
+              cancellationHours: studentConfig.cancellationHours,
+              penaltyLate: studentConfig.penaltyLate,
+              penaltyAmount: studentConfig.penaltyAmount,
+              requirePaymentBefore: studentConfig.requirePaymentBefore,
+              allowPaymentPlans: studentConfig.allowPaymentPlans,
+              maxUnpaid: studentConfig.maxUnpaid,
+              sendReminders: studentConfig.sendReminders,
+              reminderHours: studentConfig.reminderHours,
+              sendReports: studentConfig.sendReports,
+              allowDirectContact: studentConfig.allowDirectContact,
+            },
+            lessonCard: {
+              categories: lessonCardCategories,
+              statusConfig,
+            },
+            notifications: notificationSettings,
+          }),
         { retries: 2, baseDelayMs: 900 },
       );
 
@@ -196,7 +179,6 @@ export const [AutoSyncProvider, useAutoSync] = createContextHook(() => {
     isAuthenticated,
     authProfile,
     isInstructor,
-    profile,
     workingHours,
     vacationPeriods,
     lessonConfig,
