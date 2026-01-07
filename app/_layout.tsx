@@ -3,6 +3,8 @@ import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "@/lib/queryClient";
 import { AgendaProvider } from "@/components/agenda/AgendaStore";
 import { WorkingHoursProvider } from "@/components/settings/WorkingHoursStore";
 import { SettingsProvider } from "@/components/settings/SettingsStore";
@@ -54,29 +56,31 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <AuthProvider>
-        <ProfileProvider>
-          <SettingsProvider>
-            <StudentConfigProvider>
-              <NotificationsProvider>
-                <LessonCardProvider>
-                  <LessonCardDataProvider>
-                    <WorkingHoursProvider>
-                      <AgendaProvider>
-                        <StudentsProvider>
-                          <AutoSyncProvider>
-                            <RootLayoutNav />
-                          </AutoSyncProvider>
-                        </StudentsProvider>
-                      </AgendaProvider>
-                    </WorkingHoursProvider>
-                  </LessonCardDataProvider>
-                </LessonCardProvider>
-              </NotificationsProvider>
-            </StudentConfigProvider>
-          </SettingsProvider>
-        </ProfileProvider>
-      </AuthProvider>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <ProfileProvider>
+            <SettingsProvider>
+              <StudentConfigProvider>
+                <NotificationsProvider>
+                  <LessonCardProvider>
+                    <LessonCardDataProvider>
+                      <WorkingHoursProvider>
+                        <AgendaProvider>
+                          <StudentsProvider>
+                            <AutoSyncProvider>
+                              <RootLayoutNav />
+                            </AutoSyncProvider>
+                          </StudentsProvider>
+                        </AgendaProvider>
+                      </WorkingHoursProvider>
+                    </LessonCardDataProvider>
+                  </LessonCardProvider>
+                </NotificationsProvider>
+              </StudentConfigProvider>
+            </SettingsProvider>
+          </ProfileProvider>
+        </AuthProvider>
+      </QueryClientProvider>
     </GestureHandlerRootView>
   );
 }
