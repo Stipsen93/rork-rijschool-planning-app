@@ -1,6 +1,6 @@
 import React from "react";
 import { Alert, Platform, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Modal } from "react-native";
-import { Stack, useRouter } from "expo-router";
+import { Stack } from "expo-router";
 import { Check, Plus, Save, Trash2, ChevronDown, ChevronUp, Pencil } from "lucide-react-native";
 import { useSettings } from "@/components/settings/SettingsStore";
 
@@ -31,19 +31,6 @@ type EditState =
       customInstallmentsInput?: string;
     };
 
-function confirmCrossPlatform(title: string, message: string, onConfirm: () => void) {
-  if (Platform.OS === "web") {
-    const g = globalThis as unknown as { confirm?: (m: string) => boolean; alert?: (m: string) => void };
-    const ok = g.confirm ? g.confirm(`${title}\n\n${message}`) : false;
-    if (ok) onConfirm();
-  } else {
-    Alert.alert(title, message, [
-      { text: "Annuleren", style: "cancel" },
-      { text: "Verwijderen", style: "destructive", onPress: onConfirm },
-    ]);
-  }
-}
-
 function notifyCrossPlatform(message: string) {
   if (Platform.OS === "web") {
     const g = globalThis as unknown as { alert?: (m: string) => void };
@@ -55,7 +42,7 @@ function notifyCrossPlatform(message: string) {
 }
 
 export default function PackagesAndHoursScreen() {
-  const { products: globalProducts, packages: globalPackages, hourlyRates: globalHourlyRates, updateProducts, updatePackages, updateHourlyRates, loading: globalLoading } = useSettings();
+  const { products: globalProducts, packages: globalPackages, hourlyRates: globalHourlyRates, updateProducts, updatePackages, updateHourlyRates } = useSettings();
   
   const [refreshing, setRefreshing] = React.useState<boolean>(false);
   const [products, setProducts] = React.useState<Product[]>(globalProducts);
@@ -78,8 +65,6 @@ export default function PackagesAndHoursScreen() {
   const [productDropdownOpen, setProductDropdownOpen] = React.useState<boolean>(false);
 
   const [editState, setEditState] = React.useState<EditState>(null);
-
-  const router = useRouter();
 
   const [confirmState, setConfirmState] = React.useState<{
     type: "product" | "package" | "hour";
@@ -593,6 +578,7 @@ export default function PackagesAndHoursScreen() {
             {editState?.type === "product" ? (
               <View style={{ gap: 10 }}>
                 <TextInput
+                  key={`edit-product-name-${editState.id}`}
                   testID="edit-product-name"
                   style={styles.input}
                   placeholder="Productnaam"
@@ -602,6 +588,7 @@ export default function PackagesAndHoursScreen() {
                 />
                 <View style={styles.inlineBetween}>
                   <TextInput
+                    key={`edit-product-price-${editState.id}`}
                     testID="edit-product-price"
                     style={[styles.input, styles.inputSmall]}
                     placeholder="Prijs (€)"
@@ -670,6 +657,7 @@ export default function PackagesAndHoursScreen() {
             ) : editState ? (
               <View style={{ gap: 10 }}>
                 <TextInput
+                  key={`edit-package-name-${editState.id}`}
                   testID="edit-package-name"
                   style={styles.input}
                   placeholder="Pakketnaam"
@@ -679,6 +667,7 @@ export default function PackagesAndHoursScreen() {
                 />
                 <View style={styles.inlineBetween}>
                   <TextInput
+                    key={`edit-package-hours-${editState.id}`}
                     testID="edit-package-hours"
                     style={[styles.input, styles.inputSmall]}
                     placeholder="Uren"
@@ -688,6 +677,7 @@ export default function PackagesAndHoursScreen() {
                     onChangeText={(t) => setEditState((prev) => (prev && prev.type === "package" ? { ...prev, hours: t } : prev))}
                   />
                   <TextInput
+                    key={`edit-package-price-${editState.id}`}
                     testID="edit-package-price"
                     style={[styles.input, styles.inputSmall]}
                     placeholder="Prijs (€)"
@@ -766,6 +756,7 @@ export default function PackagesAndHoursScreen() {
                   {editState.type === "package" && ![1,2,3,4].includes(editState.installments) && (
                     <View style={styles.inlineBetween}>
                       <TextInput
+                        key={`package-terms-custom-${editState.id}`}
                         testID="package-terms-custom-input"
                         style={[styles.input, styles.inputSmall]}
                         placeholder="Aantal termijnen"
