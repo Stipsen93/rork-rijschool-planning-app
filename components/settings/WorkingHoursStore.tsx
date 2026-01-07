@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import createContextHook from "@nkzw/create-context-hook";
 import { Platform } from "react-native";
 import * as FileSystem from "expo-file-system/legacy";
-import { trpcClient } from "@/lib/trpc";
 import { useAuth } from "../auth/AuthStore";
 
 export type DayKey =
@@ -219,41 +218,13 @@ export const [WorkingHoursProvider, useWorkingHours] = createContextHook(() => {
       }
     };
 
-    const applyRemoteData = async (data: Awaited<ReturnType<typeof trpcClient.instructor.fetchSettings.query>>) => {
-      const remoteHours = migrateAny(data?.workingHours) ?? defaultWorkingHours;
-      const remoteVacations = normalizeVacationPeriods(data?.vacationPeriods ?? []);
 
-      if (!cancelled) {
-        setWorkingHours(remoteHours);
-        setVacationPeriods(remoteVacations);
-      }
-
-      await storageSetString(STORAGE_KEY, JSON.stringify(remoteHours));
-      await storageSetString(VACATION_STORAGE_KEY, JSON.stringify(remoteVacations));
-    };
-
-    const loadRemote = async () => {
-      try {
-        const data = await trpcClient.instructor.fetchSettings.query();
-        await applyRemoteData(data);
-      } catch (error) {
-        console.log("WorkingHoursStore: Failed to load remote settings", error);
-        await loadFromLocal();
-      }
-    };
 
     const run = async () => {
       setLoading(true);
-      try {
-        if (isInstructor) {
-          await loadRemote();
-        } else {
-          await loadFromLocal();
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
+      await loadFromLocal();
+      if (!cancelled) {
+        setLoading(false);
       }
     };
 
@@ -265,19 +236,11 @@ export const [WorkingHoursProvider, useWorkingHours] = createContextHook(() => {
   }, [isAuthenticated, activeUserId, isInstructor]);
 
   const syncRemote = React.useCallback(
-    async (payload: { workingHours?: WorkingHours; vacationPeriods?: VacationPeriod[] }) => {
-      if (!isAuthenticated || !isInstructor) {
-        return;
-      }
-
-      try {
-        await trpcClient.instructor.syncSettings.mutate(payload);
-      } catch (error) {
-        console.log("WorkingHoursStore: Supabase sync failed", error);
-        throw (error instanceof Error ? error : new Error("Synchronisatie mislukt"));
-      }
+    async (_payload: { workingHours?: WorkingHours; vacationPeriods?: VacationPeriod[] }) => {
+      void _payload;
+      return;
     },
-    [isAuthenticated, isInstructor]
+    []
   );
 
   const updateWorkingHours = React.useCallback(
