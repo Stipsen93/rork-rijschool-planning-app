@@ -3,7 +3,8 @@ import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View, Pressable } 
 import { Stack, useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { Link2, UserCheck, UserX, Loader2, Mail } from "lucide-react-native";
-import { trpc } from "@/lib/trpc";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/AuthStore";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 
@@ -60,72 +61,200 @@ type OutgoingRequest = {
 
 export default function LinkRequestsScreen() {
   const router = useRouter();
-  const { profile, isAuthenticated } = useAuth();
+  const { profile, isAuthenticated, user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
+  const queryClient = useQueryClient();
   const isInstructor = profile?.role === "instructor";
   const isStudent = profile?.role === "student";
 
-  const instructorRequestsQuery = trpc.linkRequests.list.useQuery(undefined, {
-    enabled: Boolean(isAuthenticated && isInstructor),
+  const instructorRequestsQuery = useQuery({
+    queryKey: ['instructor-link-requests', user?.id],
+    queryFn: async () => {
+      if (!user?.id) throw new Error('No user ID');
+      console.log('[LinkRequests] Fetching instructor requests');
+      const { data, error } = await supabase
+        .from('instructor_link_requests')
+        .select(`
+          id,
+          status,
+          message,
+          created_at,
+          responded_at,
+          student:student_id (id, first_name, last_name, email)
+        `)
+        .eq('instructor_id', user.id)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('[LinkRequests] Error fetching instructor requests:', error);
+        throw error;
+      }
+
+      console.log('[LinkRequests] Instructor requests:', data);
+      return data.map((req: any) => ({
+        id: req.id,
+        status: req.status,
+        message: req.message,
+        created_at: req.created_at,
+        responded_at: req.responded_at,
+        student: req.student ? {
+          first_name: req.student.first_name,
+          last_name: req.student.last_name,
+          email: req.student.email,
+        } : null,
+      })) as IncomingRequest[];
+    },
+    enabled: Boolean(isAuthenticated && isInstructor && user?.id),
     staleTime: 1000 * 30,
   });
 
-  const studentRequestsQuery = trpc.linkRequests.myRequests.useQuery(undefined, {
-    enabled: Boolean(isAuthenticated && isStudent),
+  const studentRequestsQuery = useQuery({
+    queryKey: ['student-link-requests', user?.id],
+    queryFn: async () => {
+      if (!user?.id) throw new Error('No user ID');
+      console.log('[LinkRequests] Fetching student requests');
+      const { data, error } = await supabase
+        .from('instructor_link_requests')
+        .select(`
+          id,
+          status,
+          message,
+          created_at,
+          responded_at,
+          updated_at,
+          instructor:instructor_id (id, first_name, last_name, email)
+        `)
+        .eq('student_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('[LinkRequests] Error fetching student requests:', error);
+        throw error;
+      }
+
+      console.log('[LinkRequests] Student requests:', data);
+      return data.map((req: any) => ({
+        id: req.id,
+        status: req.status,
+        message: req.message,
+        created_at: req.created_at,
+        responded_at: req.responded_at,
+        updated_at: req.updated_at,
+        instructor: req.instructor ? {
+          first_name: req.instructor.first_name,
+          last_name: req.instructor.last_name,
+          email: req.instructor.email,
+        } : null,
+      })) as OutgoingRequest[];
+    },
+    enabled: Boolean(isAuthenticated && isStudent && user?.id),
     staleTime: 1000 * 30,
   });
 
-  const respondMutation = trpc.linkRequests.respond.useMutation();
-  const cancelMutation = trpc.linkRequests.cancel.useMutation();
+  const respondMutation = useMutation({
+    mutationFn: async ({ requestId, accept }: { requestId: string; accept: boolean }) => {
+      console.log('[LinkRequests] Responding to request:', requestId, accept);
+      
+      const statusValue = accept ? 'accepted' : 'rejected';
+      const now = new Date().toISOString();
+      
+      const { error } = await (supabase
+        .from('instructor_link_requests') as any)
+        .update({
+          status: statusValue,
+          responded_at: now,
+          updated_at: now,
+        })
+        .eq('id', requestId);
+
+      if (error) {
+        console.error('[LinkRequests] Error responding:', error);
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['instructor-link-requests'] });
+    },
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: async (requestId: string) => {
+      console.log('[LinkRequests] Cancelling request:', requestId);
+      
+      const now = new Date().toISOString();
+      
+      const { error } = await (supabase
+        .from('instructor_link_requests') as any)
+        .update({
+          status: 'cancelled',
+          updated_at: now,
+        })
+        .eq('id', requestId);
+
+      if (error) {
+        console.error('[LinkRequests] Error cancelling:', error);
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['student-link-requests'] });
+    },
+  });
 
   const instructorRequests = useMemo<IncomingRequest[]>(
-    () => (instructorRequestsQuery.data ?? []) as IncomingRequest[],
+    () => instructorRequestsQuery.data ?? [],
     [instructorRequestsQuery.data],
   );
   const studentRequests = useMemo<OutgoingRequest[]>(
-    () => (studentRequestsQuery.data ?? []) as OutgoingRequest[],
+    () => studentRequestsQuery.data ?? [],
     [studentRequestsQuery.data],
   );
+
+  const { mutateAsync: respondAsync } = respondMutation;
 
   const handleRespond = useCallback(async (requestId: string, accept: boolean) => {
     try {
       console.log("[LinkRequests] Responding to request", requestId, accept ? "accept" : "reject");
-      await respondMutation.mutateAsync({ requestId, accept });
-      await instructorRequestsQuery.refetch();
+      await respondAsync({ requestId, accept });
       Alert.alert("Succes", accept ? "Verzoek geaccepteerd" : "Verzoek afgewezen");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Kon niet reageren";
       console.error("[LinkRequests] respond error", message);
       Alert.alert("Fout", message);
     }
-  }, [respondMutation, instructorRequestsQuery]);
+  }, [respondAsync]);
+
+  const { mutateAsync: cancelAsync } = cancelMutation;
 
   const handleCancel = useCallback(async (requestId: string) => {
     try {
       console.log("[LinkRequests] Cancelling request", requestId);
-      await cancelMutation.mutateAsync({ requestId });
-      await studentRequestsQuery.refetch();
+      await cancelAsync(requestId);
       Alert.alert("Succes", "Verzoek geannuleerd");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Kon niet annuleren";
       console.error("[LinkRequests] cancel error", message);
       Alert.alert("Fout", message);
     }
-  }, [cancelMutation, studentRequestsQuery]);
+  }, [cancelAsync]);
+
+  const { refetch: refetchInstructor } = instructorRequestsQuery;
+  const { refetch: refetchStudent } = studentRequestsQuery;
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
       if (isInstructor) {
-        await instructorRequestsQuery.refetch();
+        await refetchInstructor();
       }
       if (isStudent) {
-        await studentRequestsQuery.refetch();
+        await refetchStudent();
       }
     } finally {
       setRefreshing(false);
     }
-  }, [instructorRequestsQuery, studentRequestsQuery, isInstructor, isStudent]);
+  }, [refetchInstructor, refetchStudent, isInstructor, isStudent]);
 
   if (!isAuthenticated) {
     return (
