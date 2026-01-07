@@ -6,6 +6,7 @@ import React, { useEffect } from "react";
 import { Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { queryClient } from "@/lib/queryClient";
+import { trpc, trpcClient } from "@/lib/trpc";
 import { AgendaProvider } from "@/components/agenda/AgendaStore";
 import { WorkingHoursProvider } from "@/components/settings/WorkingHoursStore";
 import { SettingsProvider } from "@/components/settings/SettingsStore";
@@ -56,9 +57,10 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <AuthProvider>
+    <trpc.Provider client={trpcClient} queryClient={queryClient}>
+      <QueryClientProvider client={queryClient}>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <AuthProvider>
           <ProfileProvider>
             <SettingsProvider>
               <StudentConfigProvider>
@@ -80,8 +82,9 @@ export default function RootLayout() {
               </StudentConfigProvider>
             </SettingsProvider>
           </ProfileProvider>
-        </AuthProvider>
-      </GestureHandlerRootView>
-    </QueryClientProvider>
+          </AuthProvider>
+        </GestureHandlerRootView>
+      </QueryClientProvider>
+    </trpc.Provider>
   );
 }
