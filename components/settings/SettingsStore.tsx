@@ -4,6 +4,7 @@ import { Platform } from "react-native";
 import * as FileSystem from "expo-file-system/legacy";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth } from "../auth/AuthStore";
+import { supabase } from "@/lib/supabase";
 
 type LessonConfig = {
   baseLessonDuration: number;
@@ -84,6 +85,86 @@ export const [SettingsProvider, useSettings] = createContextHook(() => {
     }
 
     let cancelled = false;
+
+    const loadFromSupabase = async () => {
+      if (!isInstructor || !activeUserId) {
+        return;
+      }
+
+      try {
+        console.log("[SettingsStore] Loading from Supabase...");
+        const { data, error } = await supabase
+          .from("instructor_profiles")
+          .select("base_lesson_duration, product_durations, break_between_lessons, automatic_breaks, require_confirmation, cancellation_notice_hours, products, packages, hourly_rate, hourly_vat_status")
+          .eq("user_id", activeUserId)
+          .maybeSingle() as { data: any; error: any };
+
+        if (error) {
+          console.log("[SettingsStore] Supabase error:", error);
+          return;
+        }
+
+        if (data) {
+          if (data.base_lesson_duration !== null || data.break_between_lessons !== null) {
+            const config: Partial<LessonConfig> & Partial<{ practicalLessonDuration: number }> = {
+              baseLessonDuration: data.base_lesson_duration ?? 60,
+              productDurations: data.product_durations ?? {},
+              breakBetweenLessons: data.break_between_lessons ?? 15,
+              automaticBreaks: data.automatic_breaks ?? false,
+              requireConfirmation: data.require_confirmation ?? true,
+              cancellationNoticeHours: data.cancellation_notice_hours ?? 24,
+            };
+            const migrated: LessonConfig = {
+              baseLessonDuration: config.baseLessonDuration ?? 60,
+              productDurations: config.productDurations ?? {},
+              breakBetweenLessons: config.breakBetweenLessons ?? 15,
+              automaticBreaks: config.automaticBreaks ?? false,
+              requireConfirmation: config.requireConfirmation ?? true,
+              cancellationNoticeHours: config.cancellationNoticeHours ?? 24,
+            };
+            setLessonConfig(migrated);
+            await storageSetString(LESSON_CONFIG_KEY, JSON.stringify(migrated));
+          }
+          if (data.products) {
+            const raw = data.products as Partial<Product>[];
+            const list: Product[] = raw.map((p) => ({
+              id: String(p.id ?? ""),
+              name: String(p.name ?? ""),
+              price: Number(p.price ?? 0),
+              vatStatus: (p.vatStatus as Product["vatStatus"]) ?? "incl",
+              installments: typeof p.installments === "number" && p.installments >= 1 ? p.installments : 1,
+            }));
+            setProducts(list);
+            await AsyncStorage.setItem(PRODUCTS_KEY, JSON.stringify(list));
+          }
+          if (data.packages) {
+            const rawPk = data.packages as Partial<PackageItem>[];
+            const pkgs: PackageItem[] = rawPk.map((p) => ({
+              id: String(p.id ?? ""),
+              name: String(p.name ?? ""),
+              hours: Number(p.hours ?? 0),
+              price: Number(p.price ?? 0),
+              vatStatus: (p.vatStatus as PackageItem["vatStatus"]) ?? "incl",
+              selectedProducts: Array.isArray(p.selectedProducts) ? p.selectedProducts.map(String) : [],
+              installments: typeof p.installments === "number" && p.installments >= 1 ? p.installments : 1,
+            }));
+            setPackages(pkgs);
+            await AsyncStorage.setItem(PACKAGES_KEY, JSON.stringify(pkgs));
+          }
+          if (data.hourly_rate !== null) {
+            const rates: HourlyRates = {
+              price: data.hourly_rate ?? 0,
+              vatStatus: (data.hourly_vat_status as HourlyRates["vatStatus"]) ?? "incl",
+            };
+            setHourlyRates(rates);
+            await AsyncStorage.setItem(HOURLY_RATES_KEY, JSON.stringify(rates));
+          }
+          console.log("[SettingsStore] Loaded from Supabase successfully");
+        }
+      } catch (error) {
+        console.log("[SettingsStore] Failed to load from Supabase:", error);
+      }
+    };
 
     const loadFromLocal = async () => {
       console.log("[SettingsStore] Loading settings from local storage...");
@@ -209,7 +290,11 @@ export const [SettingsProvider, useSettings] = createContextHook(() => {
 
     const run = async () => {
       setLoading(true);
-      await loadFromLocal();
+      if (isInstructor) {
+        await loadFromSupabase();
+      } else {
+        await loadFromLocal();
+      }
       if (!cancelled) {
         setLoading(false);
       }
@@ -229,10 +314,40 @@ export const [SettingsProvider, useSettings] = createContextHook(() => {
     hourlyRates?: HourlyRates;
   };
 
-  const syncRemote = useCallback(async (_payload: SyncPayload) => {
-    void _payload;
-    return;
-  }, []);
+  const syncRemote = useCallback(async (payload: SyncPayload) => {
+    if (!isAuthenticated || !activeUserId || !isInstructor) {
+      console.log("[SettingsStore] Skipping sync: not authenticated or not instructor");
+      return;
+    }
+
+    try {
+      console.log("[SettingsStore] Syncing to Supabase...");
+      const updateData = {} as any;
+
+      if (payload.lessonConfig) {
+        updateData.base_lesson_duration = payload.lessonConfig.baseLessonDuration;
+        updateData.product_durations = payload.lessonConfig.productDurations;
+        updateData.break_between_lessons = payload.lessonConfig.breakBetweenLessons;
+        updateData.automatic_breaks = payload.lessonConfig.automaticBreaks;
+        updateData.require_confirmation = payload.lessonConfig.requireConfirmation;
+        updateData.cancellation_notice_hours = payload.lessonConfig.cancellationNoticeHours;
+      }
+      if (payload.products) {
+        updateData.products = payload.products;
+      }
+      if (payload.packages) {
+        updateData.packages = payload.packages;
+      }
+      if (payload.hourlyRates) {
+        updateData.hourly_rate = payload.hourlyRates.price;
+        updateData.hourly_vat_status = payload.hourlyRates.vatStatus;
+      }
+
+      void (supabase.from("instructor_profiles").update as any)(updateData).eq("user_id", activeUserId);
+    } catch (error) {
+      console.error("[SettingsStore] Failed to sync:", error);
+    }
+  }, [isAuthenticated, activeUserId, isInstructor]);
 
   const updateLessonConfig = useCallback(
     async (config: LessonConfig) => {

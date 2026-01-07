@@ -3,6 +3,7 @@ import createContextHook from "@nkzw/create-context-hook";
 import { Platform } from "react-native";
 import * as FileSystem from "expo-file-system/legacy";
 import { useAuth } from "../auth/AuthStore";
+import { supabase } from "@/lib/supabase";
 
 export type DayKey =
   | "Maandag"
@@ -183,6 +184,44 @@ export const [WorkingHoursProvider, useWorkingHours] = createContextHook(() => {
 
     let cancelled = false;
 
+    const loadFromSupabase = async () => {
+      if (!isInstructor || !activeUserId) {
+        return;
+      }
+
+      try {
+        console.log("[WorkingHoursStore] Loading from Supabase...");
+        const { data, error } = await supabase
+          .from("instructor_profiles")
+          .select("working_hours, vacation_periods")
+          .eq("user_id", activeUserId)
+          .maybeSingle() as { data: { working_hours: any; vacation_periods: any } | null; error: any };
+
+        if (error) {
+          console.log("[WorkingHoursStore] Supabase error:", error);
+          return;
+        }
+
+        if (data) {
+          if (data.working_hours) {
+            const migrated = migrateAny(data.working_hours);
+            if (migrated) {
+              setWorkingHours(migrated);
+              await storageSetString(STORAGE_KEY, JSON.stringify(migrated));
+            }
+          }
+          if (data.vacation_periods) {
+            const periods = normalizeVacationPeriods(data.vacation_periods);
+            setVacationPeriods(periods);
+            await storageSetString(VACATION_STORAGE_KEY, JSON.stringify(periods));
+          }
+          console.log("[WorkingHoursStore] Loaded from Supabase successfully");
+        }
+      } catch (error) {
+        console.log("[WorkingHoursStore] Failed to load from Supabase:", error);
+      }
+    };
+
     const loadFromLocal = async () => {
       const [hoursStr, vacationsStr] = await Promise.all([
         storageGetString(STORAGE_KEY),
@@ -222,7 +261,11 @@ export const [WorkingHoursProvider, useWorkingHours] = createContextHook(() => {
 
     const run = async () => {
       setLoading(true);
-      await loadFromLocal();
+      if (isInstructor) {
+        await loadFromSupabase();
+      } else {
+        await loadFromLocal();
+      }
       if (!cancelled) {
         setLoading(false);
       }
@@ -236,11 +279,33 @@ export const [WorkingHoursProvider, useWorkingHours] = createContextHook(() => {
   }, [isAuthenticated, activeUserId, isInstructor]);
 
   const syncRemote = React.useCallback(
-    async (_payload: { workingHours?: WorkingHours; vacationPeriods?: VacationPeriod[] }) => {
-      void _payload;
-      return;
+    async (payload: { workingHours?: WorkingHours; vacationPeriods?: VacationPeriod[] }) => {
+      if (!isAuthenticated || !activeUserId || !isInstructor) {
+        console.log("[WorkingHoursStore] Skipping sync: not authenticated or not instructor");
+        return;
+      }
+
+      try {
+        console.log("[WorkingHoursStore] Syncing to Supabase...");
+        const updateData = {} as any;
+
+        if (payload.workingHours) {
+          updateData.working_hours = payload.workingHours;
+        }
+        if (payload.vacationPeriods) {
+          updateData.vacation_periods = payload.vacationPeriods;
+        }
+
+        void (supabase.from("instructor_profiles").update as any)(updateData).eq("user_id", activeUserId);
+
+
+
+
+      } catch (error) {
+        console.error("[WorkingHoursStore] Failed to sync:", error);
+      }
     },
-    []
+    [isAuthenticated, activeUserId, isInstructor]
   );
 
   const updateWorkingHours = React.useCallback(
