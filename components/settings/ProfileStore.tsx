@@ -104,7 +104,10 @@ export const [ProfileProvider, useProfile] = createContextHook(() => {
       return;
     }
 
-    setProfile(rowToProfile(data as InstructorProfileRow, fallbackEmail));
+    console.log("[ProfileStore] Loaded instructor_profiles data:", data);
+    const mappedProfile = rowToProfile(data as InstructorProfileRow, fallbackEmail);
+    console.log("[ProfileStore] Mapped profile:", mappedProfile);
+    setProfile(mappedProfile);
     setLoading(false);
   }, [fallbackEmail, isAuthenticated, isInstructor, userId]);
 

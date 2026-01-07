@@ -282,7 +282,7 @@ const DRAFT_KEY = "instructor_profile_draft" as const;
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { profile, updateProfile, syncing } = useProfile();
+  const { profile, updateProfile, syncing, loading } = useProfile();
   const { deleteAccount, isDeletingAccount } = useAuth();
   const insets = useSafeAreaInsets();
   const [isEditing, setIsEditing] = useState<boolean>(false);
@@ -293,9 +293,11 @@ export default function ProfileScreen() {
   const [showDeletePrompt, setShowDeletePrompt] = useState<boolean>(false);
   const [showFinalDeletePrompt, setShowFinalDeletePrompt] = useState<boolean>(false);
 
+  console.log("[ProfileScreen] Render - loading:", loading, "profile:", profile);
+
   useEffect(() => {
     if (!isEditing) {
-      console.log("[ProfileScreen] Mount - loading initial data");
+      console.log("[ProfileScreen] Profile changed - updating local copy", profile);
       setLocalProfile(profile);
     }
   }, [profile, isEditing]);
@@ -477,6 +479,14 @@ export default function ProfileScreen() {
       };
     }, [])
   );
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#f9fafb" }}>
+        <Text style={{ fontSize: 16, color: "#6b7280" }}>Profiel laden...</Text>
+      </View>
+    );
+  }
 
   return (
     <ErrorBoundary>
