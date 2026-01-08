@@ -176,12 +176,10 @@ export default function LinkRequestsScreen() {
         
         console.log('[LinkRequests] Updating existing student profile with instructor_id');
 
-        const { data: updatedProfile, error: updateError } = await (supabase
+        const { error: updateError } = await (supabase
           .from('student_profiles') as any)
           .update({ instructor_id: instructorId })
-          .eq('user_id', studentId)
-          .select('id, user_id, instructor_id')
-          .single();
+          .eq('user_id', studentId);
 
         if (updateError) {
           const updateMessage =
@@ -199,7 +197,7 @@ export default function LinkRequestsScreen() {
           throw new Error(updateMessage);
         }
 
-        console.log('[LinkRequests] Student profile updated:', updatedProfile);
+        console.log('[LinkRequests] Student profile updated with instructor_id:', instructorId);
       }
       
       const { error } = await (supabase
