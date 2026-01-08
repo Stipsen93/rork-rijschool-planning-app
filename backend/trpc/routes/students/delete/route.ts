@@ -9,7 +9,7 @@ const deleteStudentSchema = z.object({
 export const deleteStudentProcedure = protectedProcedure
   .input(deleteStudentSchema)
   .mutation(async ({ ctx, input }) => {
-    console.log("[DeleteStudent] Deleting student", input.studentId);
+    console.log("[DeleteStudent] Removing student from instructor list (no Supabase account deletion)", input.studentId);
     
     const { supabase, user } = ctx;
     const userId = user.id;
@@ -27,20 +27,24 @@ export const deleteStudentProcedure = protectedProcedure
       });
     }
 
-    const { error: deleteError } = await (supabase
-      .from("profiles") as any)
-      .delete()
-      .eq("id", input.studentId);
+    const { error: unlinkError } = await (supabase
+      .from("student_profiles") as any)
+      .update({ instructor_id: null })
+      .eq("user_id", input.studentId)
+      .eq("instructor_id", userId);
 
-    if (deleteError) {
-      console.error("[DeleteStudent] Error deleting student:", deleteError);
+    if (unlinkError) {
+      console.error("[DeleteStudent] Error unlinking student from instructor:", unlinkError);
       throw new TRPCError({
         code: "INTERNAL_SERVER_ERROR",
-        message: `Fout bij verwijderen leerling: ${deleteError.message}`,
+        message: `Fout bij verwijderen leerling uit je lijst: ${unlinkError.message}`,
       });
     }
 
-    console.log("[DeleteStudent] Student deleted successfully");
+    console.log("[DeleteStudent] Student unlinked successfully (account kept)\n", {
+      studentId: input.studentId,
+      instructorId: userId,
+    });
 
     return {
       success: true,
