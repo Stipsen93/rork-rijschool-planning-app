@@ -603,6 +603,21 @@ export default function ProfileScreen() {
               </>
             )}
 
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>Plaats actief</Text>
+              <TextInput
+                testID="field-active-locations"
+                style={[styles.input, !isEditing && styles.inputDisabled]}
+                value={localProfile.activeLocations}
+                onChangeText={(t) => onChange("activeLocations", t)}
+                editable={isEditing}
+                placeholder="Almere, Amsterdam..."
+                placeholderTextColor="#9ca3af"
+                selectTextOnFocus={isEditing}
+                pointerEvents={isEditing ? "auto" : "none"}
+              />
+            </View>
+
             <Field label="Jaren ervaring" value={localProfile.experienceYears} keyboardType="number-pad" onChangeText={(t) => onChange("experienceYears", t)} editable={isEditing} testID="field-exp" />
 
             {isEditing && (
@@ -876,6 +891,21 @@ export default function ProfileScreen() {
               </>
             )}
 
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>Plaats actief</Text>
+              <TextInput
+                testID="field-active-locations"
+                style={[styles.input, !isEditing && styles.inputDisabled]}
+                value={localProfile.activeLocations}
+                onChangeText={(t) => onChange("activeLocations", t)}
+                editable={isEditing}
+                placeholder="Almere, Amsterdam..."
+                placeholderTextColor="#9ca3af"
+                selectTextOnFocus={isEditing}
+                pointerEvents={isEditing ? "auto" : "none"}
+              />
+            </View>
+
             <Field label="Jaren ervaring" value={localProfile.experienceYears} keyboardType="number-pad" onChangeText={(t) => onChange("experienceYears", t)} editable={isEditing} testID="field-exp" />
 
             {isEditing && (
@@ -1103,6 +1133,7 @@ const styles = StyleSheet.create({
   },
   avatarTitle: { fontSize: 16, fontWeight: "600", marginTop: 8 },
   avatarHint: { fontSize: 12, color: "#6b7280" },
+  fieldHint: { fontSize: 12, color: "#9ca3af", marginTop: -6 },
   card: {
     backgroundColor: "#fff",
     borderRadius: 12,

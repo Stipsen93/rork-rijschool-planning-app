@@ -12,6 +12,7 @@ export type InstructorProfile = {
   certificationNumber: string;
   drivingSchoolName: string;
   drivingSchools: string[];
+  activeLocations: string;
   birthDate: string | null;
   instructorNumber: string;
   experienceYears: string;
@@ -32,6 +33,7 @@ const defaultProfile: InstructorProfile = {
   certificationNumber: "",
   drivingSchoolName: "",
   drivingSchools: [],
+  activeLocations: "",
   birthDate: null,
   instructorNumber: "",
   experienceYears: "",
@@ -53,6 +55,7 @@ function rowToProfile(row: InstructorProfileRow | null, fallbackEmail: string): 
     drivingSchools: Array.isArray(row?.driving_school_affiliation)
       ? (row?.driving_school_affiliation ?? []).filter(Boolean)
       : [],
+    activeLocations: (row as any)?.active_locations ?? "",
     birthDate: row?.birth_date ?? null,
     instructorNumber: row?.instructor_number ?? "",
     experienceYears: row?.years_experience != null ? String(row.years_experience) : "",
@@ -142,7 +145,11 @@ export const [ProfileProvider, useProfile] = createContextHook(() => {
         business_address: newProfile.address.trim() || null,
         iban: newProfile.iban.trim() || null,
         specializations: newProfile.specializations,
-      };
+      } as any;
+
+      if (newProfile.activeLocations.trim()) {
+        (payload as any).active_locations = newProfile.activeLocations.trim();
+      }
 
       const { error } = await supabase
         .from("instructor_profiles")
