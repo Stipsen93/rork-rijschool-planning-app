@@ -159,6 +159,55 @@ export default function LinkRequestsScreen() {
       const statusValue = accept ? 'accepted' : 'rejected';
       const now = new Date().toISOString();
       
+      if (accept) {
+        const { data: requestData, error: fetchError } = await (supabase
+          .from('instructor_link_requests') as any)
+          .select('student_id, instructor_id')
+          .eq('id', requestId)
+          .single();
+        
+        if (fetchError || !requestData) {
+          console.error('[LinkRequests] Error fetching request data:', fetchError);
+          throw fetchError || new Error('Request data not found');
+        }
+        
+        const studentId = requestData.student_id as string;
+        const instructorId = requestData.instructor_id as string;
+        
+        const { data: existingProfile, error: checkError } = await (supabase
+          .from('student_profiles') as any)
+          .select('user_id')
+          .eq('user_id', studentId)
+          .eq('instructor_id', instructorId)
+          .maybeSingle();
+        
+        if (checkError) {
+          console.error('[LinkRequests] Error checking student profile:', checkError);
+          throw checkError;
+        }
+        
+        if (!existingProfile) {
+          console.log('[LinkRequests] Creating student profile for accepted request');
+          const { error: createError } = await (supabase
+            .from('student_profiles') as any)
+            .insert({
+              user_id: studentId,
+              instructor_id: instructorId,
+              level: 'Beginner',
+              total_lessons_completed: 0,
+              hours_driven: 0,
+              overall_progress: 0,
+              learning_preferences: {},
+            });
+          
+          if (createError) {
+            console.error('[LinkRequests] Error creating student profile:', createError);
+            throw createError;
+          }
+          console.log('[LinkRequests] Student profile created successfully');
+        }
+      }
+      
       const { error } = await (supabase
         .from('instructor_link_requests') as any)
         .update({
@@ -175,6 +224,7 @@ export default function LinkRequestsScreen() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['instructor-link-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['students'] });
     },
   });
 
