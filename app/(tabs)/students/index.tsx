@@ -310,9 +310,11 @@ export default function StudentsScreen() {
               
               setAddOpen(false);
               loadPersonalInfo();
+              Alert.alert("Succesvol", `${data.fullName} is succesvol toegevoegd aan je leerlingenlijst.`);
             } catch (error) {
               console.error("[AddStudent] Failed to add student:", error);
-              Alert.alert("Fout", "Kon leerling niet toevoegen. Probeer het opnieuw.");
+              const errorMessage = error instanceof Error ? error.message : "Kon leerling niet toevoegen. Probeer het opnieuw.";
+              Alert.alert("Fout", errorMessage);
             }
           }}
         />
