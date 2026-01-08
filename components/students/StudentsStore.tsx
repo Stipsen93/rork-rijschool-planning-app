@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import createContextHook from "@nkzw/create-context-hook";
 import { useAgenda } from "../agenda/AgendaStore";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../auth/AuthStore";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 export interface StudentItem {
   id: string;
@@ -27,23 +28,21 @@ function seedStudents(): StudentItem[] {
 }
 
 export const [StudentsProvider, useStudents] = createContextHook(() => {
-  const [customStudents, setCustomStudents] = useState<StudentItem[]>([]);
   const [deletedStudentIds, setDeletedStudentIds] = useState<Set<string>>(new Set());
-  const [isLoading, setIsLoading] = useState(false);
   const seedData = useMemo(() => seedStudents(), []);
   const { lessonsByDate } = useAgenda();
   const { user } = useAuth();
-  
-  const fetchStudents = useCallback(async () => {
-    if (!user?.id) {
-      console.log("[StudentsStore] No user ID, skipping fetch");
-      return;
-    }
-    
-    try {
-      setIsLoading(true);
-      console.log("[StudentsStore] Fetching students from Supabase");
-      
+  const queryClient = useQueryClient();
+
+  const studentsQuery = useQuery({
+    queryKey: ["students", user?.id],
+    enabled: Boolean(user?.id),
+    staleTime: 1000 * 30,
+    queryFn: async () => {
+      if (!user?.id) return [] as StudentItem[];
+
+      console.log("[StudentsStore] Fetching students from Supabase (react-query)");
+
       const { data: studentsData, error } = await supabase
         .from("student_profiles")
         .select(`
@@ -67,49 +66,41 @@ export const [StudentsProvider, useStudents] = createContextHook(() => {
           )
         `)
         .eq("instructor_id", user.id);
-      
+
       if (error) {
         console.error("[StudentsStore] Error fetching students:", error);
-        return;
+        throw new Error(error.message ?? "Kon leerlingen niet ophalen");
       }
-      
-      if (studentsData) {
-        const students: StudentItem[] = studentsData.map((s: any) => {
-          const profile = s.profiles;
-          const learningPrefs = s.learning_preferences || {};
-          
-          return {
-            id: s.user_id,
-            name: profile?.full_name || `${profile?.first_name || ""} ${profile?.last_name || ""}`.trim(),
-            firstName: profile?.first_name || "",
-            lastName: profile?.last_name || "",
-            email: profile?.email || "",
-            phone: profile?.phone || "",
-            birthDate: profile?.birth_date || null,
-            emergencyContactName: learningPrefs.emergencyContactName || null,
-            emergencyContactPhone: learningPrefs.emergencyContactPhone || null,
-            notes: learningPrefs.notes || null,
-            status: "active" as const,
-            passed: false,
-            theoryPassed: false,
-            practicalExamBooked: false,
-            dateAdded: new Date(),
-          };
-        });
-        
-        console.log("[StudentsStore] Fetched", students.length, "students");
-        setCustomStudents(students);
-      }
-    } catch (error) {
-      console.error("[StudentsStore] Failed to fetch students:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user?.id]);
-  
-  useEffect(() => {
-    fetchStudents();
-  }, [fetchStudents]);
+
+      const students: StudentItem[] = (studentsData ?? []).map((s: any) => {
+        const profile = s.profiles;
+        const learningPrefs = s.learning_preferences || {};
+
+        return {
+          id: String(s.user_id),
+          name: profile?.full_name || `${profile?.first_name || ""} ${profile?.last_name || ""}`.trim(),
+          firstName: profile?.first_name || "",
+          lastName: profile?.last_name || "",
+          email: profile?.email || "",
+          phone: profile?.phone || "",
+          birthDate: profile?.birth_date || null,
+          emergencyContactName: learningPrefs.emergencyContactName || null,
+          emergencyContactPhone: learningPrefs.emergencyContactPhone || null,
+          notes: learningPrefs.notes || null,
+          status: "active" as const,
+          passed: false,
+          theoryPassed: false,
+          practicalExamBooked: false,
+          dateAdded: new Date(),
+        };
+      });
+
+      console.log("[StudentsStore] Fetched", students.length, "students");
+      return students;
+    },
+  });
+
+  const customStudents = useMemo<StudentItem[]>(() => studentsQuery.data ?? [], [studentsQuery.data]);
 
   
   const allStudents = useMemo(() => {
@@ -200,10 +191,15 @@ export const [StudentsProvider, useStudents] = createContextHook(() => {
 
   const addStudent = useCallback(async (student: StudentItem | Omit<StudentItem, "id">) => {
     console.log("[StudentsStore] Adding student", student);
-    
+
     if ("id" in student) {
       const newStudent: StudentItem = student;
-      setCustomStudents((prev) => [newStudent, ...prev]);
+      if (user?.id) {
+        queryClient.setQueryData<StudentItem[]>(["students", user.id], (prev) => {
+          const safePrev = prev ?? [];
+          return [newStudent, ...safePrev];
+        });
+      }
       return;
     }
     
@@ -303,17 +299,24 @@ export const [StudentsProvider, useStudents] = createContextHook(() => {
       }
       
       console.log("[StudentsStore] Student created successfully", studentId);
-      await fetchStudents();
+      if (user?.id) {
+        await queryClient.invalidateQueries({ queryKey: ["students", user.id] });
+      }
     } catch (error) {
       console.error("[StudentsStore] Failed to add student:", error);
       throw error;
     }
-  }, [user?.id, fetchStudents]);
+  }, [queryClient, user?.id]);
 
   const updateStudent = useCallback(async (id: string, updates: Partial<StudentItem>) => {
     console.log("[StudentsStore] Updating student", id, updates);
-    
-    setCustomStudents((prev) => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+
+    if (user?.id) {
+      queryClient.setQueryData<StudentItem[]>(["students", user.id], (prev) => {
+        const safePrev = prev ?? [];
+        return safePrev.map((s) => (s.id === id ? { ...s, ...updates } : s));
+      });
+    }
     
     try {
       if (updates.firstName || updates.lastName || updates.email || updates.phone || updates.birthDate) {
@@ -363,21 +366,32 @@ export const [StudentsProvider, useStudents] = createContextHook(() => {
       }
       
       console.log("[StudentsStore] Student updated");
-      await fetchStudents();
+      if (user?.id) {
+        await queryClient.invalidateQueries({ queryKey: ["students", user.id] });
+      }
     } catch (error) {
       console.error("[StudentsStore] Failed to update student:", error);
+      if (user?.id) {
+        await queryClient.invalidateQueries({ queryKey: ["students", user.id] });
+      }
     }
-  }, [fetchStudents]);
+  }, [queryClient, user?.id]);
 
   const deleteStudent = useCallback(async (id: string) => {
     console.log("[StudentsStore] Deleting student", id);
-    
+
     setDeletedStudentIds((prev) => {
       const newSet = new Set(prev);
       newSet.add(id);
       return newSet;
     });
-    setCustomStudents((prev) => prev.filter(s => s.id !== id));
+
+    if (user?.id) {
+      queryClient.setQueryData<StudentItem[]>(["students", user.id], (prev) => {
+        const safePrev = prev ?? [];
+        return safePrev.filter((s) => s.id !== id);
+      });
+    }
     
     try {
       const { error } = await (supabase
@@ -391,12 +405,17 @@ export const [StudentsProvider, useStudents] = createContextHook(() => {
       }
       
       console.log("[StudentsStore] Student deleted", id);
-      await fetchStudents();
+      if (user?.id) {
+        await queryClient.invalidateQueries({ queryKey: ["students", user.id] });
+      }
     } catch (error) {
       console.error("[StudentsStore] Failed to delete student:", error);
+      if (user?.id) {
+        await queryClient.invalidateQueries({ queryKey: ["students", user.id] });
+      }
       throw error;
     }
-  }, [fetchStudents]);
+  }, [queryClient, user?.id]);
 
   const value = useMemo(() => ({
     students: allStudents,
@@ -404,9 +423,10 @@ export const [StudentsProvider, useStudents] = createContextHook(() => {
     addStudent,
     updateStudent,
     deleteStudent,
-    isLoading,
-    refetch: fetchStudents,
-  }), [allStudents, studentActivity, addStudent, updateStudent, deleteStudent, isLoading, fetchStudents]);
+    isLoading: studentsQuery.isLoading,
+    refetch: studentsQuery.refetch,
+    error: studentsQuery.error,
+  }), [allStudents, studentActivity, addStudent, updateStudent, deleteStudent, studentsQuery.isLoading, studentsQuery.refetch, studentsQuery.error]);
 
   return value;
 });

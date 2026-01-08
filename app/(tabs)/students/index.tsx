@@ -49,7 +49,6 @@ function AnimatedListItem({ children, index, delay = 0 }: { children: React.Reac
 
 export default function StudentsScreen() {
   const [refreshing, setRefreshing] = useState<boolean>(false);
-  const [loading, setLoading] = useState<boolean>(false);
   const [query, setQuery] = useState<string>("");
   const [filters, setFilters] = useState<StudentFilters>({
     activityStatus: [],
@@ -64,7 +63,7 @@ export default function StudentsScreen() {
   const [filterModalOpen, setFilterModalOpen] = useState<boolean>(false);
   const [addOpen, setAddOpen] = useState<boolean>(false);
   const insets = useSafeAreaInsets();
-  const { students: allStudents, addStudent, studentActivity } = useStudents();
+  const { students: allStudents, addStudent, studentActivity, refetch: refetchStudents, error: studentsError, isLoading: studentsLoading } = useStudents();
   const { activeStudents, irregularStudents } = studentActivity;
   const [personalInfoCache, setPersonalInfoCache] = useState<Record<string, { firstName: string; lastName: string }>>({});
 
@@ -73,6 +72,21 @@ export default function StudentsScreen() {
     if (irregularStudents.some(s => s.name === studentName)) return "irregular";
     return "inactive";
   }, [activeStudents, irregularStudents]);
+
+  useFocusEffect(
+    useCallback(() => {
+      console.log("[StudentsScreen] Focused -> refetch students");
+      refetchStudents?.();
+    }, [refetchStudents])
+  );
+
+  useEffect(() => {
+    if (studentsError) {
+      const msg = studentsError instanceof Error ? studentsError.message : "Kon leerlingen niet laden";
+      console.error("[StudentsScreen] studentsError", studentsError);
+      Alert.alert("Fout", msg);
+    }
+  }, [studentsError]);
 
   const hasActiveFilters = useMemo(() => {
     return filters.activityStatus.length > 0 ||
@@ -182,12 +196,16 @@ export default function StudentsScreen() {
     }, [loadPersonalInfo])
   );
 
-  const onRefresh = useCallback(() => {
-    console.log("Refreshing students...");
+  const onRefresh = useCallback(async () => {
+    console.log("[StudentsScreen] Pull-to-refresh -> refetch students");
     setRefreshing(true);
-    setLoading(true);
-    setTimeout(() => { setRefreshing(false); setLoading(false); }, 800);
-  }, []);
+    try {
+      await refetchStudents?.();
+      await loadPersonalInfo();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadPersonalInfo, refetchStudents]);
 
   return (
     <ErrorBoundary>
@@ -225,7 +243,7 @@ export default function StudentsScreen() {
             hasActiveFilters={hasActiveFilters} 
           />
 
-          {loading ? (
+          {studentsLoading ? (
             <LoadingSkeleton />
           ) : (
             <View style={{ gap: 12 }}>
