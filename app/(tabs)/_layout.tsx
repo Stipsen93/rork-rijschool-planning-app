@@ -67,8 +67,8 @@ export default function TabLayout() {
       <Tabs.Screen
         name="overview"
         options={{
-          title: "Overzicht",
-          tabBarLabel: "Overzicht",
+          title: "Dashboard",
+          tabBarLabel: "Dashboard",
           tabBarIcon: ({ color }) => <LayoutDashboard color={color} size={25.2} />,
         }}
       />

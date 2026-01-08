@@ -98,7 +98,7 @@ export default function PackagesAndHoursScreen() {
     setShowNewProduct((prev) => !prev);
   }, []);
 
-  const confirmAddProduct = React.useCallback(() => {
+  const confirmAddProduct = React.useCallback(async () => {
     const name = newProductName.trim();
     const priceNum = Number(newProductPrice);
     if (!name) {
@@ -111,15 +111,17 @@ export default function PackagesAndHoursScreen() {
     }
     const id = String(Date.now());
     const next: Product = { id, name, price: priceNum, vatStatus: newProductVat, installments: 1 };
-    setProducts((prev) => [...prev, next]);
+    const updatedProducts = [...products, next];
+    setProducts(updatedProducts);
+    await updateProducts(updatedProducts);
     setNewProductName("");
     setNewProductPrice("");
     setNewProductVat("incl");
     setShowNewProduct(false);
     console.log("[PackagesHours] Product added", next);
-  }, [newProductName, newProductPrice, newProductVat]);
+  }, [newProductName, newProductPrice, newProductVat, products, updateProducts]);
 
-  const confirmAddPackage = React.useCallback((): void => {
+  const confirmAddPackage = React.useCallback(async (): Promise<void> => {
     const name = newPackageName.trim();
     const hoursNum = Number(newPackageHours);
     const priceNum = Number(newPackagePrice);
@@ -137,7 +139,9 @@ export default function PackagesAndHoursScreen() {
     }
     const id = String(Date.now());
     const next: PackageItem = { id, name, hours: hoursNum, price: priceNum, vatStatus: newPackageVat, selectedProducts: newPackageSelectedProducts, installments: 1 };
-    setPackages((prev) => [...prev, next]);
+    const updatedPackages = [...packages, next];
+    setPackages(updatedPackages);
+    await updatePackages(updatedPackages);
     setNewPackageName("");
     setNewPackageHours("");
     setNewPackagePrice("");
@@ -146,10 +150,12 @@ export default function PackagesAndHoursScreen() {
     setProductDropdownOpen(false);
     setShowNewPackage(false);
     console.log("[PackagesHours] Package added", next);
-  }, [newPackageName, newPackageHours, newPackagePrice, newPackageVat, newPackageSelectedProducts]);
+  }, [newPackageName, newPackageHours, newPackagePrice, newPackageVat, newPackageSelectedProducts, packages, updatePackages]);
 
-  const updateProduct = (id: string, patch: Partial<Product>) => {
-    setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+  const updateProduct = async (id: string, patch: Partial<Product>) => {
+    const updatedProducts = products.map((p) => (p.id === id ? { ...p, ...patch } : p));
+    setProducts(updatedProducts);
+    await updateProducts(updatedProducts);
   };
 
   const deleteProduct = (id: string) => {
@@ -166,7 +172,7 @@ export default function PackagesAndHoursScreen() {
     setShowNewHour((prev) => !prev);
   }, []);
 
-  const confirmAddHour = React.useCallback(() => {
+  const confirmAddHour = React.useCallback(async () => {
     const priceNum = Number(newHourPrice);
     if (Number.isNaN(priceNum) || priceNum <= 0) {
       Alert.alert("Let op", "Voer een geldige uurprijs in.");
@@ -174,13 +180,16 @@ export default function PackagesAndHoursScreen() {
     }
     const next: HourlyRates = { price: priceNum, vatStatus: "incl" };
     setHourlyRates(next);
+    await updateHourlyRates(next);
     setNewHourPrice("");
     setShowNewHour(false);
     console.log("[PackagesHours] Hourly price set", next);
-  }, [newHourPrice]);
+  }, [newHourPrice, updateHourlyRates]);
 
-  const updatePackage = (id: string, patch: Partial<PackageItem>) => {
-    setPackages((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+  const updatePackage = async (id: string, patch: Partial<PackageItem>) => {
+    const updatedPackages = packages.map((p) => (p.id === id ? { ...p, ...patch } : p));
+    setPackages(updatedPackages);
+    await updatePackages(updatedPackages);
   };
 
   const deletePackage = (id: string) => {
@@ -211,7 +220,7 @@ export default function PackagesAndHoursScreen() {
     });
   };
 
-  const confirmEdit = () => {
+  const confirmEdit = async () => {
     if (!editState) return;
     if (editState.type === "product") {
       const name = editState.name.trim();
@@ -220,7 +229,7 @@ export default function PackagesAndHoursScreen() {
         Alert.alert("Let op", "Controleer de naam en prijs.");
         return;
       }
-      updateProduct(editState.id, { name, price: priceNum, vatStatus: editState.vatStatus, installments: editState.installments });
+      await updateProduct(editState.id, { name, price: priceNum, vatStatus: editState.vatStatus, installments: editState.installments });
       setEditState(null);
     } else {
       const name = editState.name.trim();
@@ -230,7 +239,7 @@ export default function PackagesAndHoursScreen() {
         Alert.alert("Let op", "Controleer de naam, uren en prijs.");
         return;
       }
-      updatePackage(editState.id, {
+      await updatePackage(editState.id, {
         name,
         hours: hoursNum,
         price: priceNum,
@@ -540,16 +549,22 @@ export default function PackagesAndHoursScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 testID="confirm-delete"
-                onPress={() => {
+                onPress={async () => {
                   if (!confirmState) return;
                   if (confirmState.type === "product") {
-                    setProducts((prev) => prev.filter((p) => p.id !== confirmState.id));
+                    const updatedProducts = products.filter((p) => p.id !== confirmState.id);
+                    setProducts(updatedProducts);
+                    await updateProducts(updatedProducts);
                     notifyCrossPlatform("Product is verwijderd.");
                   } else if (confirmState.type === "package") {
-                    setPackages((prev) => prev.filter((p) => p.id !== confirmState.id));
+                    const updatedPackages = packages.filter((p) => p.id !== confirmState.id);
+                    setPackages(updatedPackages);
+                    await updatePackages(updatedPackages);
                     notifyCrossPlatform("Pakket is verwijderd.");
                   } else {
-                    setHourlyRates({ price: 0, vatStatus: "incl" });
+                    const newRates = { price: 0, vatStatus: "incl" as const };
+                    setHourlyRates(newRates);
+                    await updateHourlyRates(newRates);
                     setShowNewHour(false);
                     notifyCrossPlatform("Uurprijs is verwijderd.");
                   }
