@@ -176,16 +176,15 @@ export default function LinkRequestsScreen() {
         
         const { data: existingProfile, error: checkError } = await (supabase
           .from('student_profiles') as any)
-          .select('user_id')
+          .select('id, user_id, instructor_id')
           .eq('user_id', studentId)
-          .eq('instructor_id', instructorId)
           .maybeSingle();
-        
+
         if (checkError) {
           console.error('[LinkRequests] Error checking student profile:', checkError);
-          throw checkError;
+          throw new Error(checkError.message ?? 'Kon studentprofiel niet controleren');
         }
-        
+
         if (!existingProfile) {
           console.log('[LinkRequests] Creating student profile for accepted request');
           const { error: createError } = await (supabase
@@ -199,12 +198,23 @@ export default function LinkRequestsScreen() {
               overall_progress: 0,
               learning_preferences: {},
             });
-          
+
           if (createError) {
             console.error('[LinkRequests] Error creating student profile:', createError);
-            throw createError;
+            throw new Error(createError.message ?? 'Kon studentprofiel niet aanmaken');
           }
           console.log('[LinkRequests] Student profile created successfully');
+        } else if (existingProfile.instructor_id !== instructorId) {
+          console.log('[LinkRequests] Student profile exists, updating instructor_id');
+          const { error: updateProfileError } = await (supabase
+            .from('student_profiles') as any)
+            .update({ instructor_id: instructorId })
+            .eq('user_id', studentId);
+
+          if (updateProfileError) {
+            console.error('[LinkRequests] Error updating student profile instructor_id:', updateProfileError);
+            throw new Error(updateProfileError.message ?? 'Kon studentprofiel niet bijwerken');
+          }
         }
       }
       
@@ -219,7 +229,7 @@ export default function LinkRequestsScreen() {
 
       if (error) {
         console.error('[LinkRequests] Error responding:', error);
-        throw error;
+        throw new Error(error.message ?? 'Kon niet reageren');
       }
     },
     onSuccess: () => {
@@ -269,8 +279,24 @@ export default function LinkRequestsScreen() {
       await respondAsync({ requestId, accept });
       Alert.alert("Succes", accept ? "Verzoek geaccepteerd" : "Verzoek afgewezen");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Kon niet reageren";
-      console.error("[LinkRequests] respond error", message);
+      const message =
+        error instanceof Error
+          ? error.message
+          : typeof error === 'string'
+            ? error
+            : typeof (error as any)?.message === 'string'
+              ? String((error as any).message)
+              : typeof (error as any)?.error_description === 'string'
+                ? String((error as any).error_description)
+                : (() => {
+                    try {
+                      return JSON.stringify(error);
+                    } catch {
+                      return 'Kon niet reageren';
+                    }
+                  })();
+
+      console.error("[LinkRequests] respond error", error);
       Alert.alert("Fout", message);
     }
   }, [respondAsync]);
