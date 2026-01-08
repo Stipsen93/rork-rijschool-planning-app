@@ -174,41 +174,32 @@ export default function LinkRequestsScreen() {
         const studentId = requestData.student_id as string;
         const instructorId = requestData.instructor_id as string;
         
-        console.log('[LinkRequests] Ensuring student profile exists (upsert)');
+        console.log('[LinkRequests] Updating existing student profile with instructor_id');
 
-        const upsertPayload = {
-          user_id: studentId,
-          instructor_id: instructorId,
-          level: 'Beginner',
-          total_lessons_completed: 0,
-          hours_driven: 0,
-          overall_progress: 0,
-          learning_preferences: {},
-        };
-
-        const { data: upsertedProfile, error: upsertError } = await (supabase
+        const { data: updatedProfile, error: updateError } = await (supabase
           .from('student_profiles') as any)
-          .upsert(upsertPayload, { onConflict: 'user_id' })
+          .update({ instructor_id: instructorId })
+          .eq('user_id', studentId)
           .select('id, user_id, instructor_id')
           .single();
 
-        if (upsertError) {
-          const upsertMessage =
-            typeof (upsertError as any)?.message === 'string'
-              ? String((upsertError as any).message)
+        if (updateError) {
+          const updateMessage =
+            typeof (updateError as any)?.message === 'string'
+              ? String((updateError as any).message)
               : (() => {
                   try {
-                    return JSON.stringify(upsertError);
+                    return JSON.stringify(updateError);
                   } catch {
-                    return 'Kon studentprofiel niet opslaan';
+                    return 'Kon studentprofiel niet updaten';
                   }
                 })();
 
-          console.error('[LinkRequests] Error upserting student profile:', upsertError);
-          throw new Error(upsertMessage);
+          console.error('[LinkRequests] Error updating student profile:', updateError);
+          throw new Error(updateMessage);
         }
 
-        console.log('[LinkRequests] Student profile upserted:', upsertedProfile);
+        console.log('[LinkRequests] Student profile updated:', updatedProfile);
       }
       
       const { error } = await (supabase
