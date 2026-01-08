@@ -174,48 +174,41 @@ export default function LinkRequestsScreen() {
         const studentId = requestData.student_id as string;
         const instructorId = requestData.instructor_id as string;
         
-        const { data: existingProfile, error: checkError } = await (supabase
+        console.log('[LinkRequests] Ensuring student profile exists (upsert)');
+
+        const upsertPayload = {
+          user_id: studentId,
+          instructor_id: instructorId,
+          level: 'Beginner',
+          total_lessons_completed: 0,
+          hours_driven: 0,
+          overall_progress: 0,
+          learning_preferences: {},
+        };
+
+        const { data: upsertedProfile, error: upsertError } = await (supabase
           .from('student_profiles') as any)
+          .upsert(upsertPayload, { onConflict: 'user_id' })
           .select('id, user_id, instructor_id')
-          .eq('user_id', studentId)
-          .maybeSingle();
+          .single();
 
-        if (checkError) {
-          console.error('[LinkRequests] Error checking student profile:', checkError);
-          throw new Error(checkError.message ?? 'Kon studentprofiel niet controleren');
+        if (upsertError) {
+          const upsertMessage =
+            typeof (upsertError as any)?.message === 'string'
+              ? String((upsertError as any).message)
+              : (() => {
+                  try {
+                    return JSON.stringify(upsertError);
+                  } catch {
+                    return 'Kon studentprofiel niet opslaan';
+                  }
+                })();
+
+          console.error('[LinkRequests] Error upserting student profile:', upsertError);
+          throw new Error(upsertMessage);
         }
 
-        if (!existingProfile) {
-          console.log('[LinkRequests] Creating student profile for accepted request');
-          const { error: createError } = await (supabase
-            .from('student_profiles') as any)
-            .insert({
-              user_id: studentId,
-              instructor_id: instructorId,
-              level: 'Beginner',
-              total_lessons_completed: 0,
-              hours_driven: 0,
-              overall_progress: 0,
-              learning_preferences: {},
-            });
-
-          if (createError) {
-            console.error('[LinkRequests] Error creating student profile:', createError);
-            throw new Error(createError.message ?? 'Kon studentprofiel niet aanmaken');
-          }
-          console.log('[LinkRequests] Student profile created successfully');
-        } else if (existingProfile.instructor_id !== instructorId) {
-          console.log('[LinkRequests] Student profile exists, updating instructor_id');
-          const { error: updateProfileError } = await (supabase
-            .from('student_profiles') as any)
-            .update({ instructor_id: instructorId })
-            .eq('user_id', studentId);
-
-          if (updateProfileError) {
-            console.error('[LinkRequests] Error updating student profile instructor_id:', updateProfileError);
-            throw new Error(updateProfileError.message ?? 'Kon studentprofiel niet bijwerken');
-          }
-        }
+        console.log('[LinkRequests] Student profile upserted:', upsertedProfile);
       }
       
       const { error } = await (supabase
