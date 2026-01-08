@@ -296,10 +296,13 @@ export const [WorkingHoursProvider, useWorkingHours] = createContextHook(() => {
           updateData.vacation_periods = payload.vacationPeriods;
         }
 
-        void (supabase.from("instructor_profiles").update as any)(updateData).eq("user_id", activeUserId);
-
-
-
+        const { error } = await (supabase.from("instructor_profiles").update as any)(updateData).eq("user_id", activeUserId);
+        
+        if (error) {
+          console.error("[WorkingHoursStore] Failed to sync to Supabase:", error);
+        } else {
+          console.log("[WorkingHoursStore] Successfully synced to Supabase");
+        }
 
       } catch (error) {
         console.error("[WorkingHoursStore] Failed to sync:", error);

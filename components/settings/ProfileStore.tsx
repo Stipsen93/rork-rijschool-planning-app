@@ -144,9 +144,9 @@ export const [ProfileProvider, useProfile] = createContextHook(() => {
         specializations: newProfile.specializations,
       };
 
-      const { error } = await (supabase
-        .from("instructor_profiles") as any)
-        .upsert([payload], { onConflict: "user_id" });
+      const { error } = await supabase
+        .from("instructor_profiles")
+        .upsert(payload as any, { onConflict: "user_id" });
 
       if (error) {
         console.error("[ProfileStore] Failed to save instructor_profiles", error.message);
