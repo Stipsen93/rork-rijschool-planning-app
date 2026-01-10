@@ -9,28 +9,18 @@ const deleteStudentSchema = z.object({
 export const deleteStudentProcedure = protectedProcedure
   .input(deleteStudentSchema)
   .mutation(async ({ ctx, input }) => {
-    console.log("[DeleteStudent] Unlinking student from instructor", {
-      studentId: input.studentId,
-    });
-
+    console.log("[DeleteStudent] Deleting student", input.studentId);
+    
     const { supabase, user } = ctx;
-    const instructorId = user.id;
+    const userId = user.id;
 
-    const { data: studentProfile, error: studentProfileError } = await supabase
+    const { data: studentProfile } = await supabase
       .from("student_profiles")
       .select("user_id, instructor_id")
       .eq("user_id", input.studentId)
-      .maybeSingle();
+      .single();
 
-    if (studentProfileError) {
-      console.error("[DeleteStudent] Error loading student profile:", studentProfileError);
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: `Fout bij laden leerling: ${studentProfileError.message}`,
-      });
-    }
-
-    if (!studentProfile || (studentProfile as any).instructor_id !== instructorId) {
+    if (!studentProfile || (studentProfile as any).instructor_id !== userId) {
       throw new TRPCError({
         code: "FORBIDDEN",
         message: "Je hebt geen toestemming om deze leerling te verwijderen",
@@ -38,20 +28,19 @@ export const deleteStudentProcedure = protectedProcedure
     }
 
     const { error: deleteError } = await (supabase
-      .from("student_profiles") as any)
+      .from("profiles") as any)
       .delete()
-      .eq("user_id", input.studentId)
-      .eq("instructor_id", instructorId);
+      .eq("id", input.studentId);
 
     if (deleteError) {
-      console.error("[DeleteStudent] Error unlinking student:", deleteError);
+      console.error("[DeleteStudent] Error deleting student:", deleteError);
       throw new TRPCError({
         code: "INTERNAL_SERVER_ERROR",
-        message: `Fout bij verwijderen leerling uit je lijst: ${deleteError.message}`,
+        message: `Fout bij verwijderen leerling: ${deleteError.message}`,
       });
     }
 
-    console.log("[DeleteStudent] Student unlinked successfully");
+    console.log("[DeleteStudent] Student deleted successfully");
 
     return {
       success: true,
