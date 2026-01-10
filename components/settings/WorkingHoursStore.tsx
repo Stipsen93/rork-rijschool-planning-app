@@ -286,26 +286,33 @@ export const [WorkingHoursProvider, useWorkingHours] = createContextHook(() => {
       }
 
       try {
-        console.log("[WorkingHoursStore] Syncing to Supabase...");
+        console.log("[WorkingHoursStore] Syncing to Supabase...", payload);
         const updateData = {} as any;
 
         if (payload.workingHours) {
           updateData.working_hours = payload.workingHours;
+          console.log("[WorkingHoursStore] Updating working_hours:", JSON.stringify(payload.workingHours));
         }
         if (payload.vacationPeriods) {
           updateData.vacation_periods = payload.vacationPeriods;
+          console.log("[WorkingHoursStore] Updating vacation_periods:", JSON.stringify(payload.vacationPeriods));
         }
 
-        const { error } = await (supabase.from("instructor_profiles").update as any)(updateData).eq("user_id", activeUserId);
+        console.log("[WorkingHoursStore] Executing update for user_id:", activeUserId);
+        const { error, data } = await (supabase as any)
+          .from("instructor_profiles")
+          .update(updateData)
+          .eq("user_id", activeUserId);
         
         if (error) {
           console.error("[WorkingHoursStore] Failed to sync to Supabase:", error);
+          console.error("[WorkingHoursStore] Error details:", JSON.stringify(error));
         } else {
-          console.log("[WorkingHoursStore] Successfully synced to Supabase");
+          console.log("[WorkingHoursStore] Successfully synced to Supabase", data);
         }
 
       } catch (error) {
-        console.error("[WorkingHoursStore] Failed to sync:", error);
+        console.error("[WorkingHoursStore] Failed to sync (exception):", error);
       }
     },
     [isAuthenticated, activeUserId, isInstructor]
