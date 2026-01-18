@@ -214,9 +214,10 @@ export default function LinkRequestsScreen() {
         throw new Error(error.message ?? 'Kon niet reageren');
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['instructor-link-requests'] });
-      queryClient.invalidateQueries({ queryKey: ['students'] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['instructor-link-requests'] });
+      await queryClient.invalidateQueries({ queryKey: ['students'] });
+      console.log('[LinkRequests] Invalidated queries after respond');
     },
   });
 

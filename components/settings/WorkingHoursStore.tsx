@@ -299,16 +299,20 @@ export const [WorkingHoursProvider, useWorkingHours] = createContextHook(() => {
         }
 
         console.log("[WorkingHoursStore] Executing update for user_id:", activeUserId);
+        console.log("[WorkingHoursStore] Update data:", JSON.stringify(updateData, null, 2));
+        
         const { error, data } = await (supabase as any)
           .from("instructor_profiles")
           .update(updateData)
-          .eq("user_id", activeUserId);
+          .eq("user_id", activeUserId)
+          .select();
         
         if (error) {
           console.error("[WorkingHoursStore] Failed to sync to Supabase:", error);
           console.error("[WorkingHoursStore] Error details:", JSON.stringify(error));
         } else {
-          console.log("[WorkingHoursStore] Successfully synced to Supabase", data);
+          console.log("[WorkingHoursStore] Successfully synced to Supabase");
+          console.log("[WorkingHoursStore] Updated data:", JSON.stringify(data, null, 2));
         }
 
       } catch (error) {

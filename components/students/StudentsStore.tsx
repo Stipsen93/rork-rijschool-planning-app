@@ -378,7 +378,7 @@ export const [StudentsProvider, useStudents] = createContextHook(() => {
   }, [queryClient, user?.id]);
 
   const deleteStudent = useCallback(async (id: string) => {
-    console.log("[StudentsStore] Deleting student", id);
+    console.log("[StudentsStore] Unlinking student from instructor", id);
 
     setDeletedStudentIds((prev) => {
       const newSet = new Set(prev);
@@ -396,20 +396,21 @@ export const [StudentsProvider, useStudents] = createContextHook(() => {
     try {
       const { error } = await (supabase
         .from("student_profiles") as any)
-        .delete()
-        .eq("user_id", id);
+        .update({ instructor_id: null })
+        .eq("user_id", id)
+        .eq("instructor_id", user?.id);
       
       if (error) {
-        console.error("[StudentsStore] Failed to delete student:", error);
+        console.error("[StudentsStore] Failed to unlink student:", error);
         throw error;
       }
       
-      console.log("[StudentsStore] Student deleted", id);
+      console.log("[StudentsStore] Student unlinked from instructor", id);
       if (user?.id) {
         await queryClient.invalidateQueries({ queryKey: ["students", user.id] });
       }
     } catch (error) {
-      console.error("[StudentsStore] Failed to delete student:", error);
+      console.error("[StudentsStore] Failed to unlink student:", error);
       if (user?.id) {
         await queryClient.invalidateQueries({ queryKey: ["students", user.id] });
       }

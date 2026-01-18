@@ -27,20 +27,21 @@ export const deleteStudentProcedure = protectedProcedure
       });
     }
 
-    const { error: deleteError } = await (supabase
-      .from("profiles") as any)
-      .delete()
-      .eq("id", input.studentId);
+    const { error: unlinkError } = await (supabase
+      .from("student_profiles") as any)
+      .update({ instructor_id: null })
+      .eq("user_id", input.studentId)
+      .eq("instructor_id", userId);
 
-    if (deleteError) {
-      console.error("[DeleteStudent] Error deleting student:", deleteError);
+    if (unlinkError) {
+      console.error("[DeleteStudent] Error unlinking student:", unlinkError);
       throw new TRPCError({
         code: "INTERNAL_SERVER_ERROR",
-        message: `Fout bij verwijderen leerling: ${deleteError.message}`,
+        message: `Fout bij ontkoppelen leerling: ${unlinkError.message}`,
       });
     }
 
-    console.log("[DeleteStudent] Student deleted successfully");
+    console.log("[DeleteStudent] Student unlinked successfully");
 
     return {
       success: true,
