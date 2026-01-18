@@ -14,9 +14,10 @@ import { useAgenda } from "@/components/agenda/AgendaStore";
 import { useSettings } from "@/components/settings/SettingsStore";
 import { useWorkingHours } from "@/components/settings/WorkingHoursStore";
 import { useStudents } from "@/components/students/StudentsStore";
-import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/components/auth/AuthStore";
 import { Database } from "@/types/supabase";
+import { supabase } from "@/lib/supabase";
+import { useMutation } from "@tanstack/react-query";
 
 export type Option = { label: string; value: string };
 
@@ -43,9 +44,93 @@ export default function AddLessonScreen() {
   const { products, getDurationForType } = useSettings();
   const { students: allStudents } = useStudents();
   const { user } = useAuth();
-  const createLessonMutation = trpc.lessons.create.useMutation();
-  const updateLessonMutation = trpc.lessons.update.useMutation();
-  const deleteLessonMutation = trpc.lessons.delete.useMutation();
+
+  const createLessonMutation = useMutation({
+    mutationFn: async (lesson: {
+      instructorId: string;
+      studentId: string;
+      title: string;
+      lessonType: string;
+      startTime: string;
+      endTime: string;
+      duration: number;
+      location?: string;
+      pickupLocation?: string;
+      vehicleId?: string;
+      notes?: string;
+    }) => {
+      const { data, error } = await (supabase.from('lessons') as any).insert({
+        instructor_id: lesson.instructorId,
+        student_id: lesson.studentId,
+        title: lesson.title,
+        lesson_type: lesson.lessonType,
+        start_time: lesson.startTime,
+        end_time: lesson.endTime,
+        duration: lesson.duration,
+        location: lesson.location,
+        pickup_location: lesson.pickupLocation,
+        vehicle_id: lesson.vehicleId,
+        notes: lesson.notes,
+        status: 'scheduled',
+      }).select().single();
+
+      if (error) {
+        console.error('[AddLesson] Error creating lesson:', error);
+        throw error;
+      }
+
+      return data;
+    },
+  });
+
+  const updateLessonMutation = useMutation({
+    mutationFn: async (lesson: {
+      id: string;
+      title: string;
+      lessonType: string;
+      startTime: string;
+      endTime: string;
+      duration: number;
+      location?: string;
+      notes?: string;
+    }) => {
+      const { data, error } = await (supabase.from('lessons') as any)
+        .update({
+          title: lesson.title,
+          lesson_type: lesson.lessonType,
+          start_time: lesson.startTime,
+          end_time: lesson.endTime,
+          duration: lesson.duration,
+          location: lesson.location,
+          notes: lesson.notes,
+        })
+        .eq('id', lesson.id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('[AddLesson] Error updating lesson:', error);
+        throw error;
+      }
+
+      return data;
+    },
+  });
+
+  const deleteLessonMutation = useMutation({
+    mutationFn: async ({ id }: { id: string }) => {
+      const { error } = await (supabase.from('lessons') as any).delete().eq('id', id);
+
+      if (error) {
+        console.error('[AddLesson] Error deleting lesson:', error);
+        throw error;
+      }
+    },
+  });
+
+  const { mutateAsync: createLessonAsync } = createLessonMutation;
+  const { mutateAsync: updateLessonAsync } = updateLessonMutation;
+  const { mutateAsync: deleteLessonAsync } = deleteLessonMutation;
 
   const baseAppointmentTypes: Option[] = useMemo(() => [
     { label: "Rijles", value: "Rijles" },
@@ -287,7 +372,7 @@ export default function AddLessonScreen() {
       const createRemoteLesson = async (lessonDate: Date) => {
         const startDateTime = buildDateTimeFromParts(lessonDate, startTimeValue);
         const endDateTime = buildDateTimeFromParts(lessonDate, endTimeValue);
-        const created = (await createLessonMutation.mutateAsync({
+        const created = (await createLessonAsync({
           instructorId: user!.id,
           studentId: selectedStudentId!,
           title: type,
@@ -308,7 +393,7 @@ export default function AddLessonScreen() {
         if (!editingId) return;
         const startDateTime = buildDateTimeFromParts(lessonDate, startTimeValue);
         const endDateTime = buildDateTimeFromParts(lessonDate, endTimeValue);
-        await updateLessonMutation.mutateAsync({
+        await updateLessonAsync({
           id: editingId,
           title: type,
           lessonType: type,
@@ -324,7 +409,7 @@ export default function AddLessonScreen() {
       const deleteRemoteLessonIfNeeded = async () => {
         if (!editingId) return;
         try {
-          await deleteLessonMutation.mutateAsync({ id: editingId });
+          await deleteLessonAsync({ id: editingId });
         } catch (error) {
           console.error("[AddLesson] Failed to delete remote lesson before recurrence", error);
         }
@@ -483,9 +568,9 @@ export default function AddLessonScreen() {
     recurrenceLimit,
     lessonsByDate,
     checkForDuplicateStudent,
-    createLessonMutation,
-    updateLessonMutation,
-    deleteLessonMutation,
+    createLessonAsync,
+    updateLessonAsync,
+    deleteLessonAsync,
     refreshLessons,
     user,
   ]);
