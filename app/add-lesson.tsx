@@ -59,7 +59,7 @@ export default function AddLessonScreen() {
       vehicleId?: string;
       notes?: string;
     }) => {
-      const { data, error } = await (supabase.from('lessons') as any).insert({
+      const insertData: Database['public']['Tables']['lessons']['Insert'] = {
         instructor_id: lesson.instructorId,
         student_id: lesson.studentId,
         title: lesson.title,
@@ -67,18 +67,32 @@ export default function AddLessonScreen() {
         start_time: lesson.startTime,
         end_time: lesson.endTime,
         duration: lesson.duration,
-        location: lesson.location,
-        pickup_location: lesson.pickupLocation,
-        vehicle_id: lesson.vehicleId,
-        notes: lesson.notes,
-        status: 'scheduled',
-      }).select().single();
+        location: lesson.location || null,
+        pickup_location: lesson.pickupLocation || null,
+        vehicle_id: lesson.vehicleId || null,
+        notes: lesson.notes || null,
+        status: 'scheduled' as const,
+      };
+
+      console.log('[AddLesson] Creating lesson with data:', insertData);
+
+      const { data, error } = await supabase
+        .from('lessons')
+        .insert([insertData] as any)
+        .select()
+        .single();
 
       if (error) {
-        console.error('[AddLesson] Error creating lesson:', error);
-        throw error;
+        console.error('[AddLesson] Supabase error creating lesson:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code,
+        });
+        throw new Error(`Fout bij opslaan: ${error.message}`);
       }
 
+      console.log('[AddLesson] Successfully created lesson:', data);
       return data;
     },
   });
@@ -372,6 +386,16 @@ export default function AddLessonScreen() {
       const createRemoteLesson = async (lessonDate: Date) => {
         const startDateTime = buildDateTimeFromParts(lessonDate, startTimeValue);
         const endDateTime = buildDateTimeFromParts(lessonDate, endTimeValue);
+        
+        console.log('[AddLesson] Creating remote lesson:', {
+          lessonDate: lessonDate.toISOString(),
+          startDateTime: startDateTime.toISOString(),
+          endDateTime: endDateTime.toISOString(),
+          userId: user?.id,
+          studentId: selectedStudentId,
+          duration: lessonDurationMinutes,
+        });
+
         const created = (await createLessonAsync({
           instructorId: user!.id,
           studentId: selectedStudentId!,
@@ -539,9 +563,10 @@ export default function AddLessonScreen() {
       await refreshLessons();
       Alert.alert("Opgeslagen", isPauseOrLeave ? `${category} opgeslagen.` : editingId ? "De les is bijgewerkt." : "De les is opgeslagen.");
       router.back();
-    } catch (error) {
+    } catch (error: any) {
       console.error("[AddLesson] Failed to save lesson", error);
-      Alert.alert("Fout", "Er is een fout opgetreden bij het opslaan.");
+      const errorMessage = error?.message || "Er is een fout opgetreden bij het opslaan.";
+      Alert.alert("Fout bij opslaan", errorMessage);
     } finally {
       setIsLoading(false);
     }
