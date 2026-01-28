@@ -43,6 +43,15 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {
+        "origin": "https://rork.com/"
+      },
+      "eas": {
+        "projectId": "43e553e5-d7d3-4581-ad4e-9a99af13471e"
+      }
+    },
+    "owner": "mudassir789"
   }
 }

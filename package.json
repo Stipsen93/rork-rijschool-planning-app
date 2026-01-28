@@ -6,7 +6,13 @@
     "start": "bunx rork start -p x7drgze5zyo9tl7celnen --tunnel",
     "start-web": "bunx rork start -p x7drgze5zyo9tl7celnen --web --tunnel",
     "start-web-dev": "DEBUG=expo* bunx rork start -p x7drgze5zyo9tl7celnen --web --tunnel",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "android:release-apk": "cd android && ./gradlew assembleRelease && echo '✅ APK location: app/build/outputs/apk/release/app-release.apk'",
+    "android:release-aab": "cd android && ./gradlew bundleRelease && echo '✅ AAB location: app/build/outputs/bundle/release/app-release.aab'",
+    "android:clean": "cd android && ./gradlew clean",
+    "android:keystore": "cd android && ./generate-keystore.sh"
   },
   "dependencies": {
     "@ai-sdk/react": "^2.0.89",
